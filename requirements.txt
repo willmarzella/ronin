@@ -1,0 +1,10 @@
+requests>=2.26.0
+beautifulsoup4>=4.9.3
+openai>=0.27.0
+python-dotenv>=0.19.0
+pyyaml==6.0.1
+pyairtable==2.0.0
+schedule==1.2.0
+loguru==0.7.2
+selenium>=4.15.2
+webdriver-manager>=4.0.1

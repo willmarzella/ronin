@@ -1,0 +1,62 @@
+# RevoltX Configuration File
+# Edit this file to customize your job search automation
+
+#-----------------------------------------------
+# Core Search Settings
+#-----------------------------------------------
+search:
+  keywords: '"Data-engineer"' # Use quotes for exact matches
+  location: 'All Australia' # Location to search in
+  date_range: 1 # Number of days to look back
+  sort_mode: 'ListedDate' # ListedDate, Relevance, etc.
+  type: 'standard' # standard, contract, temporary
+  experience_level: 'entry' # entry, mid, senior
+  salary:
+    min: 120000 # Minimum acceptable salary
+    max: 200000 # Maximum salary to filter
+    type: 'annual' # annual, hourly, daily, contract
+
+#-----------------------------------------------
+# Your Profile
+#-----------------------------------------------
+resume:
+  skills: # List your actual skills
+    - Python
+    - SQL
+    - AWS
+    - Spark
+    - Docker
+    - Kubernetes
+  preferences:
+    aws_resume_id: '7732eed7-4fcc-43d0-a2c3-b486e747b871'
+    azure_resume_id: '454cd40a-2750-4605-9d76-f60c3d0623d7'
+    remote: true # Prefer remote work?
+    min_salary: 120000 # Minimum acceptable salary
+    industries: # Preferred industries
+      - Technology
+      - Finance
+      - Healthcare
+    exclude_keywords: # Red flags or dealbreakers
+      - 'PHP'
+      - 'Wordpress'
+      - '24/7'
+      - 'on-call'
+      - 'family environment' # We all know what this means
+
+#-----------------------------------------------
+# Technical Settings
+#-----------------------------------------------
+platforms: # Job boards to scrape
+  - seek # Add more platforms as they're supported
+
+scraping:
+  max_jobs: 0 # Max jobs per run (0 = unlimited)
+  delay_seconds: 0 # Delay between requests
+  timeout_seconds: 10 # Request timeout
+
+analysis:
+  min_score: 40 # Minimum match score (0-100)
+  model: gpt-4 # OpenAI model to use
+
+output:
+  filename: 'seek_jobs.json' # Where to save results
