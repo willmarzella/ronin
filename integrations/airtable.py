@@ -11,11 +11,11 @@ class AirtableManager:
         if not self.api_key:
             raise ValueError("AIRTABLE_API_KEY environment variable not set")
 
-        self.base_id = os.getenv("AIRTABLE_BASE_ID")
+        self.base_id = "appho2dXd2ZlfresS"
         if not self.base_id:
             raise ValueError("AIRTABLE_BASE_ID environment variable not set")
 
-        self.table_name = os.getenv("AIRTABLE_TABLE_NAME", "Jobs")
+        self.table_name = "Jobs"
 
         # Initialize table directly with API key
         self.table = Table(self.api_key, self.base_id, self.table_name)

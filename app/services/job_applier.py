@@ -19,31 +19,35 @@ class JobApplierService:
             records = self.airtable.table.all(formula=formula)
 
             jobs = []
-            for record in records:
-                fields = record["fields"]
-                # Extract job ID from the URL
-                url = fields.get("URL", "")
-                if not url:
-                    logging.warning(f"Job record {record['id']} has no URL, skipping")
-                    continue
+            if records:
+                for record in records:
+                    fields = record["fields"]
+                    # Extract job ID from the URL
+                    url = fields.get("URL", "")
+                    if not url:
+                        logging.warning(f"Job record {record['id']} has no URL, skipping")
+                        continue
 
-                try:
-                    # URL format: https://www.seek.com.au/job/{job_id}
-                    job_id = url.split("/")[-1]
-                    jobs.append(
-                        {
-                            "id": job_id,
-                            "description": fields.get("Description", ""),
-                            "title": fields.get("Title", ""),
-                            "tech_stack": fields.get("Tech Stack", ""),
-                            "record_id": record["id"],
-                        }
-                    )
-                except Exception as e:
-                    logging.error(f"Failed to parse job URL {url}: {str(e)}")
-                    continue
+                    try:
+                        # URL format: https://www.seek.com.au/job/{job_id}
+                        job_id = url.split("/")[-1]
+                        jobs.append(
+                            {
+                                "id": job_id,
+                                "description": fields.get("Description", ""),
+                                "title": fields.get("Title", ""),
+                                "tech_stack": fields.get("Tech Stack", ""),
+                                "record_id": record["id"],
+                            }
+                        )
+                    except Exception as e:
+                        logging.error(f"Failed to parse job URL {url}: {str(e)}")
+                        continue
 
-            return jobs
+                return jobs
+            else:
+                logging.info("No pending jobs found")
+                return []
         except Exception as e:
             logging.error(f"Failed to fetch pending jobs from Airtable: {str(e)}")
             return []
@@ -103,7 +107,7 @@ class JobApplierService:
                     )
 
                 # Small delay between applications to avoid overwhelming the system
-                time.sleep(5)
+                time.sleep(2)
 
         finally:
             # Clean up browser resources

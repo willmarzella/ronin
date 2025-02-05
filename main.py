@@ -149,7 +149,7 @@ def main():
         # Get platforms to scrape from config
         platforms = config.get("platforms", ["seek"])
 
-        # First, process new jobs
+        # Process new jobs
         total_jobs = []
         for platform in platforms:
             platform_jobs = process_platform(platform, config, airtable, analyzer)
@@ -160,8 +160,12 @@ def main():
         logger.info(f"Total platforms processed: {len(platforms)}")
         logger.info(f"Total jobs found: {len(total_jobs)}")
 
-        # Now process job applications
-        apply_jobs()
+        # Only run the job applier if we're not in GitHub Actions
+        if not os.getenv("GITHUB_ACTIONS"):
+            logger.info("Running locally - starting job application process")
+            apply_jobs()
+        else:
+            logger.info("Running in GitHub Actions - skipping job application process")
 
         logger.info("Job automation completed successfully")
 
