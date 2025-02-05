@@ -2,7 +2,7 @@ name: Check daily
 
 on:
   schedule:
-    - cron: '21 0 * * *' # Run at 5am Melbourne Australia time daily
+    - cron: '1 1 * * *' # Run at 12pm Melbourne Australia time daily
   workflow_dispatch: # Allow manual trigger
 
 jobs:
