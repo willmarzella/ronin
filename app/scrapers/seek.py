@@ -154,17 +154,34 @@ class SeekJobScraper(BaseScraper):
             )
             posted_time = None
             for element in posted_elements:
-                if element.text.strip().startswith("Posted"):
-                    posted_time = self._parse_relative_time(element.text.strip())
+                text = element.text.strip()
+                if text.startswith("Posted"):
+                    posted_time = self._parse_relative_time(text)
                     break
 
             # Get additional metadata
             metadata = self._extract_metadata(soup)
 
+            # Ensure we have a created_at date
+            created_at = None
+            if posted_time:
+                created_at = posted_time.isoformat()
+            elif metadata.get("listed_date"):
+                # Try to parse from metadata if available
+                try:
+                    listed_date = self._parse_relative_time(metadata["listed_date"])
+                    if listed_date:
+                        created_at = listed_date.isoformat()
+                except:
+                    pass
+
+            if not created_at:
+                created_at = datetime.now().isoformat()  # Fallback to current time
+
             return {
                 "description": description_element.get_text(separator="\n").strip(),
                 "quick_apply": quick_apply,
-                "created_at": posted_time.isoformat() if posted_time else None,
+                "created_at": created_at,
                 **metadata,
             }
 

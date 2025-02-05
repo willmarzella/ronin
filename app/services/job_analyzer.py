@@ -140,23 +140,31 @@ Example:
         """
         try:
             # Get job analysis from OpenAI
-            analysis = self.openai.chat_completion(
+            response = self.openai.chat_completion(
                 system_prompt=self._system_prompt,
                 user_message=f"Analyze this job description:\n\n{job_data['description']}",
                 temperature=0.7,
             )
 
-            if not analysis:
+            if not response:
                 logger.error("Failed to get analysis from OpenAI")
                 return None
 
             try:
-                # Parse the response as JSON
-                analysis_data = json.loads(analysis)
+                # Parse the JSON string from the response
+                if isinstance(response, str):
+                    analysis_data = json.loads(response)
+                else:
+                    analysis_data = json.loads(response.get("content", "{}"))
+
+                if not analysis_data:
+                    logger.error("No valid analysis data in OpenAI response")
+                    return None
+
                 return {**job_data, "analysis": analysis_data}
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse OpenAI response as JSON: {str(e)}")
-                logger.error(f"Raw response: {analysis}")
+            except Exception as e:
+                logger.error(f"Failed to process OpenAI response: {str(e)}")
+                logger.error(f"Raw response: {response}")
                 return None
 
         except Exception as e:

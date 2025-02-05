@@ -28,40 +28,54 @@ def setup_openai():
     openai.api_key = openai_api_key
 
 
-# def print_job_results(jobs_data: List[Dict], platform: str):
-#     """Print summary of job processing results for a platform"""
-#     logger.info(f"\n=== Job Processing Summary for {platform.upper()} ===")
+def print_job_results(jobs_data: List[Dict], platform: str):
+    """Print summary of job processing results for a platform"""
+    logger.info(f"\n=== Job Processing Summary for {platform.upper()} ===")
 
-#     # Count successful jobs
-#     successful_jobs = []
-#     for job in jobs_data:
-#         try:
-#             successful_jobs.append(
-#                 {
-#                     "id": job["job_id"],
-#                     "title": job["title"],
-#                     "company": job["company"],
-#                     "score": job["score"],
-#                     "matching_skills": job["matching_skills"],
-#                 }
-#             )
-#         except KeyError as e:
-#             logger.error(f"Error processing job summary: missing key {str(e)}")
+    # Count successful jobs
+    successful_jobs = []
+    for job in jobs_data:
+        try:
+            job_summary = {
+                "id": job["job_id"],
+                "title": job["title"],
+                "company": job["company"],
+                "created_at": job.get("created_at", "No date"),
+                "score": (
+                    job.get("analysis", {}).get("score", "N/A")
+                    if isinstance(job.get("analysis"), dict)
+                    else "N/A"
+                ),
+                "tech_stack": (
+                    job.get("analysis", {}).get("tech_stack", [])
+                    if isinstance(job.get("analysis"), dict)
+                    else []
+                ),
+                "recommendation": (
+                    job.get("analysis", {}).get("recommendation", "")
+                    if isinstance(job.get("analysis"), dict)
+                    else ""
+                ),
+            }
+            successful_jobs.append(job_summary)
+        except KeyError as e:
+            logger.error(f"Error processing job summary: missing key {str(e)}")
+            logger.error(f"Job data: {job}")
 
-#     if successful_jobs:
-#         logger.info("\nProcessed Jobs:")
-#         logger.info("---------------")
-#         for job in successful_jobs:
-#             skills = (
-#                 ", ".join(job["matching_skills"]) if job["matching_skills"] else "None"
-#             )
-#             logger.info(
-#                 f"[{job['score']}%] {job['title']} at {job['company']} (ID: {job['id']}) - Matching skills: {skills}"
-#             )
+    if successful_jobs:
+        logger.info("\nProcessed Jobs:")
+        logger.info("---------------")
+        for job in successful_jobs:
+            logger.info(
+                f"[{job['score']}] {job['title']} at {job['company']} "
+                f"(ID: {job['id']}) - Created: {job['created_at']}\n"
+                f"Tech Stack: {', '.join(job['tech_stack'])}\n"
+                f"Recommendation: {job['recommendation']}\n"
+            )
 
-#     logger.info(f"\nTotal jobs processed: {len(jobs_data)}")
-#     logger.info(f"Successfully processed: {len(successful_jobs)}")
-#     logger.info(f"Failed to process: {len(jobs_data) - len(successful_jobs)}")
+    logger.info(f"\nTotal jobs processed: {len(jobs_data)}")
+    logger.info(f"Successfully processed: {len(successful_jobs)}")
+    logger.info(f"Failed to process: {len(jobs_data) - len(successful_jobs)}")
 
 
 def process_platform(
@@ -78,6 +92,13 @@ def process_platform(
         if not raw_jobs:
             logger.warning(f"No jobs were found from {platform}")
             return []
+
+        # Print raw jobs for debugging
+        logger.info("\nRaw Jobs Data:")
+        for job in raw_jobs:
+            logger.info(
+                f"Job ID: {job.get('job_id')} - Created At: {job.get('created_at', 'No date')}"
+            )
 
         # Step 2: Filter out existing jobs
         new_jobs = [
@@ -96,13 +117,21 @@ def process_platform(
             logger.info(f"Processing job: {job['title']}")
             # Analyze the job
             enriched_job = analyzer.analyze_job(job)
-            if enriched_job:
+            if enriched_job and enriched_job.get("analysis"):
                 processed_jobs.append(enriched_job)
+                score = (
+                    enriched_job["analysis"].get("score", "N/A")
+                    if isinstance(enriched_job["analysis"], dict)
+                    else "N/A"
+                )
                 logger.info(
-                    f"Successfully analyzed job: {job['title']} (Score: {enriched_job['analysis'].get('score', 'N/A')})"
+                    f"Successfully analyzed job: {job['title']} (Score: {score})"
                 )
             else:
                 logger.warning(f"Failed to analyze job: {job['title']}")
+
+        # Print detailed results
+        print_job_results(processed_jobs, platform)
 
         # Step 4: Save results if we have any
         if processed_jobs:

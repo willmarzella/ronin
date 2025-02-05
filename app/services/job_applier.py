@@ -1,3 +1,5 @@
+"""Service for applying to jobs."""
+
 import logging
 import time
 from typing import List, Dict, Any
@@ -7,7 +9,10 @@ from app.appliers.seek import SeekApplier
 
 
 class JobApplierService:
+    """Service for applying to jobs."""
+
     def __init__(self):
+        """Initialize the job applier service."""
         self.airtable = AirtableManager()
         self.seek_applier = SeekApplier()
 
@@ -15,7 +20,10 @@ class JobApplierService:
         """Get jobs from Airtable that are ready to apply to"""
         try:
             # Get all records where Status is 'Ready to Apply' and Quick Apply is True
-            formula = "AND(OR({Status} = 'APPLYING', {Status} = 'APPLICATION_FAILED'), {Quick Apply} = TRUE(), {TESTING} = FALSE())"
+            formula = (
+                "AND(OR({Status} = 'APPLYING', {Status} = 'APPLICATION_FAILED'), "
+                "{Quick Apply} = TRUE(), {TESTING} = FALSE())"
+            )
             records = self.airtable.table.all(formula=formula)
 
             jobs = []
@@ -25,7 +33,9 @@ class JobApplierService:
                     # Extract job ID from the URL
                     url = fields.get("URL", "")
                     if not url:
-                        logging.warning(f"Job record {record['id']} has no URL, skipping")
+                        logging.warning(
+                            f"Job record {record['id']} has no URL, skipping"
+                        )
                         continue
 
                     try:
@@ -48,8 +58,9 @@ class JobApplierService:
             else:
                 logging.info("No pending jobs found")
                 return []
+
         except Exception as e:
-            logging.error(f"Failed to fetch pending jobs from Airtable: {str(e)}")
+            logging.error(f"Error getting pending jobs: {str(e)}")
             return []
 
     def _mark_job_status(self, record_id: str, status: str, error: str = None):
@@ -65,52 +76,51 @@ class JobApplierService:
             logging.error(f"Failed to update job status in Airtable: {str(e)}")
 
     def process_pending_jobs(self):
-        """Main method to process all pending job applications"""
-        logging.info("Starting to process pending jobs")
-        jobs = self._get_pending_jobs()
-
-        if not jobs:
-            logging.info("No pending jobs found to process")
-            return
-
-        logging.info(f"Found {len(jobs)} jobs to process")
-
+        """Process all pending job applications."""
         try:
+            # Get jobs that are ready to apply to
+            jobs = self._get_pending_jobs()
+            if not jobs:
+                logging.info("No jobs to process")
+                return
+
+            logging.info(f"Found {len(jobs)} jobs to process")
+
+            # Process each job
             for job in jobs:
                 try:
-                    logging.info(f"Processing job {job['id']}: {job['title']}")
+                    logging.info(f"Processing job: {job['title']}")
 
-                    # Mark job as in progress
-                    self._mark_job_status(job["record_id"], "APPLYING")
-
-                    # Attempt to apply
+                    # Apply to the job
                     success = self.seek_applier.apply_to_job(
-                        job_id=job["id"],
-                        job_description=job["description"],
-                        tech_stack=job["tech_stack"],
+                        job["id"], job["description"], job["tech_stack"]
                     )
 
+                    # Update status in Airtable
                     if success:
-                        self._mark_job_status(job["record_id"], "APPLIED")
-                    else:
-                        self._mark_job_status(
-                            job["record_id"],
-                            "APPLICATION_FAILED",
-                            "Failed to apply to job - see logs for details",
+                        self.airtable.update_record(
+                            job["record_id"], {"Status": "APPLIED"}
                         )
+                        logging.info(f"Successfully applied to job: {job['title']}")
+                    else:
+                        self.airtable.update_record(
+                            job["record_id"], {"Status": "APPLICATION_FAILED"}
+                        )
+                        logging.error(f"Failed to apply to job: {job['title']}")
 
                 except Exception as e:
-                    error_msg = f"Error processing job {job['id']}: {str(e)}"
-                    logging.error(error_msg)
-                    self._mark_job_status(
-                        job["record_id"], "APPLICATION_FAILED", error_msg
+                    logging.error(f"Error processing job {job['title']}: {str(e)}")
+                    self.airtable.update_record(
+                        job["record_id"], {"Status": "APPLICATION_FAILED"}
                     )
+                    continue
 
-                # Small delay between applications to avoid overwhelming the system
-                time.sleep(2)
+        except Exception as e:
+            logging.error(f"Error in process_pending_jobs: {str(e)}")
+            raise
 
         finally:
-            # Clean up browser resources
+            # Always cleanup the browser
             self.seek_applier.cleanup()
 
         logging.info("Finished processing all pending jobs")
