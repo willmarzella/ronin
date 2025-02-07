@@ -9,9 +9,7 @@ venv
 .pythonapp
 __pycache__
 
-seek_cookies.json
-
-/scripts/*
+scripts
 
 chrome-data
 
