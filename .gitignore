@@ -9,8 +9,6 @@ venv
 .pythonapp
 __pycache__
 
-scripts
-
 chrome-data
 
 logs

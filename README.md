@@ -8,6 +8,7 @@ Because writing "I am passionate about leveraging my synergistic skill set in a 
 - Figures out if you're actually qualified (or close enough)
 - Uses AI to decode what "competitive salary" and "rockstar developer" actually mean
 - Keeps track of everything in Airtable because your spreadsheet is a mess
+- Applies to jobs you're actually qualified for by handling form fields using Selenium and AI
 
 ## Tech Stack
 
@@ -62,28 +63,25 @@ resume:
     min_salary: 120000 # Know your worth
 ```
 
+4. Login to Google (yes, manually, we're not trying to get arrested):
+   - Open your browser
+   - Log into your Google account
+   - Come back here and press Enter when prompted
+   - We know it's not elegant, but it beats typing "Detail-oriented team player" 50 times
+
 See `config/config.yaml` for full configuration options.
 
-### Option 1: Docker (The Easy Way)
+### Running the script (Choose Your Adventure)
+
+Pick your poison - we've got three flavors of automation:
 
 ```bash
-# Let Docker handle the mess
-./scripts/run.sh
+./scripts/scrape.sh    # Just stalk the job boards
+./scripts/apply_jobs.sh # Mass distribute your hopes and dreams
+./scripts/run.sh       # The full monty - scrape AND apply
 ```
 
-### Option 2: Local Setup (The Masochist's Way)
-
-```bash
-# The classic virtual environment dance
-python -m venv venv
-source venv/bin/activate  # Windows users: you know what to do
-
-# Get the goods
-pip install -r requirements.txt
-
-# Launch this beast
-python main.py
-```
+Pro tip: Run `scrape.sh` first if you're paranoid (smart) and want to see what jobs it finds before letting it loose on the apply button. Or just YOLO with `run.sh` - we won't judge.
 
 ## Project Structure
 
@@ -91,27 +89,25 @@ python main.py
 .
 ├── app/
 │   ├── scrapers/     # Job board stalking tools
-│   ├── services/     # The actually useful stuff
-│   └── utils/        # Code we all copy from StackOverflow
-├── config/           # Magic numbers live here
-├── integrations/     # Plays nice with others
+│   ├── core/        # The brains of the operation
+│   ├── services/    # The actually useful stuff
+│   └── utils/       # Code we all copy from StackOverflow
+├── config/          # Magic numbers live here
+├── integrations/    # Plays nice with others
 ├── logs/            # When things go wrong
 └── scripts/         # Automation for your automation
 ```
 
 ## Known Issues
 
-- Some job boards really hate bots (rude)
-- API rate limits because we're too cheap for enterprise
-- Sometimes thinks "10 years Rust experience" is reasonable
-- May occasionally apply to jobs in Antarctica
-
-## Todo
-
-- [ ] Add more job boards (once they unban us)
-- [ ] Make the matching smarter than a coin flip
-- [ ] Actually read your resume
-- [ ] Track which automated rejections hurt the most
+- Some job boards really hate bots (especially if you apply too fast)
+- OpenAI API might occasionally timeout or return invalid responses
+- Chrome automation can be finicky (close ALL Chrome windows before running)
+- AI might get confused by weird form fields (looking at you, custom dropdowns)
+- Form elements sometimes change their IDs (thanks Seek)
+- Manual Google login required (because we're not trying to get arrested)
+- Airtable rate limits if you're too enthusiastic
+- Sometimes thinks you're qualified for jobs that want "10 years Rust experience"
 
 ## Legal Disclaimer
 
