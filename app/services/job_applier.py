@@ -1,7 +1,6 @@
 """Service for applying to jobs."""
 
 import logging
-import time
 from typing import List, Dict, Any
 
 from integrations.airtable import AirtableManager
@@ -21,7 +20,7 @@ class JobApplierService:
         try:
             # Get all records where Status is 'Ready to Apply' and Quick Apply is True
             formula = (
-                "AND(OR({Status} = 'APPLYING', {Status} = 'APPLICATION_FAILED'), "
+                "AND(OR({Status} = 'DISCOVERED', {Status} = 'APPLICATION_FAILED'), "
                 "{Quick Apply} = TRUE(), {TESTING} = FALSE())"
             )
             records = self.airtable.table.all(formula=formula)
@@ -97,7 +96,18 @@ class JobApplierService:
                     )
 
                     # Update status in Airtable
-                    if success:
+                    if success == "NEEDS_MANUAL_APPLICATION":
+                        self.airtable.update_record(
+                            job["record_id"],
+                            {
+                                "Status": "NEEDS_MANUAL_APPLICATION",
+                                "APP_ERROR": "Job requires manual application due to role requirements",
+                            },
+                        )
+                        logging.info(
+                            f"Job marked for manual application: {job['title']}"
+                        )
+                    elif success:
                         self.airtable.update_record(
                             job["record_id"], {"Status": "APPLIED"}
                         )

@@ -16,6 +16,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.support.ui import Select
 
 from integrations.airtable import AirtableManager
 from integrations.openai import OpenAIClient
@@ -24,9 +25,6 @@ from app.utils.config import load_config
 
 class SeekApplier:
     def __init__(self):
-        self.qa_file = os.path.join(
-            os.path.dirname(__file__), "../data/question_answers.json"
-        )
         self.config = load_config()
         self.aws_resume_id = self.config["resume"]["preferences"]["aws_resume_id"]
         self.azure_resume_id = self.config["resume"]["preferences"]["azure_resume_id"]
@@ -34,27 +32,6 @@ class SeekApplier:
         self.openai_client = OpenAIClient()
         self.driver = None
         self.is_logged_in = False
-        self.qa_data = self._load_qa_data()
-
-    def _load_qa_data(self):
-        """Load the question-answer mappings from JSON file"""
-        try:
-            if os.path.exists(self.qa_file):
-                with open(self.qa_file, "r") as f:
-                    return json.load(f)
-            return {"selects": {}, "radios": {}, "checkboxes": {}, "textareas": {}}
-        except Exception as e:
-            logging.error(f"Failed to load Q&A data: {str(e)}")
-            return {"selects": {}, "radios": {}, "checkboxes": {}, "textareas": {}}
-
-    def _save_qa_data(self):
-        """Save the updated question-answer mappings to JSON file"""
-        try:
-            os.makedirs(os.path.dirname(self.qa_file), exist_ok=True)
-            with open(self.qa_file, "w") as f:
-                json.dump(self.qa_data, f, indent=4)
-        except Exception as e:
-            logging.error(f"Failed to save Q&A data: {str(e)}")
 
     def _get_element_label(self, element):
         """Get the question/label text for a form element"""
@@ -70,91 +47,166 @@ class SeekApplier:
 
             # Try to find label in parent elements
             parent = element.find_element(By.XPATH, "..")
-            label = parent.find_element(By.TAG_NAME, "label")
-            if label:
-                return label.text.strip()
+
+            # First try to find a direct label
+            try:
+                label = parent.find_element(By.TAG_NAME, "label")
+                if label:
+                    return label.text.strip()
+            except NoSuchElementException:
+                pass
 
             # Try to find question text in nearby elements
-            question = parent.find_element(
-                By.CSS_SELECTOR, ".question-text, .field-label"
-            )
-            if question:
-                return question.text.strip()
+            try:
+                question = parent.find_element(
+                    By.CSS_SELECTOR, ".question-text, .field-label"
+                )
+                if question:
+                    return question.text.strip()
+            except NoSuchElementException:
+                pass
+
+            # For radio buttons, try to find the question in a legend element
+            try:
+                # Go up to the fieldset
+                fieldset = element.find_element(By.XPATH, "ancestor::fieldset")
+                if fieldset:
+                    # Try to find the legend
+                    legend = fieldset.find_element(By.TAG_NAME, "legend")
+                    if legend:
+                        # Try to find the strong text within the legend
+                        try:
+                            strong = legend.find_element(By.TAG_NAME, "strong")
+                            return strong.text.strip()
+                        except NoSuchElementException:
+                            return legend.text.strip()
+            except NoSuchElementException:
+                pass
+
+            # If we still haven't found the label, try going up the DOM tree
+            try:
+                parent = element.find_element(By.XPATH, "..")
+                while parent:
+                    try:
+                        strong = parent.find_element(By.TAG_NAME, "strong")
+                        if strong:
+                            return strong.text.strip()
+                    except NoSuchElementException:
+                        pass
+                    try:
+                        parent = parent.find_element(By.XPATH, "..")
+                    except NoSuchElementException:
+                        break
+            except NoSuchElementException:
+                pass
 
         except NoSuchElementException:
             pass
 
         return None
 
-    def _get_ai_answer(self, question, element_type, options=None):
-        """Get answer from OpenAI for a new question"""
+    def _get_ai_form_response(self, element_info, tech_stack):
+        """Get AI response for a form element"""
         try:
-            system_prompt = """You are a professional job applicant assistant. Provide concise, relevant, and professional answers to job application questions. 
-Focus on highlighting skills and experience in a positive way. Return your response in JSON format with an 'answer' field."""
-
-            prompt = f"Please provide an appropriate answer for the following question: '{question}'\n"
-
-            if element_type == "select" and options:
-                prompt += f"The available options are: {', '.join(options)}\n"
-            elif element_type == "radio":
-                prompt += "This is a yes/no question.\n"
-            elif element_type == "checkbox":
-                prompt += "Select all applicable options from the given choices. Return them as a comma-separated string.\n"
-            elif element_type == "textarea":
-                prompt += (
-                    "Provide a professional and concise response (2-3 sentences).\n"
+            # Get the appropriate resume text based on tech stack
+            tech_stack = tech_stack.lower()
+            if tech_stack not in self.config["resume"]["text"]:
+                logging.warning(
+                    f"No resume found for tech stack {tech_stack}, using aws as default"
                 )
+                tech_stack = "aws"  # Default to aws if tech stack not found
 
-            prompt += "\nRespond with a JSON object containing an 'answer' field with your response."
+            resume = self.config["resume"]["text"][tech_stack]
+
+            # Using raw string and double curly braces to escape JSON examples
+            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. Based on my resume below, provide concise, relevant, and professional answers to job application questions.
+You MUST return your response in valid JSON format with fields that match the input type:
+- For textareas: {{"response": "your detailed answer"}}
+- For radios: {{"selected_option": "id of the option to select"}}
+- For checkboxes: {{"selected_options": ["id1", "id2", ...]}}
+- For selects: {{"selected_option": "value of the option to select"}}
+
+For radio and checkbox inputs, ONLY return the exact ID from the options provided, not the label.
+For select inputs, ONLY return the exact value from the options provided, not the label.
+For textareas, keep responses under 100 words and ensure it's properly escaped for JSON.
+Always ensure your response is valid JSON and contains the expected fields."""
+
+            system_prompt += f"\n\nMy resume: {resume}"
+
+            # Construct the user message
+            user_message = f"Question: {element_info['question']}\nInput type: {element_info['type']}\n"
+
+            if element_info["type"] == "select":
+                options_str = "\n".join(
+                    [
+                        f"- {opt['label']} (value: {opt['value']})"
+                        for opt in element_info["options"]
+                    ]
+                )
+                user_message += f"\nAvailable options:\n{options_str}"
+
+            # For radio/checkbox, show the IDs
+            elif element_info["type"] in ["radio", "checkbox"]:
+                options_str = "\n".join(
+                    [
+                        f"- {opt['label']} (id: {opt['id']})"
+                        for opt in element_info["options"]
+                    ]
+                )
+                user_message += f"\nAvailable options:\n{options_str}"
+
+            # Add specific instructions based on input type
+            if element_info["type"] == "select":
+                user_message += "\n\nIMPORTANT: Return ONLY the exact value from the options, not the label."
+            elif element_info["type"] in ["radio", "checkbox"]:
+                user_message += "\n\nIMPORTANT: Return ONLY the exact ID of the option you want to select."
+            elif element_info["type"] == "textarea":
+                user_message += "\n\nIMPORTANT: Keep your response under 100 words and ensure it's properly escaped for JSON."
+
+            # Add context about the job if available
+            if hasattr(self, "current_job_description"):
+                user_message += f"\n\nJob Context: {self.current_job_description}"
 
             response = self.openai_client.chat_completion(
-                system_prompt=system_prompt,
-                user_message=prompt,
-                max_tokens=150,  # Keeping responses concise for job applications
+                system_prompt=system_prompt, user_message=user_message, temperature=0.7
             )
 
-            if response and isinstance(response, dict):
-                return response.get("content", {}).get("answer", "").strip()
+            if not response:
+                logging.error("No response received from OpenAI")
+                return None
 
-            return None
+            # Log the response for debugging
+            logging.info(f"AI response for {element_info['type']}: {response}")
+
+            # Validate response format based on element type
+            if element_info["type"] == "textarea" and "response" not in response:
+                logging.error("Missing 'response' field in textarea response")
+                return None
+            elif element_info["type"] == "radio" and "selected_option" not in response:
+                logging.error("Missing 'selected_option' field in radio response")
+                return None
+            elif (
+                element_info["type"] == "checkbox"
+                and "selected_options" not in response
+            ):
+                logging.error("Missing 'selected_options' field in checkbox response")
+                return None
+            elif element_info["type"] == "select" and "selected_option" not in response:
+                logging.error("Missing 'selected_option' field in select response")
+                return None
+
+            # For textarea responses, ensure the response is properly escaped
+            if element_info["type"] == "textarea" and "response" in response:
+                import json
+
+                # Re-encode the response to ensure proper escaping
+                response["response"] = json.loads(json.dumps(response["response"]))
+
+            return response
 
         except Exception as e:
-            logging.error(f"Failed to get AI answer: {str(e)}")
+            logging.error(f"Error getting AI response: {str(e)}")
             return None
-
-    def _handle_new_question(self, element, element_type):
-        """Handle a new question not found in the JSON file"""
-        question = self._get_element_label(element)
-        if not question:
-            return None
-
-        element_id = element.get_attribute("name")
-        options = None
-
-        if element_type == "select":
-            options = [opt.text for opt in element.find_elements(By.TAG_NAME, "option")]
-            options = [opt for opt in options if opt.strip()]  # Remove empty options
-
-        answer = self._get_ai_answer(question, element_type, options)
-        if not answer:
-            return None
-
-        # Store the new Q&A pair
-        qa_entry = {"question": question, "answer": answer}
-
-        if element_type == "select":
-            qa_entry["value"] = element.get_attribute("value")
-        elif element_type == "radio":
-            qa_entry["value"] = "yes" if answer.lower() == "yes" else "no"
-        elif element_type == "checkbox":
-            qa_entry["values"] = answer.split(", ")
-        elif element_type == "textarea":
-            qa_entry["value"] = answer
-
-        self.qa_data[f"{element_type}s"][element_id] = qa_entry
-        self._save_qa_data()
-
-        return answer
 
     def _setup_driver(self):
         """Initialize Chrome WebDriver with local browser"""
@@ -263,17 +315,20 @@ Focus on highlighting skills and experience in a positive way. Return your respo
             resume_dropdown.click()
             logging.info("Resume dropdown clicked")
 
-            # Logic to select resume based on tech stack
-            resume_id = (
-                self.aws_resume_id if "AWS" in tech_stack else self.azure_resume_id
-            )
+            # Normalize tech stack handling
+            tech_stack = tech_stack.lower()
+            if "aws" in tech_stack:
+                resume_id = self.aws_resume_id
+            else:
+                resume_id = self.azure_resume_id
+
             resume_option = WebDriverWait(self.driver, 5).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, f"option[value='{resume_id}']")
                 )
             )
             resume_option.click()
-            logging.info("Resume selected successfully")
+            logging.info(f"Resume selected successfully for {tech_stack} tech stack")
 
             # Wait for the selection to be processed
             WebDriverWait(self.driver, 5).until(
@@ -296,7 +351,7 @@ Focus on highlighting skills and experience in a positive way. Return your respo
                 )
             )
             no_cover_letter.click()
-            print("Clicked cover letter option")
+            print("Clicked the NO cover letter option")
         except TimeoutException:
             logging.info("No cover letter option found, continuing...")
 
@@ -311,176 +366,262 @@ Focus on highlighting skills and experience in a positive way. Return your respo
             continue_button.click()
             print("Clicked continue button")
 
-            # Wait for navigation or loading to complete
-            WebDriverWait(self.driver, 5).until(
-                lambda d: d.execute_script("return document.readyState") == "complete"
-            )
         except TimeoutException:
             logging.error("Continue button not found or not clickable")
             raise
 
     def _handle_role_requirements(self):
-        """Handle the role requirements page if it exists"""
-        if "role-requirements" not in self.driver.current_url:
+        """Handle role requirements form with AI assistance"""
+        if not "role-requirements" in self.driver.current_url:
             return
 
-        # Wait for the page to be fully loaded
+        # Wait for the form to be fully loaded
         WebDriverWait(self.driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "form"))
         )
 
-        print("Navigated to role-requirements page")
-        print("Clicking through answers")
+        print("Navigating through role requirements form...")
 
-        # Have a JSON file that contains all the ids and values: selects, radios, checkboxes, text areas
-        # When the HTML parser finds a question that's not in that list...feed it into OpenAI to get the correct answer, then store that answer back in the JSON file
+        try:
+            # Find all form elements that need handling
+            form_elements = self._get_form_elements()
 
-        self._handle_select_questions()
-        self._handle_radio_questions()
-        self._handle_checkbox_questions()
-        self._handle_text_questions()
-        self._click_continue()
-
-    def _handle_select_questions(self):
-        """Handle dropdown select questions"""
-        selects = self.driver.find_elements(By.CSS_SELECTOR, "select")
-        if not selects:
-            print("No selects found on the page")
-            return
-
-        print("Found selects on the page")
-        for select_element in selects:
-            try:
-                element_id = select_element.get_attribute("name")
-                if element_id in self.qa_data["selects"]:
-                    # Use stored answer
-                    value = self.qa_data["selects"][element_id]["value"]
-                else:
-                    # Get new answer from OpenAI
-                    answer = self._handle_new_question(select_element, "select")
-                    if not answer:
+            for element_info in form_elements:
+                try:
+                    # Get AI response for the element
+                    print(
+                        "Getting AI response for",
+                        f"{element_info['type']} {element_info['question']}",
+                    )
+                    ai_response = self._get_ai_form_response(
+                        element_info, self.current_tech_stack
+                    )
+                    print(
+                        "AI response for",
+                        f"{element_info['type']} {element_info['question']}",
+                        ai_response,
+                    )
+                    if not ai_response:
                         continue
-                    value = select_element.get_attribute("value")
 
-                option = select_element.find_element(
-                    By.CSS_SELECTOR, f"option[value='{value}']"
-                )
-                option.click()
-                print(f"Selected option with value '{value}' for {element_id}")
-            except Exception as e:
-                logging.error(f"Failed to handle select question: {str(e)}")
-                continue
+                    # Apply the AI response to the form element
+                    self._apply_ai_response(element_info, ai_response)
 
-    def _handle_radio_questions(self):
-        """Handle radio button questions"""
-        radio_groups = {}
-        radio_buttons = self.driver.find_elements(
-            By.CSS_SELECTOR, "input[type='radio']"
+                except Exception as e:
+                    logging.error(f"Error handling form element: {str(e)}")
+                    continue
+
+            # Click continue after filling out the form
+            self._click_continue()
+
+        except Exception as e:
+            logging.error(f"Error in handling role requirements: {str(e)}")
+            raise
+
+    def _get_form_elements(self):
+        """Get all form elements that need AI responses"""
+        form_elements = []
+
+        try:
+            # Handle text areas
+            textareas = self.driver.find_elements(By.CSS_SELECTOR, "textarea")
+            for textarea in textareas:
+                question = self._get_element_label(textarea)
+                if question:
+                    form_elements.append(
+                        {
+                            "type": "textarea",
+                            "element": textarea,
+                            "question": question,
+                            "element_id": textarea.get_attribute("id"),
+                            "name": textarea.get_attribute("name"),
+                        }
+                    )
+
+            # Handle radio buttons (grouped by name)
+            radio_groups = {}
+            radios = self.driver.find_elements(By.CSS_SELECTOR, "input[type='radio']")
+            for radio in radios:
+                name = radio.get_attribute("name")
+                if name not in radio_groups:
+                    radio_groups[name] = []
+                radio_groups[name].append(radio)
+
+            for name, radios in radio_groups.items():
+                # Get question from the first radio in group
+                question = self._get_element_label(radios[0])
+                if question:
+                    options = []
+                    for radio in radios:
+                        label = self._get_element_label(radio)
+                        if label:
+                            options.append(
+                                {
+                                    "value": radio.get_attribute("value"),
+                                    "label": label,
+                                    "id": radio.get_attribute("id"),
+                                }
+                            )
+
+                    form_elements.append(
+                        {
+                            "type": "radio",
+                            "element": radios[0],  # Reference to first radio
+                            "question": question,
+                            "options": options,
+                            "name": name,
+                        }
+                    )
+
+            # Handle checkboxes (grouped by name)
+            checkbox_groups = {}
+            checkboxes = self.driver.find_elements(
+                By.CSS_SELECTOR, "input[type='checkbox']"
+            )
+            for checkbox in checkboxes:
+                name = checkbox.get_attribute("name")
+                if name not in checkbox_groups:
+                    checkbox_groups[name] = []
+                checkbox_groups[name].append(checkbox)
+
+            for name, boxes in checkbox_groups.items():
+                question = self._get_element_label(boxes[0])
+                if question:
+                    options = []
+                    for box in boxes:
+                        label = self._get_element_label(box)
+                        if label:
+                            options.append(
+                                {
+                                    "value": box.get_attribute("value"),
+                                    "label": label,
+                                    "id": box.get_attribute("id"),
+                                }
+                            )
+
+                    form_elements.append(
+                        {
+                            "type": "checkbox",
+                            "element": boxes[0],  # Reference to first checkbox
+                            "question": question,
+                            "options": options,
+                            "name": name,
+                        }
+                    )
+
+            # Handle select dropdowns
+            selects = self.driver.find_elements(By.CSS_SELECTOR, "select")
+            for select in selects:
+                question = self._get_element_label(select)
+                if question:
+                    options = []
+                    for option in select.find_elements(By.TAG_NAME, "option"):
+                        if option.text.strip():  # Only include non-empty options
+                            options.append(
+                                {
+                                    "value": option.get_attribute("value"),
+                                    "label": option.text.strip(),
+                                    "id": option.get_attribute("id"),
+                                }
+                            )
+
+                    form_elements.append(
+                        {
+                            "type": "select",
+                            "element": select,
+                            "question": question,
+                            "options": options,
+                            "element_id": select.get_attribute("id"),
+                            "name": select.get_attribute("name"),
+                        }
+                    )
+
+            return form_elements
+
+        except Exception as e:
+            logging.error(f"Error getting form elements: {str(e)}")
+            return []
+
+    def _apply_ai_response(self, element_info, ai_response):
+        """Apply the AI response to the form element"""
+        print(
+            "Applying AI response of",
+            ai_response,
+            "for: ",
+            f"{element_info['type']} {element_info['question']}",
         )
+        try:
+            element_type = element_info["type"]
 
-        if not radio_buttons:
-            return
+            if element_type == "textarea":
+                response_text = ai_response.get("response", "")
+                if response_text:
+                    element_info["element"].clear()
+                    element_info["element"].send_keys(response_text)
+                    logging.info(
+                        f"Filled textarea with response: {response_text[:100]}..."
+                    )
 
-        print("Found radio buttons on the page")
+            elif element_type == "radio":
+                selected_id = ai_response.get("selected_option", "")
+                if selected_id:
+                    try:
+                        # Find and click the radio button by ID
+                        radio = self.driver.find_element(By.ID, selected_id)
+                        self.driver.execute_script("arguments[0].click();", radio)
+                        logging.info(f"Selected radio option with ID: {selected_id}")
+                    except Exception as e:
+                        logging.error(
+                            f"Failed to select radio with ID {selected_id}: {str(e)}"
+                        )
 
-        # Group radio buttons by name
-        for radio in radio_buttons:
-            name = radio.get_attribute("name")
-            if name not in radio_groups:
-                radio_groups[name] = []
-            radio_groups[name].append(radio)
+            elif element_type == "checkbox":
+                selected_ids = ai_response.get("selected_options", [])
+                if selected_ids:
+                    # Iterate over the selected ids and click the checkbox
+                    for checkbox_id in selected_ids:
+                        try:
+                            checkbox = self.driver.find_element(By.ID, checkbox_id)
+                            self.driver.execute_script(
+                                "arguments[0].click();", checkbox
+                            )
+                            logging.info(f"Selected checkbox with ID: {checkbox_id}")
+                        except Exception as e:
+                            logging.error(
+                                f"Failed to select checkbox with ID {checkbox_id}: {str(e)}"
+                            )
 
-        # Handle each radio group
-        for name, radios in radio_groups.items():
-            try:
-                if name in self.qa_data["radios"]:
-                    # Use stored answer
-                    value = self.qa_data["radios"][name]["value"]
-                else:
-                    # Get new answer from OpenAI
-                    answer = self._handle_new_question(radios[0], "radio")
-                    if not answer:
-                        continue
-                    value = "yes" if answer.lower() == "yes" else "no"
+            elif element_type == "select":
+                selected_value = ai_response.get("selected_option", "")
+                if selected_value:
+                    try:
+                        # First try using the Select class
+                        select = Select(element_info["element"])
+                        select.select_by_value(selected_value)
+                        logging.info(
+                            f"Selected dropdown option with value: {selected_value}"
+                        )
+                    except Exception as e:
+                        logging.error(f"Failed to select using Select class: {str(e)}")
+                        try:
+                            # Fallback: Try clicking the option directly
+                            option = self.driver.find_element(
+                                By.CSS_SELECTOR,
+                                f'select[id="{element_info["element_id"]}"] option[value="{selected_value}"]',
+                            )
+                            option.click()
+                            logging.info(
+                                f"Selected dropdown option by clicking: {selected_value}"
+                            )
+                        except Exception as e2:
+                            logging.error(
+                                f"Failed to select option by clicking: {str(e2)}"
+                            )
+                            raise
 
-                # Find and click the appropriate radio button
-                for radio in radios:
-                    if radio.get_attribute("value").lower() == value.lower():
-                        if radio.is_displayed() and radio.is_enabled():
-                            self.driver.execute_script("arguments[0].click();", radio)
-                            break
-
-            except Exception as e:
-                logging.error(f"Failed to handle radio question: {str(e)}")
-                continue
-
-    def _handle_checkbox_questions(self):
-        """Handle checkbox questions"""
-        checkboxes = self.driver.find_elements(
-            By.CSS_SELECTOR, "input[type='checkbox']"
-        )
-        if not checkboxes:
-            return
-
-        print("Found checkboxes on the page")
-
-        # Group checkboxes by name/group
-        checkbox_groups = {}
-        for checkbox in checkboxes:
-            name = checkbox.get_attribute("name")
-            if name not in checkbox_groups:
-                checkbox_groups[name] = []
-            checkbox_groups[name].append(checkbox)
-
-        # Handle each checkbox group
-        for name, boxes in checkbox_groups.items():
-            try:
-                if name in self.qa_data["checkboxes"]:
-                    # Use stored answers
-                    values = self.qa_data["checkboxes"][name]["values"]
-                else:
-                    # Get new answer from OpenAI
-                    answer = self._handle_new_question(boxes[0], "checkbox")
-                    if not answer:
-                        continue
-                    values = answer.split(", ")
-
-                # Click appropriate checkboxes
-                for box in boxes:
-                    value = box.get_attribute("value").lower()
-                    if any(v.lower() in value for v in values):
-                        if box.is_displayed() and box.is_enabled():
-                            self.driver.execute_script("arguments[0].click();", box)
-
-            except Exception as e:
-                logging.error(f"Failed to handle checkbox question: {str(e)}")
-                continue
-
-    def _handle_text_questions(self):
-        """Handle text area questions"""
-        textareas = self.driver.find_elements(By.CSS_SELECTOR, "textarea")
-        if not textareas:
-            return
-
-        print("Found textareas on the page")
-        for textarea in textareas:
-            try:
-                element_id = textarea.get_attribute("name")
-                if element_id in self.qa_data["textareas"]:
-                    # Use stored answer
-                    answer = self.qa_data["textareas"][element_id]["value"]
-                else:
-                    # Get new answer from OpenAI
-                    answer = self._handle_new_question(textarea, "textarea")
-                    if not answer:
-                        continue
-
-                if textarea.is_displayed() and textarea.is_enabled():
-                    textarea.send_keys(answer)
-
-            except Exception as e:
-                logging.error(f"Failed to handle textarea question: {str(e)}")
-                continue
+        except Exception as e:
+            logging.error(f"Error applying AI response: {str(e)}")
+            raise
 
     def _submit_application(self):
         """Submit the application and verify success"""
@@ -506,6 +647,10 @@ Focus on highlighting skills and experience in a positive way. Return your respo
             if not self.driver:
                 self._setup_driver()
 
+            # Store tech_stack and job_description for use in AI responses
+            self.current_tech_stack = tech_stack
+            self.current_job_description = job_description
+
             # Step 1: Login
             if not self.is_logged_in:
                 self._login()
@@ -516,11 +661,13 @@ Focus on highlighting skills and experience in a positive way. Return your respo
             self._handle_cover_letter()
             self._click_continue()
 
-            # Step 3: Handle role requirements if they exist
-            self._handle_role_requirements()
-
+            # Check if role requirements exist - if so, return early with special status
+            if "role-requirements" in self.driver.current_url:
+                self._handle_role_requirements()
+                self._submit_application()
             # Step 4: Submit application
-            self._submit_application()
+            else:
+                self._submit_application()
 
             logging.info(f"Successfully applied to job {job_id}")
             return True
@@ -528,6 +675,10 @@ Focus on highlighting skills and experience in a positive way. Return your respo
         except Exception as e:
             logging.error(f"Failed to apply to job {job_id}: {str(e)}")
             return False
+        finally:
+            # Clear the stored values
+            self.current_tech_stack = None
+            self.current_job_description = None
 
     def cleanup(self):
         """Clean up resources - call this when completely done with all applications"""

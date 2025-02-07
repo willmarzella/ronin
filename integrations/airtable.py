@@ -59,6 +59,7 @@ class AirtableManager:
                 "URL": job_data.get("url", f"https://www.seek.com.au/job/{job_id}"),
                 "Quick Apply": job_data.get("quick_apply", False),
                 "Created At": job_data.get("created_at"),  # ISO format datetime string
+                "Pay Rate": job_data.get("pay_rate", ""),
             }
 
             # Create record in Airtable
@@ -90,3 +91,12 @@ class AirtableManager:
         logging.info(f"Added {new_jobs_count} new jobs to Airtable")
         if duplicate_found:
             logging.info("Stopped processing due to duplicate job found")
+
+    def update_record(self, record_id: str, fields: dict):
+        """Update an existing record in Airtable"""
+        try:
+            self.table.update(record_id, fields)
+            logging.info(f"Successfully updated record {record_id}")
+        except Exception as e:
+            logging.error(f"Error updating record {record_id}: {str(e)}")
+            raise

@@ -4,7 +4,6 @@ import requests
 from typing import Dict, Optional
 from bs4 import BeautifulSoup
 from loguru import logger
-import time
 
 
 class JobScraper:

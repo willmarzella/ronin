@@ -136,6 +136,31 @@ class SeekJobScraper(BaseScraper):
             if not soup:
                 return None
 
+            # Find the type of work
+            work_type_elem = soup.find(
+                "span", {"data-automation": "job-detail-work-type"}
+            )
+            if work_type_elem:
+                work_type = work_type_elem.text.strip()
+            else:
+                work_type = "Unknown"
+
+            # Find the pay rate
+            pay_rate_elem = soup.find("span", {"data-automation": "job-detail-salary"})
+            if pay_rate_elem:
+                pay_rate = pay_rate_elem.text.strip()
+            else:
+                pay_rate = "Unknown"
+
+            # Find the location
+            location_elem = soup.find(
+                "span", {"data-automation": "job-detail-location"}
+            )
+            if location_elem:
+                location = location_elem.text.strip()
+            else:
+                location = "Unknown"
+
             # Find the job description
             description_element = soup.find(
                 "div", attrs={"data-automation": "jobAdDetails"}
@@ -172,8 +197,9 @@ class SeekJobScraper(BaseScraper):
                     listed_date = self._parse_relative_time(metadata["listed_date"])
                     if listed_date:
                         created_at = listed_date.isoformat()
-                except:
-                    pass
+                except Exception as e:
+                    # Handle exception
+                    print(f"An error occurred: {e}")
 
             if not created_at:
                 created_at = datetime.now().isoformat()  # Fallback to current time
@@ -182,6 +208,9 @@ class SeekJobScraper(BaseScraper):
                 "description": description_element.get_text(separator="\n").strip(),
                 "quick_apply": quick_apply,
                 "created_at": created_at,
+                "work_type": work_type,
+                "pay_rate": pay_rate,
+                "location": location,
                 **metadata,
             }
 
@@ -189,61 +218,34 @@ class SeekJobScraper(BaseScraper):
             logger.error(f"Error getting job details for {job_id}: {str(e)}")
             return None
 
-    def _extract_metadata(self, job_card: BeautifulSoup) -> Dict:
-        """Extract additional metadata from the job card."""
-        metadata = {}
+    # def _extract_metadata(self, job_card: BeautifulSoup) -> Dict:
+    #     """Extract additional metadata from the job card."""
+    #     metadata = {}
 
-        # Extract work type (e.g., "Full time", "Part time", etc.)
-        work_type_elem = job_card.find("span", {"data-automation": "jobWorkType"})
-        if work_type_elem:
-            metadata["work_type"] = work_type_elem.text.strip()
+    #     # Extract work type (e.g., "Full time", "Part time", etc.)
+    #     work_type_elem = job_card.find("span", {"data-automation": "jobWorkType"})
+    #     if work_type_elem:
+    #         metadata["work_type"] = work_type_elem.text.strip()
 
-        # Extract job classification
-        classification_elem = job_card.find(
-            "a", {"data-automation": "jobClassification"}
-        )
-        if classification_elem:
-            metadata["classification"] = classification_elem.text.strip()
+    #     # Extract job classification
+    #     classification_elem = job_card.find(
+    #         "a", {"data-automation": "jobClassification"}
+    #     )
+    #     if classification_elem:
+    #         metadata["classification"] = classification_elem.text.strip()
 
-        # Extract listed date
-        listed_date_elem = job_card.find("span", {"data-automation": "jobListingDate"})
-        if listed_date_elem:
-            metadata["listed_date"] = listed_date_elem.text.strip()
+    #     # Extract listed date
+    #     listed_date_elem = job_card.find("span", {"data-automation": "jobListingDate"})
+    #     if listed_date_elem:
+    #         metadata["listed_date"] = listed_date_elem.text.strip()
 
-        # Extract salary if available
-        salary_elem = job_card.find("span", {"data-automation": "jobSalary"})
-        if salary_elem:
-            metadata["salary"] = salary_elem.text.strip()
+    #     # Extract salary if available
+    #     salary_elem = job_card.find("span", {"data-automation": "jobSalary"})
+    #     if salary_elem:
+    #         metadata["salary"] = salary_elem.text.strip()
 
-        return metadata
+    #     return metadata
 
-    # def process_job(
-    #     self, job_data: Dict, analyzer: JobAnalyzer
-    # ) -> Tuple[Optional[Dict], bool]:
-    #     """Process a job posting and determine if it should be included.
-
-    #     Args:
-    #         job_data: Raw job data from scraping
-    #         analyzer: JobAnalyzer instance for analyzing the job
-
-    #     Returns:
-    #         Tuple of (processed job data or None, whether to continue scraping)
-    #     """
-    #     # Skip if no title or company
-    #     if not job_data.get("title") or not job_data.get("company"):
-    #         return None, True
-
-    #     # Analyze job data
-    #     analysis_result = analyzer.analyze_job(job_data)
-
-    #     # Skip if score is too low
-    #     if analysis_result["score"] < analyzer.min_score:
-    #         return None, True
-
-    #     # Add analysis results to job data
-    #     job_data.update(analysis_result)
-
-    #     return job_data, True
 
     def scrape_jobs(self) -> List[Dict]:
         """

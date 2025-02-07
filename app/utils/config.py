@@ -1,6 +1,5 @@
 """Configuration loading and management."""
 
-import os
 from pathlib import Path
 from typing import Dict
 

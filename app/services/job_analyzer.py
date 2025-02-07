@@ -142,7 +142,7 @@ Example:
             # Get job analysis from OpenAI
             response = self.openai.chat_completion(
                 system_prompt=self._system_prompt,
-                user_message=f"Analyze this job description:\n\n{job_data['description']}",
+                user_message=f"Analyze this job description:\n\n{job_data['description'][:150]}",
                 temperature=0.7,
             )
 
@@ -164,7 +164,7 @@ Example:
                 return {**job_data, "analysis": analysis_data}
             except Exception as e:
                 logger.error(f"Failed to process OpenAI response: {str(e)}")
-                logger.error(f"Raw response: {response}")
+                logger.error(f"Raw response: {response[:150]}")
                 return None
 
         except Exception as e:
