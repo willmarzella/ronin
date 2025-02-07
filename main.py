@@ -97,13 +97,34 @@ def process_platform(
         logger.info("\nRaw Jobs Data:")
         for job in raw_jobs:
             logger.info(
-                f"Job ID: {job.get('job_id')} - Created At: {job.get('created_at', 'No date')}"
+                f"Job ID: {job.get('job_id')} - Title: {job.get('title')} - Created At: {job.get('created_at', 'No date')}"
             )
 
         # Step 2: Filter out existing jobs
-        new_jobs = [
-            job for job in raw_jobs if job["job_id"] not in airtable.existing_job_ids
-        ]
+        new_jobs = []
+        logger.info(
+            f"\nFiltering jobs against {len(airtable.existing_job_ids)} existing IDs"
+        )
+        for job in raw_jobs:
+            if job["job_id"] not in airtable.existing_job_ids:
+                new_jobs.append(job)
+                logger.info(f"Found new job: {job['title']} (ID: {job['job_id']})")
+            else:
+                logger.info(
+                    f"Job {job['job_id']} ({job['title']}) already exists in Airtable"
+                )
+                # Log when this job was added to help debug
+                try:
+                    records = airtable.table.all(
+                        formula=f"{{Job ID}} = '{job['job_id']}'"
+                    )
+                    if records:
+                        created_time = records[0].get("createdTime", "unknown")
+                        logger.info(
+                            f"Job {job['job_id']} was added to Airtable at: {created_time}"
+                        )
+                except Exception as e:
+                    logger.error(f"Error checking job creation time: {str(e)}")
 
         if not new_jobs:
             logger.info(f"No new jobs found from {platform}")
@@ -114,21 +135,25 @@ def process_platform(
         # Step 3: Analyze and enrich jobs
         processed_jobs = []
         for job in new_jobs:
-            logger.info(f"Processing job: {job['title']}")
-            # Analyze the job
-            enriched_job = analyzer.analyze_job(job)
-            if enriched_job and enriched_job.get("analysis"):
-                processed_jobs.append(enriched_job)
-                score = (
-                    enriched_job["analysis"].get("score", "N/A")
-                    if isinstance(enriched_job["analysis"], dict)
-                    else "N/A"
-                )
-                logger.info(
-                    f"Successfully analyzed job: {job['title']} (Score: {score})"
-                )
-            else:
-                logger.warning(f"Failed to analyze job: {job['title']}")
+            try:
+                logger.info(f"Processing job: {job['title']} (ID: {job['job_id']})")
+                # Analyze the job
+                enriched_job = analyzer.analyze_job(job)
+                if enriched_job and enriched_job.get("analysis"):
+                    processed_jobs.append(enriched_job)
+                    score = (
+                        enriched_job["analysis"].get("score", "N/A")
+                        if isinstance(enriched_job["analysis"], dict)
+                        else "N/A"
+                    )
+                    logger.info(
+                        f"Successfully analyzed job: {job['title']} (Score: {score})"
+                    )
+                else:
+                    logger.warning(f"Failed to analyze job: {job['title']}")
+            except Exception as e:
+                logger.error(f"Error processing job {job['title']}: {str(e)}")
+                continue
 
         # Print detailed results
         print_job_results(processed_jobs, platform)
@@ -136,9 +161,7 @@ def process_platform(
         # Step 4: Save results if we have any
         if processed_jobs:
             logger.info(f"Saving {len(processed_jobs)} processed jobs to Airtable")
-            for job in processed_jobs:
-                airtable.insert_job(job)
-                logger.info(f"Saved job to Airtable: {job['title']}")
+            airtable.batch_insert_jobs(processed_jobs)
 
         return processed_jobs
 
