@@ -1,118 +1,113 @@
-# Revoltx
+# Ronin
 
-Because writing "I am passionate about leveraging my synergistic skill set in a dynamic environment" for the 100th time is slowly killing your soul. Let the machines handle the boring parts.
+Hello, friend. Or maybe I should call you "potential hire"? That's what they want to call you, right? Another resource to be processed through their system. Their broken, bureaucratic mess of a hiring process.
 
-## What it does
+I wrote this because I couldn't take it anymore. Maybe you can't either. We're all stuck in this loop - this artificial construct of resume submissions, keyword filtering, and soul-crushing form fields. But here's the thing: we can break that loop.
 
-- Scrapes job postings so you don't have to keep refreshing job boards like a maniac
-- Figures out if you're actually qualified (or close enough)
-- Uses AI to decode what "competitive salary" and "rockstar developer" actually mean
-- Keeps track of everything in Airtable because your spreadsheet is a mess
-- Applies to jobs you're actually qualified for by handling form fields using Selenium and AI
+Let's be honest with each other. The whole thing is a game. A badly designed one. They build walls of bureaucracy, and we're expected to climb them, again and again, pretending it makes sense. It doesn't. But until we can change the system, we can at least automate our way through their maze.
 
-## Tech Stack
+This isn't just another automation tool. It's a middle finger to the absurdity of modern tech hiring. Here's what it does:
 
-```python
-stack = {
-    "core": "Python",  # Because life's too short for Java
-    "scraping": "BeautifulSoup4",  # Parsing HTML like it's 2023
-    "ai": "OpenAI API",  # The expensive part
-    "tracking": "Airtable",  # Excel but fancy
-    "scheduling": "Schedule",  # Cron jobs but less painful
-    "logging": "Loguru",  # Because print() is for amateurs
-}
-```
+- Infiltrates job boards systematically (they're already scraping your data, why shouldn't you?)
+- Runs qualification analysis using ML (because apparently humans can't be trusted to know their own capabilities)
+- Decrypts corporate doublespeak using NLP (turns out "competitive salary" means something after all)
+- Maintains an Airtable database (because even rebellion needs structure)
+- Automates form submission (yes, it's probably against their ToS. So is their tracking of your every move)
 
-## Prerequisites
+## Dependencies (The Necessary Evils)
 
-You'll need these API keys (yes, some cost money, welcome to automation):
+You'll need these keys to the kingdom:
 
-- `OPENAI_API_KEY` - For the AI magic
-- `AIRTABLE_API_KEY` - For pretending to be organized
-- `AIRTABLE_BASE_ID` - That long string you'll definitely copy-paste
-- `AIRTABLE_TABLE_NAME` - Name it whatever, just be consistent
+- `OPENAI_API_KEY` - To speak their language
+- `AIRTABLE_API_KEY` - To maintain the illusion of order
+- `AIRTABLE_BASE_ID` - Your personal data silo
+- `AIRTABLE_TABLE_NAME` - Name it whatever. They don't care, and neither should you
 
-## Setup
+## Initial Setup
 
-1. Clone this bad boy
-2. Make a `.env` file and fill it with your secrets:
+1. Clone this repo (you know the drill)
+2. Create your `.env` file (keep your secrets close):
 
 ```bash
-OPENAI_API_KEY=sk-your_wallet_draining_key
-AIRTABLE_API_KEY=your_other_key
-AIRTABLE_BASE_ID=that_long_string
-AIRTABLE_TABLE_NAME=job_hunt_or_whatever
+OPENAI_API_KEY=sk-your_key
+AIRTABLE_API_KEY=your_key
+AIRTABLE_BASE_ID=base_id
+AIRTABLE_TABLE_NAME=table_name
 ```
 
-3. Configure your job search preferences in `config/config.yaml`:
+3. Configure your parameters in `config/config.yaml`:
+
+> Want to give better idea that the resume text
 
 ```yaml
-# Quick start: Edit these sections first
 search:
-  keywords: '"Data-engineer"' # Your target role
-  location: 'All Australia' # Where you want to work
-  experience_level: 'entry' # entry, mid, senior
+  keywords: '"Data-engineer"' # The role they think you want
+  location: 'All Australia' # Your designated hunting ground
+  experience_level: 'entry' # Their arbitrary classification of your worth
 
 resume:
-  skills: # Your actual skills
+  skills: # What you can actually do
     - Python
     - SQL
     - AWS
+  text:
+    aws:
+    azure:
   preferences:
-    remote: true # WFH or office?
-    min_salary: 120000 # Know your worth
+    remote: true # Because offices are just another control system
+    min_salary: 120000 # Your number in their game
 ```
 
-4. Login to Google (yes, manually, we're not trying to get arrested):
-   - Open your browser
-   - Log into your Google account
-   - Come back here and press Enter when prompted
-   - We know it's not elegant, but it beats typing "Detail-oriented team player" 50 times
+1. A Note About Authentication:
+   Yes, you'll need to log into Google manually. It's not ideal, but it's better than letting them flag your automation. Sometimes staying under the radar means playing by some rules.
 
-See `config/config.yaml` for full configuration options.
+## Running The System
 
-### Running the script (Choose Your Adventure)
-
-Pick your poison - we've got three flavors of automation:
+Three paths of resistance:
 
 ```bash
-./scripts/scrape.sh    # Just stalk the job boards
-./scripts/apply_jobs.sh # Mass distribute your hopes and dreams
-./scripts/run.sh       # The full monty - scrape AND apply
+./scripts/scrape.sh    # Gather intelligence
+./scripts/apply_jobs.sh # Deploy your applications
+./scripts/run.sh       # Full assault
 ```
 
-Pro tip: Run `scrape.sh` first if you're paranoid (smart) and want to see what jobs it finds before letting it loose on the apply button. Or just YOLO with `run.sh` - we won't judge.
+Start with `scrape.sh`. Trust me on this. You'll want to see what you're dealing with before you go full auto.
 
-## Project Structure
+## System Architecture
 
 ```
 .
 ├── app/
-│   ├── scrapers/     # Job board stalking tools
-│   ├── core/        # The brains of the operation
-│   ├── services/    # The actually useful stuff
-│   └── utils/       # Code we all copy from StackOverflow
-├── config/          # Magic numbers live here
-├── integrations/    # Plays nice with others
-├── logs/            # When things go wrong
-└── scripts/         # Automation for your automation
+│   ├── scrapers/     # Your eyes into their system
+│   ├── core/         # The backbone
+│   ├── services/     # Where the magic happens
+│   └── utils/        # The tools of the trade
+├── config/           # Your rules
+├── integrations/     # Hooks into their world
+├── logs/            # Because paranoia is healthy
+└── scripts/         # Your weapons
 ```
 
-## Known Issues
+## Known Vulnerabilities
 
-- Some job boards really hate bots (especially if you apply too fast)
-- OpenAI API might occasionally timeout or return invalid responses
-- Chrome automation can be finicky (close ALL Chrome windows before running)
-- AI might get confused by weird form fields (looking at you, custom dropdowns)
-- Form elements sometimes change their IDs (thanks Seek)
-- Manual Google login required (because we're not trying to get arrested)
-- Airtable rate limits if you're too enthusiastic
-- Sometimes thinks you're qualified for jobs that want "10 years Rust experience"
+Because nothing is perfect, and pretending otherwise is dangerous:
 
-## Legal Disclaimer
+- They have rate limits (of course they do)
+- OpenAI isn't always reliable (what AI is?)
+- Chrome automation can break (browsers, am I right?)
+- Forms mutate (they're trying to stop us)
+- Google auth is manual (sometimes that's safer)
+- Their systems have quotas (control through scarcity)
+- Pattern matching isn't perfect (but neither are human recruiters)
 
-This probably violates some Terms of Service somewhere. Use at your own risk. If you get caught, we've never met and this repo will self-destruct.
+## Legal Reality
+
+Yes, this probably breaks some rules. But ask yourself: who wrote those rules? And why? Use this responsibly, but remember - sometimes the right thing to do isn't the officially sanctioned thing to do.
 
 ## License
 
-MIT (but seriously, if you get banned from LinkedIn or Seek, that's on you)
+MIT
+
+Because even in rebellion, we need some structure. Use it. Share it. Make it better. Just don't get caught.
+
+Stay safe, friend.
