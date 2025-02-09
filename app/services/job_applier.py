@@ -72,14 +72,19 @@ class JobApplierService:
                         continue
 
                     try:
-                        job_board = self._get_job_board_from_url(url)
-                        if job_board == "unknown":
+                        # Get source from Airtable record or determine from URL
+                        source = fields.get("Source", "unknown")
+                        if source == "unknown":
+                            source = self.airtable._get_job_source(url)
+
+                        # Get job ID based on source
+                        job_id = self.airtable._get_job_id_from_url(url, source)
+                        if not job_id:
                             logging.warning(
-                                f"Unknown job board for URL {url}, skipping"
+                                f"Could not extract job ID from URL {url}, skipping"
                             )
                             continue
 
-                        job_id = self._get_job_id_from_url(url, job_board)
                         jobs.append(
                             {
                                 "id": job_id,
@@ -87,7 +92,7 @@ class JobApplierService:
                                 "title": fields.get("Title", ""),
                                 "tech_stack": fields.get("Tech Stack", ""),
                                 "record_id": record["id"],
-                                "job_board": job_board,
+                                "source": source,
                                 "url": url,
                             }
                         )
@@ -115,24 +120,22 @@ class JobApplierService:
 
             logging.info(f"Found {len(jobs)} jobs to process")
 
-            # Group jobs by job board to minimize browser sessions
-            jobs_by_board = {}
+            # Group jobs by source to minimize browser sessions
+            jobs_by_source = {}
             for job in jobs:
-                jobs_by_board.setdefault(job["job_board"], []).append(job)
+                jobs_by_source.setdefault(job["source"], []).append(job)
 
-            # Process each job board's jobs
-            for job_board, board_jobs in jobs_by_board.items():
+            # Process each source's jobs
+            for source, source_jobs in jobs_by_source.items():
                 applier = None
                 try:
-                    applier = JobApplierFactory.create_applier(job_board)
+                    applier = JobApplierFactory.create_applier(source)
                     if not applier:
-                        logging.warning(
-                            f"No applier available for job board: {job_board}"
-                        )
+                        logging.warning(f"No applier available for source: {source}")
                         continue
 
-                    # Process each job for this board
-                    for job in board_jobs:
+                    # Process each job for this source
+                    for job in source_jobs:
                         try:
                             logging.info(f"Processing job: {job['title']}")
 
@@ -176,7 +179,7 @@ class JobApplierService:
                             continue
 
                 finally:
-                    # Clean up the applier for this job board
+                    # Clean up the applier for this source
                     if applier:
                         applier.cleanup()
 

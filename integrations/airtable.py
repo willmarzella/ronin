@@ -1,11 +1,26 @@
+"""Airtable integration for job management."""
+
 import json
 import logging
 import os
+from typing import Optional, Set, Dict, List
+from urllib.parse import urlparse
 
 from pyairtable import Api, Base, Table
 
 
 class AirtableManager:
+    """Manager for Airtable integration."""
+
+    # Map of job board domains to source names
+    JOB_BOARD_MAPPING = {
+        "seek.com.au": "seek",
+        "linkedin.com": "linkedin",
+        "indeed.com": "indeed",
+        "boards.greenhouse.io": "greenhouse",
+        "jobs.lever.co": "lever",
+    }
+
     def __init__(self):
         try:
             self.api_key = os.getenv("AIRTABLE_API_KEY")
@@ -47,7 +62,35 @@ class AirtableManager:
             logging.error(f"Failed to initialize AirtableManager: {str(e)}")
             raise
 
-    def _get_existing_job_ids(self):
+    def _get_job_source(self, url: str) -> str:
+        """Determine job source from URL."""
+        try:
+            domain = urlparse(url).netloc.lower()
+            for board_domain, source in self.JOB_BOARD_MAPPING.items():
+                if board_domain in domain:
+                    return source
+            return "unknown"
+        except:
+            return "unknown"
+
+    def _get_job_id_from_url(self, url: str, source: str) -> Optional[str]:
+        """Extract job ID from URL based on source."""
+        try:
+            if source == "seek":
+                return url.split("/job/")[1].split("/")[0].split("?")[0]
+            elif source == "linkedin":
+                return url.split("/view/")[1].strip("/").split("?")[0]
+            elif source == "indeed":
+                return url.split("jk=")[1].split("&")[0]
+            elif source == "greenhouse":
+                return url.split("/jobs/")[1].split("?")[0]
+            elif source == "lever":
+                return url.split("/")[-1].split("?")[0]
+        except:
+            pass
+        return None
+
+    def _get_existing_job_ids(self) -> Set[str]:
         """Get set of existing job IDs from Airtable"""
         try:
             logging.info("Fetching records from Airtable...")
@@ -79,22 +122,16 @@ class AirtableManager:
                 if job_id:
                     job_ids.add(job_id)
                     records_with_id += 1
-                    logging.debug(
-                        f"Found job ID directly: {job_id} (Record ID: {record.get('id')})"
-                    )
                     continue
 
                 # If no Job ID, try to extract from URL
                 url = fields.get("URL", "")
-                if url and "seek.com.au/job/" in url:
-                    try:
-                        # Extract job ID from URL format: https://www.seek.com.au/job/{job_id}
-                        job_id = url.split("/job/")[1].split("/")[0].split("?")[0]
+                if url:
+                    source = self._get_job_source(url)
+                    job_id = self._get_job_id_from_url(url, source)
+                    if job_id:
                         job_ids.add(job_id)
                         records_with_url += 1
-                        logging.debug(f"Extracted job ID from URL: {job_id} ({url})")
-                    except (IndexError, AttributeError):
-                        logging.warning(f"Could not extract job ID from URL: {url}")
 
             # Log detailed summary
             logging.info(f"Airtable records summary:")
@@ -103,14 +140,6 @@ class AirtableManager:
             logging.info(f"- Records with extracted URLs: {records_with_url}")
             logging.info(f"- Total unique job IDs found: {len(job_ids)}")
 
-            if job_ids:
-                logging.info(
-                    f"First few job IDs for verification: {sorted(list(job_ids))[:5]}"
-                )
-                logging.info(
-                    f"Last few job IDs for verification: {sorted(list(job_ids))[-5:]}"
-                )
-
             return job_ids
 
         except Exception as e:
@@ -118,7 +147,7 @@ class AirtableManager:
             logging.error("Returning empty set to allow processing of all jobs")
             return set()
 
-    def insert_job(self, job_data):
+    def insert_job(self, job_data: Dict) -> bool:
         """Insert a job into Airtable if it doesn't exist"""
         job_id = job_data["job_id"]
 
@@ -131,6 +160,10 @@ class AirtableManager:
             # Get analysis data (already a dict from OpenAI)
             analysis_data = job_data["analysis"]
 
+            # Get job source from URL
+            url = job_data.get("url", "")
+            source = job_data.get("source") or self._get_job_source(url)
+
             # Format the data for Airtable
             airtable_data = {
                 "Title": job_data["title"],
@@ -140,11 +173,15 @@ class AirtableManager:
                 "Score": analysis_data.get("score", 0),
                 "Tech Stack": ", ".join(analysis_data.get("tech_stack", [])),
                 "Recommendation": analysis_data.get("recommendation", ""),
-                "URL": job_data.get("url", f"https://www.seek.com.au/job/{job_id}"),
+                "URL": url,
+                "Source": source,  # Add source field
                 "Quick Apply": job_data.get("quick_apply", False),
-                "Created At": job_data.get("created_at"),  # ISO format datetime string
+                "Created At": job_data.get("created_at"),
                 "Pay": job_data.get("pay_rate", ""),
                 "Type": job_data.get("work_type", ""),
+                "Remote": job_data.get("remote", True),
+                "Location": job_data.get("location", ""),
+                "Status": "DISCOVERED",  # Initial status
             }
 
             # Create record in Airtable
@@ -157,7 +194,7 @@ class AirtableManager:
             logging.error(f"Error adding job to Airtable: {str(e)}")
             raise
 
-    def batch_insert_jobs(self, jobs_data):
+    def batch_insert_jobs(self, jobs_data: List[Dict]):
         """Insert multiple jobs into Airtable"""
         new_jobs_count = 0
         duplicate_count = 0
@@ -193,3 +230,18 @@ class AirtableManager:
         except Exception as e:
             logging.error(f"Error updating record {record_id}: {str(e)}")
             raise
+
+    def get_jobs_by_source(
+        self, source: str, status: Optional[str] = None
+    ) -> List[Dict]:
+        """Get jobs filtered by source and optionally by status."""
+        try:
+            formula = f"{{Source}} = '{source}'"
+            if status:
+                formula = f"AND({formula}, {{Status}} = '{status}')"
+
+            records = self.table.all(formula=formula)
+            return [{"id": r["id"], **r["fields"]} for r in records]
+        except Exception as e:
+            logging.error(f"Error getting jobs by source {source}: {str(e)}")
+            return []
