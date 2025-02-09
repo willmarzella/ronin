@@ -5,7 +5,7 @@
 # Core Search Settings
 #-----------------------------------------------
 search:
-  keywords: '"Data-engineer"' # Use quotes for exact matches
+  keywords: 'Data engineer' # Use quotes for exact matches
   location: 'All Australia' # Location to search in
   date_range: 1 # Number of days to look back
   sort_mode: 'ListedDate' # ListedDate, Relevance, etc.
@@ -13,7 +13,7 @@ search:
   experience_level: 'entry' # entry, mid, senior
   salary:
     min: 120000 # Minimum acceptable salary
-    max: 200000 # Maximum salary to filter
+    max: 250000 # Maximum salary to filter
     type: 'annual' # annual, hourly, daily, contract
 
 #-----------------------------------------------
