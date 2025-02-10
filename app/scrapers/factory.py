@@ -4,7 +4,6 @@ from typing import Dict, Optional, Type
 from app.scrapers.base import BaseScraper
 from app.scrapers.seek import SeekScraper
 from app.scrapers.indeed import IndeedScraper
-from app.scrapers.linkedin import LinkedInScraper
 from app.utils.config import load_config
 
 
@@ -13,8 +12,8 @@ class JobScraperFactory:
 
     _scrapers: Dict[str, Type[BaseScraper]] = {
         "seek": SeekScraper,
-        "indeed": IndeedScraper,
-        "linkedin": LinkedInScraper,
+        # "indeed": IndeedScraper,
+        # "linkedin": LinkedInScraper,
     }
 
     @classmethod

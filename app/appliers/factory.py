@@ -9,8 +9,9 @@ class JobApplierFactory:
 
     _appliers: Dict[str, Type[BaseApplier]] = {
         "seek": SeekApplier,
+        # "indeed": IndeedApplier,
         # Add more appliers here as they are implemented
-        "greenhouse": GreenhouseApplier,
+        # "greenhouse": GreenhouseApplier,
         # "workday": WorkdayApplier,
         # "lever": LeverApplier,
     }
