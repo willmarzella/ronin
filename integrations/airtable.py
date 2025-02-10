@@ -179,7 +179,6 @@ class AirtableManager:
                 "Created At": job_data.get("created_at"),
                 "Pay": job_data.get("pay_rate", ""),
                 "Type": job_data.get("work_type", ""),
-                "Remote": job_data.get("remote", True),
                 "Location": job_data.get("location", ""),
                 "Status": "DISCOVERED",  # Initial status
             }

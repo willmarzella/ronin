@@ -3,7 +3,6 @@
 from typing import Dict, Optional, Type
 from app.appliers.base import BaseApplier
 from app.appliers.seek import SeekApplier
-from app.appliers.greenhouse import GreenhouseApplier
 
 class JobApplierFactory:
     """Factory class for creating job appliers based on job board type."""
