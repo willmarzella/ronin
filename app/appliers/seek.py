@@ -336,9 +336,56 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 # Add checkbox groups to elements list
                 elements.extend(checkbox_groups.values())
 
-                # Handle other input types (text, radio, select, etc.)
+                # Handle radio groups
+                radio_groups = {}
+                radios = form.find_elements(By.CSS_SELECTOR, 'input[type="radio"]')
+
+                for radio in radios:
+                    name = radio.get_attribute("name")
+                    if not name:
+                        continue
+
+                    # Find the group question/label by looking at fieldset/legend
+                    try:
+                        fieldset = radio.find_element(
+                            By.XPATH, "ancestor::fieldset[.//legend//strong]"
+                        )
+                        question = fieldset.find_element(
+                            By.XPATH, ".//legend//strong"
+                        ).text.strip()
+                    except:
+                        # Fallback to div with strong if not in fieldset
+                        parent_div = radio.find_element(
+                            By.XPATH,
+                            "ancestor::div[contains(@class, '_1wpnmph0') and .//strong]",
+                        )
+                        question = parent_div.find_element(
+                            By.TAG_NAME, "strong"
+                        ).text.strip()
+
+                    if name not in radio_groups:
+                        radio_groups[name] = {
+                            "element": radio,  # Store first radio as reference
+                            "type": "radio",
+                            "question": question,
+                            "options": [],
+                        }
+
+                    # Add this radio's info to the options
+                    radio_groups[name]["options"].append(
+                        {
+                            "id": radio.get_attribute("id"),
+                            "label": self._get_element_label(radio) or "",
+                        }
+                    )
+
+                # Add radio groups to elements list
+                elements.extend(radio_groups.values())
+
+                # Handle other input types (text, select, etc.)
                 for element in form.find_elements(
-                    By.CSS_SELECTOR, "input:not([type='checkbox']), select, textarea"
+                    By.CSS_SELECTOR,
+                    "input:not([type='checkbox']):not([type='radio']), select, textarea",
                 ):
                     element_type = element.get_attribute("type")
                     if element_type in ["hidden", "submit", "button"]:
@@ -492,6 +539,9 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
         """Submit the application and verify success."""
         try:
 
+            time.sleep(2)  # Give the page time to transition
+            print("Waiting for review continue button")
+
             # Wait for the review continue button
             WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located(
@@ -504,7 +554,11 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
             )
             continue_button.click()
 
+            print("Clicked continue button")
+
             time.sleep(2)  # Give the page time to transition
+
+            print("Waiting for submit button")
 
             # Wait for the submit button
             WebDriverWait(self.driver, 10).until(
@@ -518,6 +572,8 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 By.CSS_SELECTOR, "[data-testid='review-submit-application']"
             )
             submit_button.click()
+
+            print("Clicked submit button")
 
             time.sleep(2)  # Give the submission time to complete
 
