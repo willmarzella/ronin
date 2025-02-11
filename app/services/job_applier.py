@@ -22,8 +22,8 @@ class JobApplierService:
         # Map domains to job board names
         domain_mapping = {
             "seek.com.au": "seek",
-            "boards.greenhouse.io": "greenhouse",
-            "jobs.lever.co": "lever",
+            # "boards.greenhouse.io": "greenhouse",
+            # "jobs.lever.co": "lever",
             # Add more mappings as needed
         }
 
@@ -55,8 +55,7 @@ class JobApplierService:
         try:
             # Get all records where Status is 'Ready to Apply' and Quick Apply is True
             formula = (
-                "AND(OR({Status} = 'DISCOVERED', {Status} = 'APPLICATION_FAILED'), "
-                "{Quick Apply} = TRUE(), {TESTING} = FALSE())"
+                "AND({Status} = 'DISCOVERED', {Quick Apply} = TRUE(), {TESTING} = FALSE())"
             )
             records = self.airtable.table.all(formula=formula)
 

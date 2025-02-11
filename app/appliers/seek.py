@@ -88,9 +88,9 @@ You MUST return your response in valid JSON format with fields that match the in
 - For selects: {{"selected_option": "value of the option to select"}}
 
 For radio and checkbox inputs, ONLY return the exact ID from the options provided, not the label.
-For select inputs, ONLY return the exact value from the options provided, not the label.
+For select inputs, ONLY return the exact value attribute from the options provided, not the label.
 For textareas, keep responses under 100 words and ensure it's properly escaped for JSON.
-Always ensure your response is valid JSON and contains the expected fields."""
+Always ensure your response is valid JSON and contains the expected fields. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED."""
 
             system_prompt += f"\n\nMy resume: {resume}"
 
@@ -129,7 +129,7 @@ Always ensure your response is valid JSON and contains the expected fields."""
                 user_message += f"\n\nJob Context: {self.current_job_description}"
 
             response = self.openai_client.chat_completion(
-                system_prompt=system_prompt, user_message=user_message, temperature=0.7
+                system_prompt=system_prompt, user_message=user_message, temperature=0.3
             )
 
             if not response:
@@ -245,7 +245,7 @@ Always ensure your response is valid JSON and contains the expected fields."""
             # Wait for resume section to load
             WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "[data-automation='resume-select']")
+                    (By.CSS_SELECTOR, "[data-testid='select-input']")
                 )
             )
 
@@ -256,16 +256,10 @@ Always ensure your response is valid JSON and contains the expected fields."""
 
             resume_select = Select(
                 self.driver.find_element(
-                    By.CSS_SELECTOR, "[data-automation='resume-select']"
+                    By.CSS_SELECTOR, "[data-testid='select-input']"
                 )
             )
             resume_select.select_by_value(resume_id)
-
-            # Click continue
-            continue_button = self.driver.find_element(
-                By.CSS_SELECTOR, "[data-automation='continue-button']"
-            )
-            continue_button.click()
 
         except Exception as e:
             raise Exception(f"Failed to handle resume for job {job_id}: {str(e)}")
@@ -276,19 +270,19 @@ Always ensure your response is valid JSON and contains the expected fields."""
             # Wait for cover letter section
             WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "[data-automation='cover-letter-select']")
+                    (By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_2']")
                 )
             )
 
             # Select "No cover letter"
             no_cover_select = self.driver.find_element(
-                By.CSS_SELECTOR, "[data-automation='no-cover-letter']"
+                By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_2']"
             )
             no_cover_select.click()
 
             # Click continue
             continue_button = self.driver.find_element(
-                By.CSS_SELECTOR, "[data-automation='continue-button']"
+                By.CSS_SELECTOR, "[data-testid='continue-button']"
             )
             continue_button.click()
 
@@ -299,58 +293,100 @@ Always ensure your response is valid JSON and contains the expected fields."""
         """Get all form elements that need to be filled."""
         elements = []
 
-        # Find all input elements
-        for element in self.driver.find_elements(
-            By.CSS_SELECTOR, "input, select, textarea"
-        ):
+        # Find all form elements
+        forms = self.driver.find_elements(By.TAG_NAME, "form")
+        for form in forms:
             try:
-                element_type = element.get_attribute("type")
-                if element_type in ["hidden", "submit", "button"]:
-                    continue
+                # Handle checkbox groups first
+                checkbox_groups = {}
+                checkboxes = form.find_elements(
+                    By.CSS_SELECTOR, 'input[type="checkbox"]'
+                )
 
-                label = self._get_element_label(element)
-                if not label:
-                    continue
+                for checkbox in checkboxes:
+                    name = checkbox.get_attribute("name")
+                    if not name:
+                        continue
 
-                element_info = {
-                    "element": element,
-                    "type": element_type or element.tag_name,
-                    "question": label,
-                }
+                    # Find the group question/label by looking at parent elements
+                    parent_div = checkbox.find_element(
+                        By.XPATH,
+                        "ancestor::div[contains(@class, '_1wpnmph0') and .//strong]",
+                    )
+                    question = parent_div.find_element(
+                        By.TAG_NAME, "strong"
+                    ).text.strip()
 
-                # Get options for select/radio/checkbox
-                if (
-                    element_type in ["radio", "checkbox"]
-                    or element.tag_name == "select"
+                    if name not in checkbox_groups:
+                        checkbox_groups[name] = {
+                            "element": checkbox,  # Store first checkbox as reference
+                            "type": "checkbox",
+                            "question": question,
+                            "options": [],
+                        }
+
+                    # Add this checkbox's info to the options
+                    checkbox_groups[name]["options"].append(
+                        {
+                            "id": checkbox.get_attribute("id"),
+                            "label": self._get_element_label(checkbox) or "",
+                        }
+                    )
+
+                # Add checkbox groups to elements list
+                elements.extend(checkbox_groups.values())
+
+                # Handle other input types (text, radio, select, etc.)
+                for element in form.find_elements(
+                    By.CSS_SELECTOR, "input:not([type='checkbox']), select, textarea"
                 ):
-                    options = []
-                    if element.tag_name == "select":
-                        for option in element.find_elements(By.TAG_NAME, "option"):
-                            if option.get_attribute("value"):
+                    element_type = element.get_attribute("type")
+                    if element_type in ["hidden", "submit", "button"]:
+                        continue
+
+                    # Normalize select-one to select for consistency
+                    if element_type == "select-one":
+                        element_type = "select"
+
+                    label = self._get_element_label(element)
+                    if not label:
+                        continue
+
+                    element_info = {
+                        "element": element,
+                        "type": element_type or element.tag_name,
+                        "question": label,
+                    }
+
+                    # Get options for select/radio
+                    if element_type == "radio" or element.tag_name == "select":
+                        options = []
+                        if element.tag_name == "select":
+                            for option in element.find_elements(By.TAG_NAME, "option"):
+                                if option.get_attribute("value"):
+                                    options.append(
+                                        {
+                                            "value": option.get_attribute("value"),
+                                            "label": option.text.strip(),
+                                        }
+                                    )
+                        else:
+                            name = element.get_attribute("name")
+                            for option in form.find_elements(
+                                By.CSS_SELECTOR, f'input[name="{name}"]'
+                            ):
                                 options.append(
                                     {
-                                        "value": option.get_attribute("value"),
-                                        "label": option.text.strip(),
+                                        "id": option.get_attribute("id"),
+                                        "label": self._get_element_label(option) or "",
                                     }
                                 )
-                    else:
-                        name = element.get_attribute("name")
-                        for option in self.driver.find_elements(
-                            By.CSS_SELECTOR, f'input[name="{name}"]'
-                        ):
-                            options.append(
-                                {
-                                    "id": option.get_attribute("id"),
-                                    "label": self._get_element_label(option) or "",
-                                }
-                            )
+                        element_info["options"] = options
 
-                    element_info["options"] = options
-
-                elements.append(element_info)
+                    elements.append(element_info)
 
             except Exception as e:
-                logging.warning(f"Error processing form element: {str(e)}")
+                logging.warning(f"Error processing form: {str(e)}")
                 continue
 
         return elements
@@ -370,9 +406,24 @@ Always ensure your response is valid JSON and contains the expected fields."""
                 option.click()
 
             elif element_info["type"] == "checkbox":
-                for option_id in ai_response["selected_options"]:
-                    option = self.driver.find_element(By.ID, option_id)
-                    option.click()
+                # Get all checkboxes in this group
+                name = element.get_attribute("name")
+                form = element.find_element(By.XPATH, "ancestor::form")
+                checkboxes = form.find_elements(
+                    By.CSS_SELECTOR, f'input[type="checkbox"][name="{name}"]'
+                )
+
+                # Get the IDs we want to select
+                desired_ids = set(ai_response["selected_options"])
+
+                # Click only the checkboxes that need to change state
+                for checkbox in checkboxes:
+                    checkbox_id = checkbox.get_attribute("id")
+                    is_selected = checkbox.is_selected()
+                    should_be_selected = checkbox_id in desired_ids
+
+                    if is_selected != should_be_selected:
+                        checkbox.click()
 
             elif element_info["type"] == "select":
                 select = Select(element)
@@ -408,12 +459,16 @@ Always ensure your response is valid JSON and contains the expected fields."""
             for element_info in elements:
                 try:
                     # Get AI response
+                    print(f"Getting AI response for {element_info}")
                     ai_response = self._get_ai_form_response(element_info, tech_stack)
+                    print(f"AI response: {ai_response}")
                     if not ai_response:
                         return False
 
                     # Apply the response
                     self._apply_ai_response(element_info, ai_response)
+
+                    print(f"Applied {element_info['question']} with {ai_response}")
 
                 except Exception as e:
                     logging.error(
@@ -423,7 +478,7 @@ Always ensure your response is valid JSON and contains the expected fields."""
 
             # Click continue
             continue_button = self.driver.find_element(
-                By.CSS_SELECTOR, "[data-automation='continue-button']"
+                By.CSS_SELECTOR, "[data-testid='continue-button']"
             )
             continue_button.click()
 
@@ -436,32 +491,58 @@ Always ensure your response is valid JSON and contains the expected fields."""
     def _submit_application(self) -> bool:
         """Submit the application and verify success."""
         try:
-            # Wait for submit button
+
+            # Wait for the review continue button
             WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "[data-automation='submit-button']")
+                    (By.CSS_SELECTOR, "[data-testid='continue-button']")
+                )
+            )
+
+            continue_button = self.driver.find_element(
+                By.CSS_SELECTOR, "[data-testid='continue-button']"
+            )
+            continue_button.click()
+
+            time.sleep(2)  # Give the page time to transition
+
+            # Wait for the submit button
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (By.CSS_SELECTOR, "[data-testid='review-submit-application']")
                 )
             )
 
             # Click submit
             submit_button = self.driver.find_element(
-                By.CSS_SELECTOR, "[data-automation='submit-button']"
+                By.CSS_SELECTOR, "[data-testid='review-submit-application']"
             )
             submit_button.click()
 
-            # Wait for success message
-            try:
-                WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, "[data-automation='application-success']")
+            time.sleep(2)  # Give the submission time to complete
+
+            # Check for success indicators
+            success_indicators = [
+                "success" in self.driver.current_url,
+                bool(
+                    self.driver.find_elements(By.CSS_SELECTOR, "[id='applicationSent']")
+                ),
+                bool(
+                    self.driver.find_elements(
+                        By.CSS_SELECTOR, "[data-testid='application-success']"
                     )
-                )
-                return True
-            except TimeoutException:
-                return False
+                ),
+                "submitted" in self.driver.page_source.lower(),
+            ]
+
+            return any(success_indicators)
 
         except Exception as e:
-            logging.error(f"Failed to submit application: {str(e)}")
+            logging.warning(f"Issue during submission process: {str(e)}")
+            # Don't return False here - check the URL as a fallback
+            success_url_check = "success" in self.driver.current_url
+            if success_url_check:
+                return True
             return False
 
     def apply_to_job(self, job_id, job_description, tech_stack):
@@ -483,19 +564,61 @@ Always ensure your response is valid JSON and contains the expected fields."""
             self._handle_resume(job_id, tech_stack)
             self._handle_cover_letter()
 
-            # Check if role requirements exist - if so, return early with special status
+            # Step 3: Handle screening questions if they exist
             if "role-requirements" in self.driver.current_url:
-                self._handle_screening_questions(job_description, tech_stack)
-            # Step 4: Submit application
-            else:
-                self._submit_application()
+                if not self._handle_screening_questions(job_description, tech_stack):
+                    logging.warning("Issue with screening questions, but continuing...")
 
-            logging.info(f"Successfully applied to job {job_id}")
-            return True
+            # Step 4: Submit application
+            submission_result = self._submit_application()
+
+            # Check for success indicators even if submission reported failure
+            success_indicators = [
+                "success" in self.driver.current_url,
+                bool(
+                    self.driver.find_elements(By.CSS_SELECTOR, "[id='applicationSent']")
+                ),
+                bool(
+                    self.driver.find_elements(
+                        By.CSS_SELECTOR, "[data-testid='application-success']"
+                    )
+                ),
+                "submitted" in self.driver.page_source.lower(),
+            ]
+
+            if any(success_indicators):
+                logging.info(f"Successfully applied to job {job_id}")
+                return "SUCCESS"
+
+            if not submission_result:
+                logging.warning(f"Application may have failed for job {job_id}")
+                return "FAILED"
+
+            return "SUCCESS"
 
         except Exception as e:
-            logging.error(f"Failed to apply to job {job_id}: {str(e)}")
-            return False
+            logging.warning(f"Exception during application for job {job_id}: {str(e)}")
+            # Check for success indicators even after exception
+            if self.driver and any(
+                [
+                    "success" in self.driver.current_url,
+                    bool(
+                        self.driver.find_elements(
+                            By.CSS_SELECTOR, "[id='applicationSent']"
+                        )
+                    ),
+                    bool(
+                        self.driver.find_elements(
+                            By.CSS_SELECTOR, "[data-testid='application-success']"
+                        )
+                    ),
+                    "submitted" in self.driver.page_source.lower(),
+                ]
+            ):
+                logging.info(f"Application successful despite errors for job {job_id}")
+                return "SUCCESS"
+            return "FAILED"
+
         finally:
             # Clear the stored values
             self.current_tech_stack = None
