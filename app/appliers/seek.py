@@ -80,15 +80,15 @@ class SeekApplier(BaseApplier):
             resume = self.config["resume"]["text"][tech_stack]
 
             # Using raw string and double curly braces to escape JSON examples
-            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. Based on my resume below, provide concise, relevant, and professional answers to job application questions.
+            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I do NOT have security clearance. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
 You MUST return your response in valid JSON format with fields that match the input type:
 - For textareas: {{"response": "your detailed answer"}}
 - For radios: {{"selected_option": "id of the option to select"}}
 - For checkboxes: {{"selected_options": ["id1", "id2", ...]}}
 - For selects: {{"selected_option": "value of the option to select"}}
 
-For radio and checkbox inputs, ONLY return the exact ID from the options provided, not the label.
-For select inputs, ONLY return the exact value attribute from the options provided, not the label.
+For radio and checkbox inputs, ONLY return the exact ID from the options provided, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM.
+For select inputs, ONLY return the exact value attribute from the options provided, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM.
 For textareas, keep responses under 100 words and ensure it's properly escaped for JSON.
 Always ensure your response is valid JSON and contains the expected fields. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED."""
 
@@ -118,9 +118,9 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
 
             # Add specific instructions based on input type
             if element_info["type"] == "select":
-                user_message += "\n\nIMPORTANT: Return ONLY the exact value from the options, not the label."
+                user_message += "\n\nIMPORTANT: Return ONLY the exact value from the options, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM."
             elif element_info["type"] in ["radio", "checkbox"]:
-                user_message += "\n\nIMPORTANT: Return ONLY the exact ID of the option you want to select."
+                user_message += "\n\nIMPORTANT: Return ONLY the exact ID of the option you want to select. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM."
             elif element_info["type"] == "textarea":
                 user_message += "\n\nIMPORTANT: Keep your response under 100 words and ensure it's properly escaped for JSON."
 
@@ -299,39 +299,47 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
             try:
                 # Handle checkbox groups first
                 checkbox_groups = {}
-                checkboxes = form.find_elements(
-                    By.CSS_SELECTOR, 'input[type="checkbox"]'
+
+                # Find all checkbox group containers first
+                checkbox_containers = form.find_elements(
+                    By.XPATH,
+                    ".//div[contains(@class, '_1wpnmph0') and .//strong and .//input[@type='checkbox']]",
                 )
 
-                for checkbox in checkboxes:
-                    name = checkbox.get_attribute("name")
-                    if not name:
-                        continue
-
-                    # Find the group question/label by looking at parent elements
-                    parent_div = checkbox.find_element(
-                        By.XPATH,
-                        "ancestor::div[contains(@class, '_1wpnmph0') and .//strong]",
-                    )
-                    question = parent_div.find_element(
+                for container in checkbox_containers:
+                    # Get the question text from the strong element
+                    question = container.find_element(
                         By.TAG_NAME, "strong"
                     ).text.strip()
 
-                    if name not in checkbox_groups:
-                        checkbox_groups[name] = {
-                            "element": checkbox,  # Store first checkbox as reference
-                            "type": "checkbox",
-                            "question": question,
-                            "options": [],
-                        }
-
-                    # Add this checkbox's info to the options
-                    checkbox_groups[name]["options"].append(
-                        {
-                            "id": checkbox.get_attribute("id"),
-                            "label": self._get_element_label(checkbox) or "",
-                        }
+                    # Get all checkboxes in this group
+                    checkboxes = container.find_elements(
+                        By.CSS_SELECTOR, 'input[type="checkbox"]'
                     )
+
+                    if not checkboxes:
+                        continue
+
+                    # Use the first checkbox's name as the group identifier
+                    name = checkboxes[0].get_attribute("name")
+                    if not name:
+                        continue
+
+                    checkbox_groups[name] = {
+                        "element": checkboxes[0],  # Store first checkbox as reference
+                        "type": "checkbox",
+                        "question": question,
+                        "options": [],
+                    }
+
+                    # Add all checkboxes in this group as options
+                    for checkbox in checkboxes:
+                        checkbox_groups[name]["options"].append(
+                            {
+                                "id": checkbox.get_attribute("id"),
+                                "label": self._get_element_label(checkbox) or "",
+                            }
+                        )
 
                 # Add checkbox groups to elements list
                 elements.extend(checkbox_groups.values())
@@ -483,64 +491,66 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
         except Exception as e:
             raise Exception(f"Failed to apply AI response: {str(e)}")
 
-    def _handle_screening_questions(
-        self, job_description: str, tech_stack: str
-    ) -> bool:
-        """Handle screening questions for Seek applications."""
+    def _handle_screening_questions(self) -> bool:
+        """Handle any screening questions on the application."""
         try:
-            # Wait for questions section
-            try:
-                WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "form"))
-                )
-            except TimeoutException:
-                # No questions to answer
-                return True
-
-            # Get all form elements
+            # Get all form elements that need answers
             elements = self._get_form_elements()
             if not elements:
-                return True
+                return True  # No screening questions to handle
 
-            # Process each element
             for element_info in elements:
                 try:
-                    # Get AI response
-                    print(f"Getting AI response for {element_info}")
-                    ai_response = self._get_ai_form_response(element_info, tech_stack)
-                    print(f"AI response: {ai_response}")
+                    # Get AI response for this element
+                    ai_response = self._get_ai_form_response(
+                        element_info, self.current_tech_stack
+                    )
                     if not ai_response:
-                        return False
+                        logging.error(
+                            f"Failed to get AI response for question: {element_info['question']}"
+                        )
+                        return False  # Skip to next job if AI can't answer
 
-                    # Apply the response
+                    # Apply the AI response
                     self._apply_ai_response(element_info, ai_response)
-
                     print(f"Applied {element_info['question']} with {ai_response}")
 
                 except Exception as e:
                     logging.error(
                         f"Failed to handle question {element_info['question']}: {str(e)}"
                     )
-                    return False
+                    return False  # Skip to next job if any question fails
 
             # Click continue
-            continue_button = self.driver.find_element(
-                By.CSS_SELECTOR, "[data-testid='continue-button']"
-            )
-            continue_button.click()
-
-            return True
+            try:
+                continue_button = self.driver.find_element(
+                    By.CSS_SELECTOR, "[data-testid='continue-button']"
+                )
+                continue_button.click()
+                return True
+            except Exception as e:
+                logging.error(f"Failed to click continue button: {str(e)}")
+                return False  # Skip to next job if can't continue
 
         except Exception as e:
             logging.error(f"Failed to handle screening questions: {str(e)}")
-            return False
+            return False  # Skip to next job on any error
 
     def _submit_application(self) -> bool:
-        """Submit the application and verify success."""
+        """Submit the application after all questions are answered."""
         try:
-
             time.sleep(2)  # Give the page time to transition
             print("Waiting for review continue button")
+
+            # Check for and handle privacy policy checkbox
+            try:
+                privacy_checkbox = self.driver.find_element(By.ID, "privacyPolicy")
+                if not privacy_checkbox.is_selected():
+                    privacy_checkbox.click()
+                    time.sleep(0.5)  # Brief pause after clicking
+            except NoSuchElementException:
+                # Privacy checkbox not present, continue normally
+                pass
 
             # Wait for the review continue button
             WebDriverWait(self.driver, 10).until(
@@ -622,7 +632,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
 
             # Step 3: Handle screening questions if they exist
             if "role-requirements" in self.driver.current_url:
-                if not self._handle_screening_questions(job_description, tech_stack):
+                if not self._handle_screening_questions():
                     logging.warning("Issue with screening questions, but continuing...")
 
             # Step 4: Submit application

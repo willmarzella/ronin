@@ -168,6 +168,12 @@ class SeekJobScraper(BaseScraper):
             if not description_element:
                 return None
 
+            # Clean the description text of problematic Unicode characters
+            description_text = description_element.get_text(separator="\n").strip()
+            description_text = description_text.encode("ascii", "ignore").decode(
+                "ascii"
+            )
+
             # Check if quick apply is available by finding the apply button and checking its text
             apply_button = soup.find("a", attrs={"data-automation": "job-detail-apply"})
             quick_apply = apply_button and "Quick apply" in apply_button.get_text()
@@ -185,8 +191,7 @@ class SeekJobScraper(BaseScraper):
                     break
 
             # Get additional metadata
-            metadata = self._extract_metadata(soup) 
-           
+            metadata = self._extract_metadata(soup)
 
             # Ensure we have a created_at date
             created_at = None
@@ -206,7 +211,7 @@ class SeekJobScraper(BaseScraper):
                 created_at = datetime.now().isoformat()  # Fallback to current time
 
             return {
-                "description": description_element.get_text(separator="\n").strip(),
+                "description": description_text,
                 "quick_apply": quick_apply,
                 "created_at": created_at,
                 "work_type": work_type,
@@ -249,7 +254,7 @@ class SeekJobScraper(BaseScraper):
 
     def scrape_jobs(self) -> List[Dict]:
         """
-        Scrape jobs from Seek.
+        Scrape jobs from Seek, only including jobs with quick apply enabled.
 
         Returns:
             List of raw job data (without analysis)
@@ -285,16 +290,20 @@ class SeekJobScraper(BaseScraper):
                     continue
 
                 job_details = self.get_job_details(job_info["job_id"])
-                if job_details:
+                if job_details and job_details.get(
+                    "quick_apply", True
+                ):  # Only process quick apply jobs
                     jobs_data.append({**job_info, **job_details})
                     jobs_processed += 1
                     logger.info(
-                        f"Scraped job {jobs_processed}/{self.max_jobs if self.max_jobs else 'unlimited'}: {job_info['title']}"
+                        f"Scraped job {jobs_processed}/{self.max_jobs if self.max_jobs else 'unlimited'}: {job_info['title']} (Quick Apply)"
                     )
+                else:
+                    logger.debug(f"Skipping non-quick apply job: {job_info['title']}")
 
             page += 1
 
         logger.info(
-            f"Completed scraping. Found {len(jobs_data)} jobs across {page-1} pages"
+            f"Completed scraping. Found {len(jobs_data)} quick apply jobs across {page-1} pages"
         )
         return jobs_data

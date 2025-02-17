@@ -1,17 +1,21 @@
 """Indeed job board scraper."""
 
 import time
-import json
 import logging
 from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from urllib.parse import urlencode
 
 from app.scrapers.base import BaseScraper
 
 
-class IndeedScraper(BaseScraper):
+class IndeedJobScraper(BaseScraper):
     """Scraper for Indeed jobs."""
 
     def __init__(self, config: Dict):
@@ -20,79 +24,136 @@ class IndeedScraper(BaseScraper):
         self.base_url = "https://au.indeed.com/jobs"
         self.location = config.get("search", {}).get("location", "Australia")
         self.keywords = config.get("search", {}).get("keywords", [])
+        self.driver = None
+        self.is_logged_in = False
 
-        # Add Indeed-specific headers
-        self.session.headers.update(
-            {
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Cache-Control": "no-cache",
-                "Pragma": "no-cache",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "same-origin",
-                "Sec-Fetch-User": "?1",
-                "Upgrade-Insecure-Requests": "1",
-            }
-        )
+    def _setup_driver(self):
+        """Initialize Chrome WebDriver with local browser"""
+        if self.driver:
+            return
+
+        options = webdriver.ChromeOptions()
+        options.add_argument("--start-maximized")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--no-sandbox")
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("useAutomationExtension", False)
+        options.add_experimental_option("detach", True)
+        options.add_argument("--user-data-dir=chrome-data")
+        options.add_argument("--profile-directory=Default")
+
+        try:
+            service = Service()
+            self.driver = webdriver.Chrome(service=service, options=options)
+            self.driver.implicitly_wait(10)
+            self.driver.set_window_size(1920, 1080)
+            logging.info("Chrome WebDriver initialized successfully")
+        except Exception as e:
+            logging.error(f"Failed to initialize Chrome WebDriver: {str(e)}")
+            raise
+
+    def _login(self):
+        """Handle Indeed.com login process."""
+        if self.is_logged_in:
+            return
+
+        try:
+            self.driver.get("https://au.indeed.com")
+            print("\n=== Login Required ===")
+            print("1. Please sign in with Google in the browser window")
+            print("2. Make sure you're fully logged in")
+            print("3. Press Enter when ready to continue...")
+            input()
+            self.is_logged_in = True
+            logging.info("Successfully logged into Indeed")
+        except Exception as e:
+            raise Exception(f"Failed to login to Indeed: {str(e)}")
 
     def build_search_url(self, page: int) -> str:
         """Build the search URL for the given page number."""
+        keyword_string = (
+            self.keywords
+            if isinstance(self.keywords, str)
+            else " ".join(self.keywords) if isinstance(self.keywords, list) else ""
+        )
+        location = self.location.replace("All ", "")
+
         params = {
-            "q": " ".join(self.keywords.replace(" ", "+").lower()),
-            "l": self.location,
-            "sort": "date",  # Sort by date
-            "fromage": "1",  # Last 24 hours
-            "start": (page - 1) * 15,  # Indeed uses 15 jobs per page
+            "q": keyword_string,
+            "l": location,
+            "sort": "date",
+            "fromage": "14",
+            "start": (page - 1) * 10,
         }
+
         return f"{self.base_url}?{urlencode(params)}"
 
-    def extract_job_info(self, job_element: BeautifulSoup) -> Optional[Dict]:
-        """Extract job information from a job card."""
+    def find_job_elements(self, soup: Optional[BeautifulSoup] = None) -> List:
+        """Find all job elements on the current page."""
         try:
-            # Extract job ID from the parent container
-            job_id = job_element.get("data-jk")
-            if not job_id:
-                return None
+            WebDriverWait(self.driver, 2).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "job_seen_beacon"))
+            )
+            return self.driver.find_elements(By.CLASS_NAME, "job_seen_beacon")
+        except (TimeoutException, Exception) as e:
+            logging.error(f"Error finding job elements: {str(e)}")
+            return []
 
-            # Extract basic job information
-            title_elem = job_element.find("h2", class_="jobTitle")
-            company_elem = job_element.find("span", {"data-testid": "company-name"})
-            location_elem = job_element.find("div", {"data-testid": "text-location"})
+    def extract_job_info(self, job_element: BeautifulSoup) -> Optional[Dict]:
+        """Extract job information from a job card/element."""
+        try:
+            # Get basic info before clicking
+            title_element = job_element.find_element(By.CLASS_NAME, "jcs-JobTitle")
+            title = title_element.find_element(By.TAG_NAME, "span").text
+            job_id = title_element.get_attribute("id").replace("job_", "")
+            job_url = title_element.get_attribute("href")
+            company = job_element.find_element(
+                By.CSS_SELECTOR, "[data-testid='company-name']"
+            ).text
+            location = job_element.find_element(
+                By.CSS_SELECTOR, "[data-testid='text-location']"
+            ).text
+
+            # Click using JavaScript
+            self.driver.execute_script("arguments[0].click();", title_element)
 
             # Check for quick apply
             quick_apply = False
-            apply_elem = job_element.find("span", {"data-testid": "indeedApply"})
-            if apply_elem and "Easily apply" in apply_elem.text:
-                quick_apply = True
-
-            job_info = {
-                "id": job_id,
-                "title": title_elem.text.strip() if title_elem else "",
-                "company": company_elem.text.strip() if company_elem else "",
-                "location": location_elem.text.strip() if location_elem else "",
-                "url": f"https://au.indeed.com/viewjob?jk={job_id}",
-                "source": "indeed",
-                "tech_stack": [],  # Will be populated from job details
-                "salary_range": "",
-                "job_type": "Full-time",
-                "remote": True,
-                "quick_apply": quick_apply,  # Add quick apply status
-            }
-
-            # Try to extract salary information
-            salary_elem = job_element.find("div", class_="salary-snippet")
-            if salary_elem:
-                job_info["salary_range"] = salary_elem.text.strip()
-            else:
-                # Try metadata salary
-                meta_salary = job_element.find(
-                    "div", class_="metadata salary-snippet-container"
+            try:
+                apply_elem = job_element.find_element(
+                    By.CSS_SELECTOR, "[data-testid='indeedApply']"
                 )
-                if meta_salary:
-                    job_info["salary_range"] = meta_salary.text.strip()
+                quick_apply = "Easily apply" in apply_elem.text
+            except NoSuchElementException:
+                pass
 
-            return job_info
+            # Get description
+            description = ""
+            try:
+                description_elem = WebDriverWait(self.driver, 1).until(
+                    EC.presence_of_element_located((By.ID, "jobDescriptionText"))
+                )
+                description = description_elem.text
+            except (TimeoutException, NoSuchElementException):
+                try:
+                    description = job_element.find_element(
+                        By.CSS_SELECTOR, "[class*='job-snippet']"
+                    ).text
+                except NoSuchElementException:
+                    logging.warning(f"No description found for job {job_id}")
+
+            return {
+                "job_id": job_id,
+                "title": title,
+                "company": company,
+                "location": location,
+                "url": job_url,
+                "description": description,
+                "source": "indeed",
+                "quick_apply": quick_apply,
+                "created_at": time.strftime("%Y-%m-%d"),
+            }
 
         except Exception as e:
             logging.error(f"Error extracting job info: {str(e)}")
@@ -100,109 +161,60 @@ class IndeedScraper(BaseScraper):
 
     def get_job_details(self, job_id: str) -> Optional[Dict]:
         """Get detailed information for a specific job."""
-        try:
-            url = f"https://au.indeed.com/viewjob?jk={job_id}"
-            soup = self.make_request(url)
-            if not soup:
-                return None
-
-            # Extract job description
-            description_elem = soup.find("div", id="jobDescriptionText")
-            if not description_elem:
-                return None
-
-            description = description_elem.get_text(separator="\n").strip()
-
-            # Extract additional details
-            details = {
-                "description": description,
-                "requirements": [],
-                "benefits": [],
-                "tech_stack": [],
-            }
-
-            # Try to extract requirements (Indeed often has them in lists)
-            requirements_lists = description_elem.find_all("ul")
-            for ul in requirements_lists:
-                # Check if this list is likely requirements
-                list_text = ul.get_text().lower()
-                if any(
-                    keyword in list_text
-                    for keyword in ["require", "qualification", "skill"]
-                ):
-                    details["requirements"].extend(
-                        [li.text.strip() for li in ul.find_all("li")]
-                    )
-
-            # Try to extract benefits
-            benefits_section = soup.find("div", id="benefits")
-            if benefits_section:
-                benefits_list = benefits_section.find_all("li")
-                details["benefits"] = [
-                    benefit.text.strip() for benefit in benefits_list
-                ]
-
-            # Extract tech stack from description
-            tech_keywords = self.config.get("tech_keywords", [])
-            for tech in tech_keywords:
-                if tech.lower() in description.lower():
-                    details["tech_stack"].append(tech)
-
-            return details
-
-        except Exception as e:
-            logging.error(f"Error getting job details: {str(e)}")
-            return None
-
-    def find_job_elements(self, soup: BeautifulSoup) -> List:
-        """Find all job elements on the page."""
-        return soup.find_all("div", class_="job_seen_beacon")
+        # For Indeed, we get all details during initial extraction
+        return None
 
     def scrape_jobs(self) -> List[Dict]:
-        """
-        Scrape jobs from Indeed.
-
-        Returns:
-            List of job data dictionaries
-        """
+        """Scrape jobs from Indeed using Selenium."""
         jobs = []
         page = 1
         total_jobs = 0
 
-        while True:
-            url = self.build_search_url(page)
-            soup = self.make_request(url)
-            if not soup:
-                break
+        try:
+            if not self.driver:
+                self._setup_driver()
+                self._login()
 
-            job_elements = self.find_job_elements(soup)
-            if not job_elements:
-                break
+            # Handle cookie notice once at the start
+            try:
+                cookie_notice = WebDriverWait(self.driver, 2).until(
+                    EC.presence_of_element_located((By.ID, "CookiePrivacyNotice"))
+                )
+                if cookie_notice.is_displayed():
+                    accept_button = self.driver.find_element(
+                        By.CSS_SELECTOR, "[data-gnav-element-name='Cookies.accept']"
+                    )
+                    accept_button.click()
+            except (TimeoutException, NoSuchElementException):
+                pass
 
-            for job_element in job_elements:
-                if self.max_jobs and total_jobs >= self.max_jobs:
-                    return jobs
+            while True:
+                url = self.build_search_url(page)
+                self.driver.get(url)
 
-                job_info = self.extract_job_info(job_element)
-                if not job_info:
-                    continue
+                job_elements = self.find_job_elements()
+                print(f"Found {len(job_elements)} job elements on page {page}")
+                if not job_elements:
+                    break
 
-                # Get detailed job information
-                details = self.get_job_details(job_info["id"])
-                if details:
-                    job_info.update(details)
+                for job_element in job_elements:
+                    if self.max_jobs and total_jobs >= self.max_jobs:
+                        return jobs
 
-                jobs.append(job_info)
-                total_jobs += 1
+                    job_info = self.extract_job_info(job_element)
+                    if job_info:
+                        jobs.append(job_info)
+                        total_jobs += 1
+                    print(f"Extracted job info for job {job_info['job_id']}")
 
-                # Respect rate limiting
-                time.sleep(self.delay)
+                page += 1
 
-            # Check if there are more pages
-            next_button = soup.find("a", {"aria-label": "Next"})
-            if not next_button:
-                break
+            return jobs
 
-            page += 1
-
-        return jobs
+        except Exception as e:
+            logging.error(f"Error during job scraping: {str(e)}")
+            return jobs
+        finally:
+            if self.driver:
+                self.driver.quit()
+                self.driver = None

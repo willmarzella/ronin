@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 
 from integrations.airtable import AirtableManager
 from app.appliers.factory import JobApplierFactory
+from app.utils.config import load_config
 
 
 class JobApplierService:
@@ -38,6 +39,18 @@ class JobApplierService:
         try:
             if job_board == "seek":
                 return url.split("/")[-1]
+            elif job_board == "indeed":
+                # Extract jk parameter from Indeed URL
+                # Example URLs:
+                # https://au.indeed.com/viewjob?jk=123456789
+                # https://au.indeed.com/jobs?q=...&vjk=123456789
+                if "jk=" in url:
+                    return url.split("jk=")[1].split("&")[0]
+                elif "vjk=" in url:
+                    return url.split("vjk=")[1].split("&")[0]
+                else:
+                    logging.warning(f"Could not find job ID in Indeed URL: {url}")
+                    return url
             elif job_board == "greenhouse":
                 # Example: https://boards.greenhouse.io/company/jobs/123456
                 return url.split("/")[-1]
@@ -53,10 +66,16 @@ class JobApplierService:
     def _get_pending_jobs(self) -> List[Dict[str, Any]]:
         """Get jobs from Airtable that are ready to apply to."""
         try:
+            # Get configured platforms from config
+            config = load_config()
+            enabled_platforms = config.get("platforms", {}).get("enabled", [])
+
+            if not enabled_platforms:
+                logging.warning("No platforms enabled in config")
+                return []
+
             # Get all records where Status is 'Ready to Apply' and Quick Apply is True
-            formula = (
-                "AND({Status} = 'DISCOVERED', {Quick Apply} = TRUE(), {TESTING} = FALSE())"
-            )
+            formula = "AND({Status} = 'DISCOVERED', {Quick Apply} = TRUE())"
             records = self.airtable.table.all(formula=formula)
 
             jobs = []
@@ -75,6 +94,13 @@ class JobApplierService:
                         source = fields.get("Source", "unknown")
                         if source == "unknown":
                             source = self.airtable._get_job_source(url)
+
+                        # Skip if source is not in enabled platforms
+                        if source.lower() not in [p.lower() for p in enabled_platforms]:
+                            logging.info(
+                                f"Skipping job from {source} - platform not enabled in config"
+                            )
+                            continue
 
                         # Get job ID based on source
                         job_id = self.airtable._get_job_id_from_url(url, source)

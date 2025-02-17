@@ -11,10 +11,12 @@ Available scrapers:
 from typing import Dict, Optional, Type
 from .base import BaseScraper
 from .seek import SeekJobScraper
+from .indeed import IndeedJobScraper
 
 # Registry of available scrapers
 SCRAPER_REGISTRY: Dict[str, Type[BaseScraper]] = {
     "seek": SeekJobScraper,
+    "indeed": IndeedJobScraper,
 }
 
 
