@@ -79,10 +79,8 @@ class SeekApplier(BaseApplier):
                 )
                 tech_stack = "aws"  # Default to aws if tech stack not found
 
-            resume = self.config["resume"]["text"][tech_stack]
-
             # Using raw string and double curly braces to escape JSON examples
-            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc). Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
+            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
 You MUST return your response in valid JSON format with fields that match the input type:
 - For textareas: {{"response": "your detailed answer"}}
 - For radios: {{"selected_option": "id of the option to select"}}
@@ -94,7 +92,7 @@ For select inputs, ONLY return the exact value attribute from the options provid
 For textareas, keep responses under 100 words and ensure it's properly escaped for JSON.
 Always ensure your response is valid JSON and contains the expected fields. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED."""
 
-            system_prompt += f"\n\nMy resume: {resume}"
+            system_prompt += f"\n\nMy resume: {open("assets/resume.txt").read()}"
 
             # Construct the user message
             user_message = f"Question: {element_info['question']}\nInput type: {element_info['type']}\n"
@@ -272,13 +270,13 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
         """Handle cover letter requirements for Seek applications."""
         try:
             # Wait for cover letter section
-            WebDriverWait(self.driver, 10).until(
+            WebDriverWait(self.driver, 3).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_2']")
                 )
             )
 
-            if score and score > 70:
+            if score and score > 60:
                 # Select "Add a cover letter" option
                 add_cover_letter = self.driver.find_element(
                     By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_1']"
@@ -314,7 +312,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
 
                 if cover_letter:
                     # Wait for cover letter textarea
-                    cover_letter_input = WebDriverWait(self.driver, 10).until(
+                    cover_letter_input = WebDriverWait(self.driver, 3).until(
                         EC.presence_of_element_located((By.ID, "coverLetter-text-:r6:"))
                     )
                     cover_letter_input.clear()
@@ -542,7 +540,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
         try:
             # Wait for form elements with timeout
             try:
-                WebDriverWait(self.driver, 10).until(
+                WebDriverWait(self.driver, 3).until(
                     lambda driver: len(self._get_form_elements()) > 0
                     or "review" in driver.current_url
                 )
@@ -585,7 +583,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
 
             # Click continue with timeout
             try:
-                continue_button = WebDriverWait(self.driver, 10).until(
+                continue_button = WebDriverWait(self.driver, 3).until(
                     EC.element_to_be_clickable(
                         (By.CSS_SELECTOR, "[data-testid='continue-button']")
                     )
@@ -617,7 +615,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 pass
 
             # Wait for the review continue button
-            WebDriverWait(self.driver, 10).until(
+            WebDriverWait(self.driver, 3).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "[data-testid='continue-button']")
                 )
@@ -635,7 +633,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
             print("Waiting for submit button")
 
             # Wait for the submit button
-            WebDriverWait(self.driver, 10).until(
+            WebDriverWait(self.driver, 3).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "[data-testid='review-submit-application']")
                 )
