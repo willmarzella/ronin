@@ -4,6 +4,7 @@ import os
 import logging
 from typing import Optional, Dict, Any
 from openai import OpenAI
+import json
 
 
 class OpenAIClient:
@@ -67,8 +68,6 @@ class OpenAIClient:
 
             # Try to parse the response as JSON if it's a string
             try:
-                import json
-
                 # Remove any leading/trailing whitespace and ensure we have valid JSON
                 cleaned_content = response_content.strip()
                 if not cleaned_content.startswith("{"):

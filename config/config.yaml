@@ -5,9 +5,9 @@
 # Core Search Settings
 #-----------------------------------------------
 search:
-  keywords: '"Data engineer"' # Use quotes for exact matches
+  keywords: '"Data engineer" OR "data engineers"' # Use quotes for exact matches
   location: 'All-Australia' # Location to search in
-  date_range: 3 # Number of days to look back, changed to 3 because it wasn't finding any new jobs
+  date_range: 7 # Number of days to look back, changed to 3 because it wasn't finding any new jobs
   sort_mode: 'ListedDate' # ListedDate, Relevance, etc.
   type: 'standard' # standard, contract, temporary
   experience_level: 'entry' # entry, mid, senior
@@ -19,6 +19,7 @@ search:
 #-----------------------------------------------
 # Your Profile
 #-----------------------------------------------
+name: 'William Marzella'
 resume:
   skills: # List your actual skills
     - Python
@@ -234,8 +235,10 @@ resume:
 # Technical Settings
 #-----------------------------------------------
 platforms:
-    - seek
-    # - indeed
+  seek:
+    enabled: true
+  indeed:
+    enabled: false
 
 scraping:
   max_jobs: 0 # Max jobs per run (0 = unlimited)
@@ -245,6 +248,3 @@ scraping:
 analysis:
   min_score: 40 # Minimum match score (0-100)
   model: gpt-4 # OpenAI model to use
-
-output:
-  filename: 'seek_jobs.json' # Where to save results

@@ -4,6 +4,7 @@ import os
 import time
 import json
 import logging
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -12,6 +13,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import Select
 from typing import Dict, Optional, List
+from concurrent.futures import ThreadPoolExecutor
 
 from integrations.airtable import AirtableManager
 from integrations.openai import OpenAIClient
@@ -80,7 +82,7 @@ class SeekApplier(BaseApplier):
             resume = self.config["resume"]["text"][tech_stack]
 
             # Using raw string and double curly braces to escape JSON examples
-            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I do NOT have security clearance. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
+            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc). Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
 You MUST return your response in valid JSON format with fields that match the input type:
 - For textareas: {{"response": "your detailed answer"}}
 - For radios: {{"selected_option": "id of the option to select"}}
@@ -264,7 +266,9 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
         except Exception as e:
             raise Exception(f"Failed to handle resume for job {job_id}: {str(e)}")
 
-    def _handle_cover_letter(self):
+    def _handle_cover_letter(
+        self, score: int, job_description: str, title: str, company_name: str
+    ):
         """Handle cover letter requirements for Seek applications."""
         try:
             # Wait for cover letter section
@@ -274,11 +278,53 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 )
             )
 
-            # Select "No cover letter"
-            no_cover_select = self.driver.find_element(
-                By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_2']"
-            )
-            no_cover_select.click()
+            if score and score > 70:
+                # Select "Add a cover letter" option
+                add_cover_letter = self.driver.find_element(
+                    By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_1']"
+                )
+                add_cover_letter.click()
+
+                # Generate cover letter using OpenAI
+                system_prompt = f"""You are a professional cover letter writer. Write a concise, compelling cover letter for the following job. 
+                The letter should highlight relevant experience from my resume and demonstrate enthusiasm for the role. Use the example cover letter below to guide your writing. My name is William Marzella.
+                Keep the tone professional but personable. Maximum 250 words.
+
+                My resume: {open("assets/resume.txt").read()}
+                
+                Example cover letter: {open("assets/cover_letter_example.txt").read()}
+                
+                -----
+                
+                 Your response should be in valid JSON format:
+                
+                {{"response": "cover letter text"}}
+                
+                -----   
+                
+                """
+
+                user_message = f"Write a cover letter for the job of {title} at {company_name}: {job_description}"
+
+                cover_letter = self.openai_client.chat_completion(
+                    system_prompt=system_prompt,
+                    user_message=user_message,
+                    temperature=0.7,
+                )
+
+                if cover_letter:
+                    # Wait for cover letter textarea
+                    cover_letter_input = WebDriverWait(self.driver, 10).until(
+                        EC.presence_of_element_located((By.ID, "coverLetter-text-:r6:"))
+                    )
+                    cover_letter_input.clear()
+                    cover_letter_input.send_keys(cover_letter["response"])
+            else:
+                # Select "No cover letter" option
+                no_cover_select = self.driver.find_element(
+                    By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_2']"
+                )
+                no_cover_select.click()
 
             # Click continue
             continue_button = self.driver.find_element(
@@ -494,24 +540,40 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
     def _handle_screening_questions(self) -> bool:
         """Handle any screening questions on the application."""
         try:
-            # Get all form elements that need answers
+            # Wait for form elements with timeout
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    lambda driver: len(self._get_form_elements()) > 0
+                    or "review" in driver.current_url
+                )
+            except TimeoutException:
+                logging.info(
+                    "No screening questions found within timeout, moving to next step"
+                )
+                return True
+
             elements = self._get_form_elements()
             if not elements:
-                return True  # No screening questions to handle
+                return True
 
+            # Process each form element sequentially
             for element_info in elements:
+                print(f"Processing question: {element_info}")
                 try:
                     # Get AI response for this element
                     ai_response = self._get_ai_form_response(
                         element_info, self.current_tech_stack
                     )
-                    if not ai_response:
-                        logging.error(
-                            f"Failed to get AI response for question: {element_info['question']}"
-                        )
-                        return False  # Skip to next job if AI can't answer
 
-                    # Apply the AI response
+                    print(f"AI response: {ai_response}")
+
+                    if not ai_response:
+                        logging.warning(
+                            f"No response for question: {element_info['question']}"
+                        )
+                        continue
+
+                    # Apply the response
                     self._apply_ai_response(element_info, ai_response)
                     print(f"Applied {element_info['question']} with {ai_response}")
 
@@ -519,22 +581,24 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                     logging.error(
                         f"Failed to handle question {element_info['question']}: {str(e)}"
                     )
-                    return False  # Skip to next job if any question fails
+                    continue
 
-            # Click continue
+            # Click continue with timeout
             try:
-                continue_button = self.driver.find_element(
-                    By.CSS_SELECTOR, "[data-testid='continue-button']"
+                continue_button = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable(
+                        (By.CSS_SELECTOR, "[data-testid='continue-button']")
+                    )
                 )
                 continue_button.click()
                 return True
-            except Exception as e:
-                logging.error(f"Failed to click continue button: {str(e)}")
-                return False  # Skip to next job if can't continue
+            except TimeoutException:
+                logging.error("Timeout waiting for continue button")
+                return False
 
         except Exception as e:
             logging.error(f"Failed to handle screening questions: {str(e)}")
-            return False  # Skip to next job on any error
+            return False
 
     def _submit_application(self) -> bool:
         """Submit the application after all questions are answered."""
@@ -611,7 +675,9 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 return True
             return False
 
-    def apply_to_job(self, job_id, job_description, tech_stack):
+    def apply_to_job(
+        self, job_id, job_description, score, tech_stack, company_name, title
+    ):
         """Apply to a specific job on Seek"""
         try:
             if not self.driver:
@@ -628,7 +694,12 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
             # Step 2: Navigate to job and handle initial steps
             self._navigate_to_job(job_id)
             self._handle_resume(job_id, tech_stack)
-            self._handle_cover_letter()
+            self._handle_cover_letter(
+                score=score,
+                job_description=job_description,
+                title=title,
+                company_name=company_name,
+            )
 
             # Step 3: Handle screening questions if they exist
             if "role-requirements" in self.driver.current_url:

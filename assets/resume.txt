@@ -1,0 +1,129 @@
+﻿William Marzella
+Mont Albert North, VIC, 3129 | 0413 414 869 | williampmarzella@gmail.com
+
+
+CAREER OBJECTIVES AND SUMMARY
+Data engineer with 4 years of experience in building and maintaining data pipelines and infrastructure across cloud environments. Demonstrated track record of implementing data architectures that bridge operational and analytical needs. Strong focus on developing maintainable systems with clear documentation and testing practices. Experience spans the full data lifecycle, from source system integration to analytics delivery, with particular strength in SQL, Python, and modern data stack tools. Core competencies include data pipeline development, data modeling, and system migration, with proven success in manufacturing and SaaS environments. Experienced in working directly with business stakeholders to translate requirements into technical solutions while maintaining data quality and system reliability.
+
+
+COMPUTING SKILLS
+* Databases: PostgreSQL, MS SQL Server
+* Data Processing & Development: Python, SQL, dbt, Apache Airflow
+* Cloud Infrastructure: AWS (S3, Redshift, Lambda)
+* Data Warehousing: Snowflake, Data Lake
+* Data Integration: Fivetran, PySpark
+* Version Control & CI/CD: Git, GitHub Actions
+* Monitoring: Grafana dashboards
+* Business Intelligence: Tableau, PowerBI
+* Infrastructure as Code: Basic Terraform
+
+
+HIGHLIGHTS OF CAPABILITIES
+Four (4) years experience developing cloud data platforms (Snowflake, AWS) and implementing data integration solutions. Strong focus on building maintainable ETL/ELT pipelines with dbt and Apache Airflow, including automated testing and monitoring practices.
+
+
+Four (4) years contributing to data engineering best practices, including version control workflows (Git), CI/CD pipelines (GitHub Actions), and infrastructure as code (Terraform). Emphasis on creating reliable, documented data systems that teams can maintain.
+
+
+Four (4) years working with relational databases (primarily PostgreSQL and SQL Server) and developing data pipelines (Python, SQL). Focus on building practical data architectures that balance performance with maintainability while supporting business reporting needs.
+
+
+EDUCATION
+University of Southern California        Los Angeles, CA
+BS, Mechanical Engineering        Graduation Date: 2020
+Completed programming-focused electives including Python for Engineers and Database Systems. Developed an automated data collection system for senior robotics project, processing 1000+ sensor readings per minute. Built data logging and analysis tools reducing mechanical testing analysis time by 60%. During my mechanical engineering degree, I developed foundational programming skills through: Creating data acquisition systems processing 100+ simultaneous sensor inputs; Writing Python scripts analyzing 10GB+ of robotics test data; Building MySQL databases tracking 500+ equipment maintenance records; Automating test result analysis reducing report generation time from 4 hours to 30 minutes. Started as Data Engineer at Chilton's (July 2019) while completing final year remotely. Focused initially on Excel automation and basic SQL reporting. Gradually expanded into ETL development and data pipeline work. Built on programming foundation from engineering coursework to develop data engineering skills.
+
+
+PROFESSIONAL CERTIFICATIONS
+* 2025 - Azure Databricks & Spark For Data Engineers (PySpark / SQL)
+* 2023 - AWS Solutions Architect
+* 2023 - Cloud Computing with Amazon Web Services
+
+EXPERIENCE (FULL TIME)
+Alfab Pty Ltd, Melbourne, VIC         October 2023 - Present
+Australia's leading manufacturer of marine and automotive glass products and aluminum fabrications.
+
+
+Senior Data Engineer
+Working as part of the data engineering team modernizing manufacturing data infrastructure. Collaborate closely with manufacturing operations and IT teams to enhance data platform capabilities while maintaining data governance requirements. Work alongside an offshore team of 2 developers:
+
+
+   * Contributed to migration planning from legacy databases (SQL Server, Oracle) to Snowflake data warehouse, processing approximately 800GB of manufacturing data
+   * Implemented data quality testing framework, reducing data issues by 60% during migration
+   * Developed initial CDC pipeline configurations for production system data replication
+   * Built and documented deployment workflows in Airflow, reducing release time by 40%
+   * Created reusable SQL transformation templates, cutting development time for standard data models by 30%
+   * Implemented monitoring dashboards tracking 15 key pipeline health metrics
+   * Participated in technical design reviews and documentation efforts supporting knowledge sharing        
+
+
+Tray.io, San Diego, CA        April 2021 - October 2023
+Enterprise integration platform enabling automated workflows across cloud and on-premise systems
+
+
+Platform Engineer        
+Member of the platform engineering team developing customer analytics capabilities for healthcare and fintech clients. Focused on processing customer interaction data while adhering to compliance requirements. Contributed to solutions enabling customer behavior analysis:
+
+
+   * Developed and maintained data pipelines in Databricks processing approximately 10M daily customer events
+   * Implemented customer journey data models using PySpark and Databricks SQL to support analytics requirements
+   * Built error handling and retry logic for critical data pipelines, improving reliability by 40%
+   * Developed data quality checks ensuring 95% accuracy of key customer metrics across 8 data sources
+   * Created utility functions for customer segmentation analysis with 90% unit test coverage
+   * Contributed to monitoring dashboards reducing average incident response time to 30 minutes
+   * Helped optimize query performance, reducing average response time from 2 minutes to 15 seconds
+   * Helped maintain documentation for data models and pipeline processes
+
+
+Chilton’s Artisan Foods, Melbourne, VIC        July 2019 - April 2021
+Food manufacturer making premium wholesale bakery products in Melbourne using local Australian ingredients.
+
+
+Data Engineer
+First data engineering hire focused on improving reporting processes. Worked directly with production managers and finance team to understand requirements and implement initial data solutions:
+
+
+   * Transitioned 20+ manual Excel reports to automated SQL Server reporting solutions
+   * Built initial ETL processes using SSIS packages, reducing manual data entry by 70%
+   * Implemented basic data validation checks catching 85% of common production data issues
+   * Set up version control for database changes, tracking contributions from 5 team members
+   * Created PowerBI dashboards reducing monthly reporting time from 3 days to 4 hours
+   * Developed monitoring views tracking 8 critical production KPIs
+   * Documented 15 existing manual processes to support future automation efforts
+
+
+
+
+
+
+EXPERIENCE (FREELANCE)
+
+
+Motis Group, Melbourne, VIC        June 2022 - Present
+Independent technology consultancy offering specialized cloud and automation solutions (Part-time)
+
+
+Founder & Principal Engineer
+Provide targeted AWS cloud and data engineering solutions for small to medium businesses alongside full-time role:
+
+
+   * Built data lake solution using AWS S3 and Redshift for an e-commerce business processing 50GB monthly data
+   * Implemented ETL pipelines using AWS Glue, automating 12 daily inventory and sales data processes
+   * Developed IAM roles and security configurations protecting sensitive customer data
+   * Helped clients optimize AWS resource usage, identifying average monthly savings of 15%
+   * Created reusable Terraform templates reducing environment setup time from 2 days to 2 hours
+   * Documented infrastructure setup reducing client onboarding time by 50%
+
+
+Notable Project: Helped local retail business migrate from on-premise databases to AWS, reducing their infrastructure costs by $2,000 monthly and improving report generation time from 30 minutes to 5 minutes.
+
+
+
+
+EXTRA CURRICULAR & VOLUNTEER ACTIVITIES
+USC TRANSFER STUDENT COMMUNITY, Los Angeles, CA 2020-2021
+Board Member – Weekly newsletter columnist with an email list of ~800 students. Produced a podcast interviewing 50+ transfer students and alumni.
+
+
+SURREY PARK SWIMMING CLUB, Melbourne, VIC 2011-2018
+National Level Swimmer – Competed at a National level for 50m/100m Freestyle and Butterfly for the State of Victoria

@@ -68,7 +68,11 @@ class JobApplierService:
         try:
             # Get configured platforms from config
             config = load_config()
-            enabled_platforms = config.get("platforms", {}).get("enabled", [])
+            enabled_platforms = [
+                platform
+                for platform, settings in config.get("platforms", {}).items()
+                if settings.get("enabled", False)
+            ]
 
             if not enabled_platforms:
                 logging.warning("No platforms enabled in config")
@@ -119,6 +123,8 @@ class JobApplierService:
                                 "record_id": record["id"],
                                 "source": source,
                                 "url": url,
+                                "score": fields.get("Score", ""),
+                                "company_name": fields.get("Company", ""),
                             }
                         )
                     except Exception as e:
@@ -166,7 +172,12 @@ class JobApplierService:
 
                             # Apply to the job
                             result = applier.apply_to_job(
-                                job["id"], job["description"], job["tech_stack"]
+                                job_id=job["id"],
+                                job_description=job["description"],
+                                score=job["score"],
+                                tech_stack=job["tech_stack"],
+                                company_name=job["company_name"],
+                                title=job["title"],
                             )
 
                             # Update status in Airtable based on result
