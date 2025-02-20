@@ -21,11 +21,13 @@ if pgrep "Google Chrome" >/dev/null; then
   exit 1
 fi
 
-# Check if virtual environment exists, create if it doesn't
-if [ ! -d "venv" ]; then
-  echo "Creating virtual environment..."
-  python3 -m venv venv
-fi
+# clear existing venv
+echo "Clearing existing venv..."
+rm -rf venv
+
+# create new venv
+echo "Creating virtual environment..."
+python3 -m venv venv
 
 # Activate virtual environment
 source venv/bin/activate

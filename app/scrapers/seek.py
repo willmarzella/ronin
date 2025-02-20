@@ -290,9 +290,7 @@ class SeekJobScraper(BaseScraper):
                     continue
 
                 job_details = self.get_job_details(job_info["job_id"])
-                if job_details and job_details.get(
-                    "quick_apply", True
-                ):  # Only process quick apply jobs
+                if job_details:
                     jobs_data.append({**job_info, **job_details})
                     jobs_processed += 1
                     logger.info(

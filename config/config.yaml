@@ -28,7 +28,7 @@ resume:
     - Docker
     - Kubernetes
   preferences:
-    aws_resume_id: '08412a3a-92c8-472c-8e60-0a2d88d25e1f'
+    aws_resume_id: '89c09056-29ee-4c48-bd30-8ee3ca631a2d'
     azure_resume_id: '6ac46d5e-d3b7-43e0-8c98-d5b0a4006eb1'
     remote: true # Prefer remote work?
     min_salary: 120000 # Minimum acceptable salary
@@ -234,7 +234,6 @@ resume:
 # Technical Settings
 #-----------------------------------------------
 platforms:
-  enabled:
     - seek
     # - indeed
 
