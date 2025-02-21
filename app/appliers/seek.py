@@ -289,11 +289,10 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 # Fix the quote handling for reading the cover letter example
                 with open("assets/cover_letter_example.txt", "r") as f:
                     cover_letter_example = f.read()
-                    
+
                 with open("assets/resume.txt", "r") as f:
                     resume_text = f.read()
-                    
-                
+
                 system_prompt = f"""You are a professional cover letter writer. Write a concise, compelling cover letter for the following job. 
                     The letter should highlight relevant experience from my resume and demonstrate enthusiasm for the role. Use the example cover letter below to guide your writing. My name is William Marzella.
                     Keep the tone professional but personable. Maximum 250 words.
@@ -347,30 +346,42 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
         """Get all form elements that need to be filled."""
         elements = []
 
-        # Find all form elements
+        # Find all forms
         forms = self.driver.find_elements(By.TAG_NAME, "form")
         for form in forms:
             try:
                 # Handle checkbox groups first
                 checkbox_groups = {}
 
-                # Find all checkbox group containers first
+                # Find all checkbox group containers by looking for fieldsets or divs containing checkboxes
                 checkbox_containers = form.find_elements(
                     By.XPATH,
-                    ".//div[contains(@class, '_1wpnmph0') and .//strong and .//input[@type='checkbox']]",
+                    ".//fieldset[.//input[@type='checkbox']] | .//div[.//strong and .//input[@type='checkbox']]",
                 )
 
                 for container in checkbox_containers:
-                    # Get the question text from the strong element
-                    question = container.find_element(
-                        By.TAG_NAME, "strong"
-                    ).text.strip()
+                    # Get the question text from either legend/strong or nearest heading element
+                    question = None
+                    try:
+                        question = container.find_element(
+                            By.XPATH, ".//legend//strong | .//strong"
+                        ).text.strip()
+                    except:
+                        # Fallback to nearest heading if no strong/legend found
+                        headings = container.find_elements(
+                            By.XPATH,
+                            "./preceding::*[self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6][1]",
+                        )
+                        if headings:
+                            question = headings[0].text.strip()
+
+                    if not question:
+                        continue
 
                     # Get all checkboxes in this group
                     checkboxes = container.find_elements(
                         By.CSS_SELECTOR, 'input[type="checkbox"]'
                     )
-
                     if not checkboxes:
                         continue
 
@@ -388,10 +399,34 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
 
                     # Add all checkboxes in this group as options
                     for checkbox in checkboxes:
+                        label_text = ""
+                        # Try multiple ways to find the label text
+                        try:
+                            # First try finding an associated label by for attribute
+                            checkbox_id = checkbox.get_attribute("id")
+                            if checkbox_id:
+                                label = container.find_element(
+                                    By.CSS_SELECTOR, f'label[for="{checkbox_id}"]'
+                                )
+                                label_text = label.text.strip()
+                        except:
+                            try:
+                                # Then try finding a label as a parent or ancestor
+                                label = checkbox.find_element(
+                                    By.XPATH,
+                                    "ancestor::label | following-sibling::label",
+                                )
+                                label_text = label.text.strip()
+                            except:
+                                # Finally try finding any text node near the checkbox
+                                label_text = checkbox.find_element(
+                                    By.XPATH, "following::text()[1]"
+                                ).strip()
+
                         checkbox_groups[name]["options"].append(
                             {
                                 "id": checkbox.get_attribute("id"),
-                                "label": self._get_element_label(checkbox) or "",
+                                "label": label_text,
                             }
                         )
 
@@ -407,37 +442,57 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                     if not name:
                         continue
 
-                    # Find the group question/label by looking at fieldset/legend
+                    # Find the group question by looking at fieldset/legend or nearby strong text
+                    question = None
                     try:
-                        fieldset = radio.find_element(
-                            By.XPATH, "ancestor::fieldset[.//legend//strong]"
-                        )
+                        fieldset = radio.find_element(By.XPATH, "ancestor::fieldset")
                         question = fieldset.find_element(
-                            By.XPATH, ".//legend//strong"
+                            By.XPATH, ".//legend//strong | .//strong"
                         ).text.strip()
                     except:
-                        # Fallback to div with strong if not in fieldset
-                        parent_div = radio.find_element(
-                            By.XPATH,
-                            "ancestor::div[contains(@class, '_1wpnmph0') and .//strong]",
-                        )
-                        question = parent_div.find_element(
-                            By.TAG_NAME, "strong"
-                        ).text.strip()
+                        try:
+                            # Look for a strong tag in a parent div
+                            parent_div = radio.find_element(
+                                By.XPATH, "ancestor::div[.//strong][1]"
+                            )
+                            question = parent_div.find_element(
+                                By.TAG_NAME, "strong"
+                            ).text.strip()
+                        except:
+                            continue
 
                     if name not in radio_groups:
                         radio_groups[name] = {
-                            "element": radio,  # Store first radio as reference
+                            "element": radio,
                             "type": "radio",
                             "question": question,
                             "options": [],
                         }
 
-                    # Add this radio's info to the options
+                    # Get the label text using the same multi-attempt approach as checkboxes
+                    label_text = ""
+                    try:
+                        radio_id = radio.get_attribute("id")
+                        if radio_id:
+                            label = form.find_element(
+                                By.CSS_SELECTOR, f'label[for="{radio_id}"]'
+                            )
+                            label_text = label.text.strip()
+                    except:
+                        try:
+                            label = radio.find_element(
+                                By.XPATH, "ancestor::label | following-sibling::label"
+                            )
+                            label_text = label.text.strip()
+                        except:
+                            label_text = radio.find_element(
+                                By.XPATH, "following::text()[1]"
+                            ).strip()
+
                     radio_groups[name]["options"].append(
                         {
                             "id": radio.get_attribute("id"),
-                            "label": self._get_element_label(radio) or "",
+                            "label": label_text,
                         }
                     )
 
@@ -447,47 +502,57 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 # Handle other input types (text, select, etc.)
                 for element in form.find_elements(
                     By.CSS_SELECTOR,
-                    "input:not([type='checkbox']):not([type='radio']), select, textarea",
+                    "input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='submit']):not([type='button']), select, textarea",
                 ):
                     element_type = element.get_attribute("type")
-                    if element_type in ["hidden", "submit", "button"]:
-                        continue
-
-                    # Normalize select-one to select for consistency
                     if element_type == "select-one":
                         element_type = "select"
 
-                    label = self._get_element_label(element)
+                    # Find label using multiple approaches
+                    label = None
+                    try:
+                        # Try by for attribute
+                        element_id = element.get_attribute("id")
+                        if element_id:
+                            label = form.find_element(
+                                By.CSS_SELECTOR, f'label[for="{element_id}"]'
+                            )
+                    except:
+                        try:
+                            # Try parent/ancestor label
+                            label = element.find_element(
+                                By.XPATH,
+                                "ancestor::label | preceding-sibling::label[1]",
+                            )
+                        except:
+                            try:
+                                # Try finding nearest strong or label-like text
+                                label = element.find_element(
+                                    By.XPATH,
+                                    "./preceding::*[self::strong or self::label or contains(@class, 'label')][1]",
+                                )
+                            except:
+                                continue
+
                     if not label:
                         continue
 
                     element_info = {
                         "element": element,
                         "type": element_type or element.tag_name,
-                        "question": label,
+                        "question": label.text.strip(),
                     }
 
-                    # Get options for select/radio
-                    if element_type == "radio" or element.tag_name == "select":
+                    # Get options for select elements
+                    if element.tag_name == "select":
                         options = []
-                        if element.tag_name == "select":
-                            for option in element.find_elements(By.TAG_NAME, "option"):
-                                if option.get_attribute("value"):
-                                    options.append(
-                                        {
-                                            "value": option.get_attribute("value"),
-                                            "label": option.text.strip(),
-                                        }
-                                    )
-                        else:
-                            name = element.get_attribute("name")
-                            for option in form.find_elements(
-                                By.CSS_SELECTOR, f'input[name="{name}"]'
-                            ):
+                        for option in element.find_elements(By.TAG_NAME, "option"):
+                            value = option.get_attribute("value")
+                            if value:  # Only include options with values
                                 options.append(
                                     {
-                                        "id": option.get_attribute("id"),
-                                        "label": self._get_element_label(option) or "",
+                                        "value": value,
+                                        "label": option.text.strip(),
                                     }
                                 )
                         element_info["options"] = options
