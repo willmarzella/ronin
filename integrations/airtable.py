@@ -3,8 +3,10 @@
 import json
 import logging
 import os
+import time
 from typing import Optional, Set, Dict, List
 from urllib.parse import urlparse
+from datetime import datetime, timedelta
 
 from pyairtable import Api, Base, Table
 
@@ -147,13 +149,58 @@ class AirtableManager:
             logging.error("Returning empty set to allow processing of all jobs")
             return set()
 
+    def _is_duplicate_job(self, title: str, company: str, created_at: str) -> bool:
+        """
+        Check if a job with similar title and company exists within a recent time window.
+        Args:
+            title: Job title
+            company: Company name
+            created_at: ISO format date string (YYYY-MM-DD)
+        """
+        try:
+            # Normalize strings for comparison
+            title = title.lower().strip()
+            company = company.lower().strip()
+            
+            # Parse the job's creation date
+            job_date = datetime.strptime(created_at, "%Y-%m-%d")
+            
+            # Calculate date range (3 days before and after)
+            date_min = (job_date - timedelta(days=3)).strftime("%Y-%m-%d")
+            date_max = (job_date + timedelta(days=3)).strftime("%Y-%m-%d")
+            
+            # Create formula to search for matching title and company within date range
+            formula = f"""AND(
+                LOWER({{Title}}) = '{title}',
+                LOWER({{Company}}) = '{company}',
+                IS_AFTER({{Created At}}, '{date_min}'),
+                IS_BEFORE({{Created At}}, '{date_max}')
+            )"""
+            
+            # Search for matching records
+            matching_records = self.table.all(formula=formula)
+            return len(matching_records) > 0
+        except Exception as e:
+            logging.error(f"Error checking for duplicate job: {str(e)}")
+            return False
+
     def insert_job(self, job_data: Dict) -> bool:
         """Insert a job into Airtable if it doesn't exist"""
         job_id = job_data["job_id"]
+        title = job_data["title"]
+        company = job_data["company"]
+        created_at = job_data.get("created_at", time.strftime("%Y-%m-%d"))
 
-        # Skip if job already exists
+        # Skip if job ID already exists
         if job_id in self.existing_job_ids:
             logging.info(f"Job {job_id} already exists in Airtable, skipping")
+            return False
+
+        # Skip if similar job title and company combination exists within time window
+        if self._is_duplicate_job(title, company, created_at):
+            logging.info(
+                f"Similar job already exists within time window: {title} at {company}, skipping"
+            )
             return False
 
         try:

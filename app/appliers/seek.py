@@ -92,7 +92,10 @@ For select inputs, ONLY return the exact value attribute from the options provid
 For textareas, keep responses under 100 words and ensure it's properly escaped for JSON.
 Always ensure your response is valid JSON and contains the expected fields. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED."""
 
-            system_prompt += f"\n\nMy resume: {open("assets/resume.txt").read()}"
+            # Fix the quote handling for reading the resume file
+            with open("assets/resume.txt", "r") as f:
+                resume_text = f.read()
+            system_prompt += f"\n\nMy resume: {resume_text}"
 
             # Construct the user message
             user_message = f"Question: {element_info['question']}\nInput type: {element_info['type']}\n"
@@ -283,24 +286,31 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 )
                 add_cover_letter.click()
 
-                # Generate cover letter using OpenAI
+                # Fix the quote handling for reading the cover letter example
+                with open("assets/cover_letter_example.txt", "r") as f:
+                    cover_letter_example = f.read()
+                    
+                with open("assets/resume.txt", "r") as f:
+                    resume_text = f.read()
+                    
+                
                 system_prompt = f"""You are a professional cover letter writer. Write a concise, compelling cover letter for the following job. 
-                The letter should highlight relevant experience from my resume and demonstrate enthusiasm for the role. Use the example cover letter below to guide your writing. My name is William Marzella.
-                Keep the tone professional but personable. Maximum 250 words.
+                    The letter should highlight relevant experience from my resume and demonstrate enthusiasm for the role. Use the example cover letter below to guide your writing. My name is William Marzella.
+                    Keep the tone professional but personable. Maximum 250 words.
 
-                My resume: {open("assets/resume.txt").read()}
-                
-                Example cover letter: {open("assets/cover_letter_example.txt").read()}
-                
-                -----
-                
-                 Your response should be in valid JSON format:
-                
-                {{"response": "cover letter text"}}
-                
-                -----   
-                
-                """
+                    My resume: {resume_text}
+                    
+                    Example cover letter: {cover_letter_example}
+                    
+                    -----
+                    
+                     Your response should be in valid JSON format:
+                    
+                    {{"response": "cover letter text"}}
+                    
+                    -----   
+                    
+                    """
 
                 user_message = f"Write a cover letter for the job of {title} at {company_name}: {job_description}"
 
