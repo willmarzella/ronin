@@ -25,7 +25,10 @@ def setup_openai():
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
         raise ValueError("OPENAI_API_KEY not found in environment variables")
-    openai.api_key = openai_api_key
+    # Updated to use the new OpenAI client
+    from openai import OpenAI
+
+    return OpenAI(api_key=openai_api_key)
 
 
 def print_job_results(jobs_data: List[Dict], platform: str):
@@ -191,12 +194,12 @@ def apply_jobs():
 def main():
     try:
         # Setup
-        setup_openai()
+        client = setup_openai()  # Get OpenAI client
         logger.info("Starting job automation system")
 
         # Initialize services
         airtable = AirtableManager()
-        analyzer = JobAnalyzerService(config)
+        analyzer = JobAnalyzerService(config, client)  # Pass the client to analyzer
 
         # Get platforms to scrape from config
         platforms = config.get("platforms", ["seek"])

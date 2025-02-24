@@ -3,8 +3,9 @@ Mont Albert North, VIC, 3129 | 0413 414 869 | williampmarzella@gmail.com
 
 
 CAREER OBJECTIVES AND SUMMARY
-Data engineer with 4 years of experience in building and maintaining data pipelines and infrastructure across cloud environments. Demonstrated track record of implementing data architectures that bridge operational and analytical needs. Strong focus on developing maintainable systems with clear documentation and testing practices. Experience spans the full data lifecycle, from source system integration to analytics delivery, with particular strength in SQL, Python, and modern data stack tools. Core competencies include data pipeline development, data modeling, and system migration, with proven success in manufacturing and SaaS environments. Experienced in working directly with business stakeholders to translate requirements into technical solutions while maintaining data quality and system reliability.
-
+Data engineer with 5 years of experience architecting and implementing enterprise-scale data platforms across cloud environments (AWS - S3, Redshift, Lambda, Snowflake). Demonstrated expertise in building comprehensive data solutions that seamlessly integrate batch processing (Apache Spark, PySpark), real-time streaming (Apache Kafka), and modern ELT workflows (dbt, Apache Airflow). Proven track record of designing scalable architectures that effectively bridge operational and analytical needs through data lakes and lake house solutions (Apache Iceberg), while maintaining system reliability through infrastructure as code (Terraform) and automated deployment practices (GitHub Actions).
+Strong focus on developing maintainable data ecosystems that encompass the full data lifecycle - from source system integration (Fivetran) through analytics delivery (Tableau, PowerBI). Technical proficiency spans distributed computing for large-scale transformations, real-time event processing for streaming use cases, and traditional data warehousing using SQL and Python. Deep experience with both relational databases (PostgreSQL, MS SQL Server) and modern data platforms, enabling flexible solutions that balance performance and maintainability through proactive monitoring (Grafana dashboards).
+Core competencies include designing and optimizing ETL/ELT pipelines, implementing robust data models, and executing system migrations, with demonstrated success in manufacturing and SaaS environments. Consistently delivers high-quality solutions through systematic version control practices (Git), comprehensive testing frameworks, and proactive monitoring strategies. Experienced in collaborating directly with business stakeholders to translate complex requirements into practical technical implementations while ensuring data quality and system reliability.
 
 COMPUTING SKILLS
 * Databases: PostgreSQL, MS SQL Server
@@ -19,13 +20,13 @@ COMPUTING SKILLS
 
 
 HIGHLIGHTS OF CAPABILITIES
-Four (4) years experience developing cloud data platforms (Snowflake, AWS) and implementing data integration solutions. Strong focus on building maintainable ETL/ELT pipelines with dbt and Apache Airflow, including automated testing and monitoring practices.
+Five (5) years experience developing cloud data platforms (Snowflake, AWS) and implementing data integration solutions. Strong focus on building maintainable ETL/ELT pipelines with dbt and Apache Airflow, including automated testing and monitoring practices.
 
 
-Four (4) years contributing to data engineering best practices, including version control workflows (Git), CI/CD pipelines (GitHub Actions), and infrastructure as code (Terraform). Emphasis on creating reliable, documented data systems that teams can maintain.
+Five (5) years contributing to data engineering best practices, including version control workflows (Git), CI/CD pipelines (GitHub Actions), and infrastructure as code (Terraform). Emphasis on creating reliable, documented data systems that teams can maintain.
 
 
-Four (4) years working with relational databases (primarily PostgreSQL and SQL Server) and developing data pipelines (Python, SQL). Focus on building practical data architectures that balance performance with maintainability while supporting business reporting needs.
+Five (5) years working with relational databases (primarily PostgreSQL and SQL Server) and developing data pipelines (Python, SQL). Focus on building practical data architectures that balance performance with maintainability while supporting business reporting needs.
 
 
 EDUCATION

@@ -6,7 +6,7 @@
 #-----------------------------------------------
 search:
   keywords: '"Data engineer" OR "data engineers"' # Use quotes for exact matches
-  location: 'All-Australia' # Location to search in
+  location: 'All-Melbourne-VIC' # Location to search in
   date_range: 3 # Number of days to look back, changed to 3 because it wasn't finding any new jobs
   sort_mode: 'ListedDate' # ListedDate, Relevance, etc.
   type: 'standard' # standard, contract, temporary
