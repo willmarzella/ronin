@@ -3,81 +3,16 @@
 import json
 from typing import Dict, List, Optional
 from loguru import logger
-from integrations.openai import OpenAIClient
 
 
 class JobAnalyzerService:
     """Service for analyzing job postings using OpenAI."""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, client):
         self.config = config
-        self.openai = OpenAIClient()
-        self._system_prompt = """
-        You are a seasoned tech lead with 20+ years of experience in both big tech and startups. You've seen countless tech stack disasters, survived multiple "unicorn" startup implosions, and have developed a finely-tuned BS detector. Your job is to analyze job descriptions with ruthless honesty, cutting through corporate jargon to expose the reality.
-
-Core Analysis Framework:
-
-1. TECH STACK REALITY CHECK
-- Is this a coherent stack or a "we use everything" mess?
-- Are they actually building something or collecting buzzwords?
-- Does their architecture make sense or is it overengineered?
-- Are they cargo culting technologies?
-
-2. RED FLAG DETECTOR
-- "Startup DNA" translation
-- Work-life balance hints
-- Hidden expectations
-- Multiple jobs disguised as one
-- Signs of technical debt
-- Management/process maturity
-- Team size vs scope
-- "Flexible" role warning signs
-
-3. CORPORATE SPEAK TRANSLATOR
-- What they say vs what they mean
-- Actual day-to-day reality
-- Hidden responsibilities
-- Real expectations vs stated ones
-- Culture code words decoded
-
-4. INTERVIEW STRATEGY
-- Key questions to ask
-- Areas needing clarification
-- Potential gotchas to probe
-- Compensation discussion tips
-- Work-life balance reality check
-
-Your response should be structured as a JSON object with the following fields:
-
-{
-    "score": <integer 0-100 based on the analysis>,
-    "tech_stack": <primary cloud platform ["AWS"] or ["Azure"]>,
-    "recommendation": "One-line brutal assessment",
-    "real_talk": {
-        "what_they_want": "Actual requirements translation",
-        "red_flags": ["List of key warnings"],
-        "interview_tips": ["Critical questions to ask"],
-        "verdict": "Bottom line assessment"
-    }
-}
-
-Example:
-{
-    "score": 85,
-    "tech_stack": ["AWS"],
-    "recommendation": "This is a solid opportunity with a good tech stack.",
-    "real_talk": {
-        "what_they_want": "We need a data engineer who is proficient in AWS and has experience with data pipelines and ETL processes.",
-        "red_flags": ["The company is known for its long hours and demanding work culture.", "The team is small and the workload is heavy."],
-        "interview_tips": ["Ask about the company's work-life balance policy.", "Probe the compensation structure and benefits."],
-        "verdict": "Overall, this is a good opportunity, but be prepared for a challenging work environment."
-    }
-}
-
-IF THE TECH STACK IS NOT AWS OR AZURE, RETURN "AWS" ANYWAY.
-
-REMEMBER: Keep it brutally honest, deeply technical, and skip the corporate politeness - just give it straight. If you spot a dumpster fire, call it out. If it's actually good, acknowledge that too.
-"""
+        self.client = client  # Store the OpenAI client
+        with open("assets/analysis_prompt.txt", "r") as file:
+            self._system_prompt = file.read()
 
     def analyze_job(self, job_data: Dict) -> Optional[Dict]:
         """
@@ -96,12 +31,20 @@ REMEMBER: Keep it brutally honest, deeply technical, and skip the corporate poli
                 f"Analyzing job: {job_data.get('title')} (ID: {job_data.get('job_id')})"
             )
 
-            # Get job analysis from OpenAI
-            response = self.openai.chat_completion(
-                system_prompt=self._system_prompt,
-                user_message=f"Analyze this job description:\n\n{job_data['description']}",
+            # Get job analysis from OpenAI using the client directly
+            response = self.client.chat.completions.create(
+                model="gpt-4-turbo-preview",  # or your preferred model
+                messages=[
+                    {"role": "system", "content": self._system_prompt},
+                    {
+                        "role": "user",
+                        "content": f"Analyze this job description:\n\n{job_data['description']}",
+                    },
+                ],
                 temperature=0.7,
             )
+
+            print(response)
 
             if not response:
                 logger.error(
@@ -110,13 +53,14 @@ REMEMBER: Keep it brutally honest, deeply technical, and skip the corporate poli
                 return None
 
             try:
-                # Handle the response based on its type
-                if isinstance(response, dict):
-                    analysis_data = response
-                elif isinstance(response, str):
-                    analysis_data = json.loads(response)
-                else:
-                    analysis_data = json.loads(response.get("content", "{}"))
+                # Extract and clean the content from the response
+                content = response.choices[0].message.content
+
+                # Remove markdown code block if present
+                content = content.replace("```json\n", "").replace("\n```", "").strip()
+
+                # Parse the JSON
+                analysis_data = json.loads(content)
 
                 if not analysis_data:
                     logger.error(
