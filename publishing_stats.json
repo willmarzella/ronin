@@ -1,0 +1,49 @@
+{
+  "total_posts": 4,
+  "categories": {
+    "shitposting": 4,
+    "sermonposting": 0,
+    "nerdposting": 0
+  },
+  "last_published": "2025-02-26T16:18:24.879585",
+  "theme_frequency": {
+    "Strategic Job Searching": 3,
+    "Deep Learning vs. Memorization": 2,
+    "Embracing Earnestness and Ambition": 1,
+    "Cultivating Human Connections": 1,
+    "Investment-Minded Career Approach": 1,
+    "Critique of Traditional Learning and Hiring": 1,
+    "Valuing Sincerity and Effort": 1,
+    "Importance of Real-World Engagement": 1,
+    "Data-Driven Decision Making": 2,
+    "Strategic Self-Marketing": 1,
+    "Deep Learning vs. Surface Learning": 1,
+    "Earnestness and Aspiration": 1,
+    "Embracing Human Connections": 1,
+    "Cost Optimization in Data Engineering": 1,
+    "Pursuit of Greatness": 1,
+    "Value of Real Interactions": 1
+  },
+  "published_urls": [
+    {
+      "title": "Why Not Market Yourself Like a Silicon Valley Unicorn",
+      "url": "https://motisgroup.mataroa.blog/blog/why-not-market-yourself-like-a-silicon-valley-unicorn/",
+      "published_at": "2025-02-26T15:55:03.437723"
+    },
+    {
+      "title": "When Cognitive Transformation Hits Society",
+      "url": "https://motisgroup.mataroa.blog/blog/when-cognitive-transformation-hits-society/",
+      "published_at": "2025-02-26T15:59:02.718215"
+    },
+    {
+      "title": "Why Greatness Beats Memorizing Trivia",
+      "url": "https://motisgroup.mataroa.blog/blog/why-greatness-beats-memorizing-trivia/",
+      "published_at": "2025-02-26T16:14:57.641392"
+    },
+    {
+      "title": "Beyond Memorization The Path to True Understanding",
+      "url": "https://motisgroup.mataroa.blog/blog/beyond-memorization-the-path-to-true-understanding/",
+      "published_at": "2025-02-26T16:18:23.852838"
+    }
+  ]
+}

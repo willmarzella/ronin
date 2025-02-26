@@ -1,0 +1,40 @@
+name: Generate blog posts weekly on Sunday morning Melbourne time
+
+on:
+  schedule:
+    - cron: '1 9 * * 0' # Run at 9am Melbourne Australia time on Sunday
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create .env file
+        run: |
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "AIRTABLE_API_KEY=${{ secrets.AIRTABLE_API_KEY }}" >> .env
+          echo "GITHUB_TOKEN=${{ secrets.GH_TOKEN }}" >> .env
+          echo "GITHUB_REPO=${{ secrets.GH_REPO }}" >> .env
+          echo "MATAROA_API_KEY=${{ secrets.MATAROA_API_KEY }}" >> .env
+
+
+      - name: Run automation script
+        run: scripts/run_blog_generator.sh
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AIRTABLE_API_KEY: ${{ secrets.AIRTABLE_API_KEY }}

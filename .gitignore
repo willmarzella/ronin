@@ -1,13 +1,46 @@
 # Created by venv; see https://docs.python.org/3/library/venv.html
 
-.env
-.env.local
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.env/
+.venv/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
 .DS_Store
 
-.venv
-venv
+# Logs and databases
+*.log
+*.sqlite
+
+# Environment variables
+.env
+.env.local
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Documentation
+docs/_build/
+
 .pythonapp
-__pycache__
 
 chrome-data
 
