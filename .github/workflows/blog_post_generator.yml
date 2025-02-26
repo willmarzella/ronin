@@ -1,4 +1,4 @@
-name: Generate blog posts weekly on Sunday morning Melbourne time
+name: Generate blog posts
 
 on:
   schedule:
