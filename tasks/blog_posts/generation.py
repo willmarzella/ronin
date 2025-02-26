@@ -90,7 +90,7 @@ Content falls into three main categories:
 
 
 #### **Instructions:**  
-- I will give you a list of ideas.  
+- I will give you a list of ideas along with the specific text in my notes that inspired them. USE THE TEXT TO WRITE THE NOTE NOT THE TITLE OF THE IDEA.
 - Choose **only one** idea that has the most promising potential for a strong reflective note.  
 - Write a reflection expanding on that idea using the example, and tone and style that I've provided below.
 - IMPORTANT: Format the content with clear paragraphs and line breaks. Each paragraph should be separated by a blank line.

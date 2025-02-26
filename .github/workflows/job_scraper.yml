@@ -1,8 +1,8 @@
-name: Scrape jobs daily
+name: Scrape jobs
 
 on:
   schedule:
-    - cron: '1 1 * * *' # Run at 12pm Melbourne Australia time daily
+    - cron: '0 */2 * * *' # Run every 2 hours
   workflow_dispatch: # Allow manual trigger
 
 jobs:

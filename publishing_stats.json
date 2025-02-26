@@ -1,11 +1,11 @@
 {
-  "total_posts": 10,
+  "total_posts": 11,
   "categories": {
     "shitposting": 4,
     "sermonposting": 5,
-    "nerdposting": 1
+    "nerdposting": 2
   },
-  "last_published": "2025-02-26T16:55:36.474504",
+  "last_published": "2025-02-26T17:17:19.521903",
   "theme_frequency": {
     "Strategic Job Searching": 5,
     "Deep Learning vs. Memorization": 2,
@@ -48,7 +48,10 @@
     "Cultivating a Nurturing Social Environment": 1,
     "Nurturing Curiosity and Deep Interests": 1,
     "Redefining Ambition in a Modern Context": 1,
-    "Practical Application of Technical Skills": 1
+    "Practical Application of Technical Skills": 1,
+    "Exploring Personal Growth through Reflection and Openness": 1,
+    "Ambition and the Quest for Excellence": 1,
+    "Nurturing Curiosity and Leveraging Nerdiness": 1
   },
   "published_urls": [
     {
@@ -100,6 +103,11 @@
       "title": "Why trying and failing is the real success",
       "url": "https://motisgroup.mataroa.blog/blog/why-trying-and-failing-is-the-real-success/",
       "published_at": "2025-02-26T16:55:35.464286"
+    },
+    {
+      "title": "Why trying feels like failing and how I overcame it",
+      "url": "https://motisgroup.mataroa.blog/blog/why-trying-feels-like-failing-and-how-i-overcame-it/",
+      "published_at": "2025-02-26T17:17:18.094721"
     }
   ]
 }

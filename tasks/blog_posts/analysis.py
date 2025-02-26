@@ -62,8 +62,6 @@ class ThemeAnalyzer:
         For each theme you identify, provide:
         1. A concise name/title
         2. 2-3 examples from the content
-        3. A brief explanation of its significance
-        4. Which core principle it aligns with (Friendliness, Ambition, or Nerdiness)
 
         Return the themes as a JSON array of objects with the following structure:
         {{
