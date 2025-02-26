@@ -1,13 +1,13 @@
 {
-  "total_posts": 4,
+  "total_posts": 7,
   "categories": {
     "shitposting": 4,
-    "sermonposting": 0,
+    "sermonposting": 3,
     "nerdposting": 0
   },
-  "last_published": "2025-02-26T16:18:24.879585",
+  "last_published": "2025-02-26T16:34:43.199528",
   "theme_frequency": {
-    "Strategic Job Searching": 3,
+    "Strategic Job Searching": 5,
     "Deep Learning vs. Memorization": 2,
     "Embracing Earnestness and Ambition": 1,
     "Cultivating Human Connections": 1,
@@ -17,12 +17,23 @@
     "Importance of Real-World Engagement": 1,
     "Data-Driven Decision Making": 2,
     "Strategic Self-Marketing": 1,
-    "Deep Learning vs. Surface Learning": 1,
+    "Deep Learning vs. Surface Learning": 3,
     "Earnestness and Aspiration": 1,
     "Embracing Human Connections": 1,
     "Cost Optimization in Data Engineering": 1,
     "Pursuit of Greatness": 1,
-    "Value of Real Interactions": 1
+    "Value of Real Interactions": 1,
+    "The Pursuit of Greatness": 1,
+    "The Value of Interpersonal Connections": 1,
+    "Embracing Technical Challenges": 1,
+    "Strategic Job Search and Self-Marketing": 1,
+    "The Value of Earnestness in Ambition": 1,
+    "The Importance of Human Connection": 1,
+    "The Art of Problem-Solving in Data Engineering": 1,
+    "Critical View on Traditional Education and Job Preparation": 1,
+    "Redefining Intelligence in Learning and Career": 1,
+    "Advocating for Earnestness and Ambition": 1,
+    "Embracing Practical Skills and Real-World Application": 1
   },
   "published_urls": [
     {
@@ -44,6 +55,21 @@
       "title": "Beyond Memorization The Path to True Understanding",
       "url": "https://motisgroup.mataroa.blog/blog/beyond-memorization-the-path-to-true-understanding/",
       "published_at": "2025-02-26T16:18:23.852838"
+    },
+    {
+      "title": "deep learning beats surface level every time",
+      "url": "https://motisgroup.mataroa.blog/blog/deep-learning-beats-surface-level-every-time/",
+      "published_at": "2025-02-26T16:24:37.916506"
+    },
+    {
+      "title": "Why diving deep beats skimming the surface in learning",
+      "url": "https://motisgroup.mataroa.blog/blog/why-diving-deep-beats-skimming-the-surface-in-learning/",
+      "published_at": "2025-02-26T16:31:02.384637"
+    },
+    {
+      "title": "Why building a portfolio beats just applying online",
+      "url": "https://motisgroup.mataroa.blog/blog/why-building-a-portfolio-beats-just-applying-online/",
+      "published_at": "2025-02-26T16:34:42.170438"
     }
   ]
 }

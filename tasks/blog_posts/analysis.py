@@ -5,6 +5,7 @@ from services.ai_service import AIService
 import logging
 from tasks.blog_posts.prompts import OVERALL_TONE
 
+
 class ThemeAnalyzer:
     def __init__(self, ai_service: AIService):
         """
@@ -65,18 +66,16 @@ class ThemeAnalyzer:
         4. Which core principle it aligns with (Friendliness, Ambition, or Nerdiness)
 
         Return the themes as a JSON array of objects with the following structure:
-        {
+        {{
             "themes": [
-                {
+                {{
                     "name": "Theme name",
-                    "examples": ["Example 1", "Example 2"],
-                    "significance": "Brief explanation",
-                    "principle": "One of: Friendliness, Ambition, or Nerdiness"
-                }
+                    "examples": ["Example 1", "Example 2"]
+                }}
             ]
-        }
+        }}
 
-        Limit your response to the most important themes.
+        Limit your response to the FIVE (5) most important themes.
         
         IMPORTANT: Return ONLY the raw JSON with no markdown formatting, code blocks, or additional text.
         """

@@ -71,7 +71,6 @@ class PostGenerator:
             [
                 f"Theme: {theme['name']}\n"
                 f"Examples: {', '.join(theme['examples'])}\n"
-                f"Significance: {theme.get('significance', 'N/A')}\n"
                 for theme in themes
             ]
         )
@@ -121,7 +120,7 @@ Content falls into three main categories:
         try:
             response = self.ai_service.chat_completion(
                 system_prompt=system_prompt,
-                user_message=f"Create a reflection on the below ideas and themes. Remember the tone and style of the post that I've provided:\n\n {OVERALL_TONE}. \n\n ------ \n\nTOPICS OR IDEAS TO CHOOSE FROM: {theme_info}",
+                user_message=f"Create a {category} post ({prompt}) on the below ideas and themes. Remember the tone and style of the post that I've provided:\n\n {OVERALL_TONE}. \n\n ------ \n\nTOPICS OR IDEAS TO CHOOSE FROM: {theme_info}",
                 temperature=0.8,
             )
 
