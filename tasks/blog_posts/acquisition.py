@@ -59,7 +59,7 @@ class NoteParser:
 
             logger.info(f"Looking for conversation notes in: {conversation_path}")
             conversation_notes = self._get_conversation_notes(
-                conversation_path, max_files=3
+                conversation_path, max_files=0
             )
 
             # Combine both types of notes
