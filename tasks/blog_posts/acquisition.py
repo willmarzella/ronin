@@ -163,7 +163,7 @@ class NoteParser:
             return []
 
     def _get_conversation_notes(
-        self, conversation_path: str, max_files: int = 3
+        self, conversation_path: str, max_files: int = 0
     ) -> List[Dict]:
         """
         Fetches the most recent conversation notes from the specified directory.

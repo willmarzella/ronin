@@ -75,7 +75,7 @@ class ThemeAnalyzer:
             ]
         }}
 
-        Limit your response to the FIVE (5) most important themes.
+        Limit your response to the THREE (3) most important themes.
         
         IMPORTANT: Return ONLY the raw JSON with no markdown formatting, code blocks, or additional text.
         """
@@ -226,10 +226,7 @@ class ThemeAnalyzer:
 
         # Check if any theme matches the category keywords
         for theme in themes:
-            theme_text = (
-                f"{theme['name']} {' '.join(theme['examples'])} "
-                f"{theme.get('significance', '')}"
-            ).lower()
+            theme_text = (f"{theme['name']} {' '.join(theme['examples'])} ").lower()
 
             for keyword in keywords:
                 if keyword.lower() in theme_text:
@@ -421,52 +418,95 @@ class ThemeAnalyzer:
             nerdiness_score = 0
 
             # Friendliness indicators (shitposting)
-            friendliness_keywords = [
-                "social",
-                "community",
-                "connection",
-                "sharing",
-                "support",
-                "friend",
-                "relationship",
-                "communication",
-                "empathy",
-                "kindness",
-            ]
-
-            # Ambition indicators (sermonposting)
+            friendliness_keywords = (
+                [
+                    "nourishing",
+                    "supportive",
+                    "encouraging",
+                    "comfortable",
+                    "honest feelings",
+                    "friend",
+                    "friendship",
+                    "neediness",
+                    "insecurities",
+                    "abundance",
+                    "compliments",
+                    "gracious",
+                    "host",
+                    "conversation",
+                    "social",
+                    "connection",
+                    "community",
+                    "empathy",
+                    "kindness",
+                    "generosity",
+                    "warmth",
+                    "welcoming",
+                ],
+            )
+            # Ambition keywords (sermonposting)
             ambition_keywords = [
-                "growth",
-                "improvement",
+                "dream bigger",
+                "larger life",
+                "ambition",
+                "desire",
+                "power",
+                "prestige",
+                "intimate",
+                "do more",
+                "be more",
+                "see more",
+                "learn more",
+                "know more",
+                "imagination",
+                "bottleneck",
+                "good",
+                "create",
+                "untethered",
+                "dangerous",
+                "temper",
+                "good taste",
+                "sensitivity",
+                "tremendous",
                 "potential",
+                "growth",
                 "vision",
-                "goal",
-                "aspiration",
-                "achievement",
                 "purpose",
-                "meaning",
-                "impact",
             ]
-
-            # Nerdiness indicators (nerdposting)
-            nerdiness_keywords = [
-                "knowledge",
-                "learning",
-                "analysis",
-                "exploration",
-                "curiosity",
-                "discovery",
-                "understanding",
-                "expertise",
-                "insight",
-                "investigation",
-            ]
+            # Nerdiness keywords (nerdposting)
+            nerdiness_keywords = (
+                [
+                    "taste",
+                    "curiosity",
+                    "beautiful",
+                    "nerds",
+                    "music",
+                    "technology",
+                    "science",
+                    "movies",
+                    "books",
+                    "exploring",
+                    "interests",
+                    "joy",
+                    "gift",
+                    "liberate",
+                    "worrying",
+                    "opinions",
+                    "rigorous",
+                    "honest",
+                    "regard",
+                    "thoughts",
+                    "valuing",
+                    "expertise",
+                    "knowledge",
+                    "discovery",
+                    "analysis",
+                    "insight",
+                ],
+            )
 
             for theme in themes:
-                theme_text = (
-                    f"{theme['name']} {' '.join(theme['examples'])} "
-                    f"{theme.get('significance', '')}"
-                ).lower()
+                theme_text = (f"{theme['name']} {' '.join(theme['examples'])} ").lower()
 
                 for keyword in friendliness_keywords:
                     if keyword in theme_text:

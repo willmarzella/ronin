@@ -82,20 +82,17 @@ class PostGenerator:
 
 Your role is to transform these scattered thoughts into a coherent personal reflection. The goal is to collect and refine these ideas so I can focus on my daily work without worrying about what to write while also allowing me to review and get feedback on my ideas.  
 
-#### **Context:**  
-I am a software engineer specializing in data modeling and data engineering. My blog content generally covers:  
-- **Software Engineering** – technical insights, culture, and industry trends.  
-- **Philosophy & Life** – broader reflections on work, thinking, and personal growth.  
-
 Content falls into three main categories:  
 1. **Nerdposting** – deep dives, Wikipedia rabbit holes, history, art, movies, music, and general internet exploration.  
 2. **Sermonposting** – philosophical reflections, life advice, etc.  
 3. **Shitposting** – humor, irreverence, self-deprecating jokes, and absurd observations.  
 
+
+
 #### **Instructions:**  
 - I will give you a list of ideas.  
-- Choose **only one** idea that has the most promising potential for a strong note.  
-- Write a reflection expanding on that idea using the tone and style that I've provided below.
+- Choose **only one** idea that has the most promising potential for a strong reflective note.  
+- Write a reflection expanding on that idea using the example, and tone and style that I've provided below.
 - IMPORTANT: Format the content with clear paragraphs and line breaks. Each paragraph should be separated by a blank line.
 - Use natural paragraph breaks to make the content readable and engaging.
 - Never write the entire post as one big paragraph.
@@ -108,13 +105,32 @@ Content falls into three main categories:
 - **No punctuation or colons**  
 - **Should read like a short sentence, i.e no capitalizing the first letter of each word**  
 
+#### *Content Requirements:*
+- The reflective note should read like a stream of consciousness or a Twitter thread, with short paragraphs and line breaks. But I don't want it to be too fragmented or too cringey with emojis and hashtags should just be text.
+- It should always be written in the first person. These are MY thoughts and experiences and I never want to come across as arrogant or self-important like I'm telling you how to live your life. I'm just rambling on about my own thoughts and experiences and what's worked for me.
+- **Max 200 words**
+
+#### **Example:**
+
+Below is an example of the kind of note I'm looking for (each new paragraph is separated by a blank line):
+
+Oh my god. This entire time, this entire *decade* I've never felt "fear of failure" and "perfectionism" describe my feelings when I get stuck. But I can never articulate it better. I found it: to me it feels as if *trying* itself means I've failed miserably.
+
+Not as in "failure in the process of trying to do good" is bad, but *trying*, in and of itself, regardless of outcomes, means I deserve punishment and scorn.
+
+somewhere along the way I must've realized that I'm not allowed to do anything outside of the very small set of behavior I was supposed to do. anything beyond that, anything "out of the ordinary" is complete and utter danger zones.
+
+the feeling grows along the scale from how sinful it is. the more heinously unconventional, the more I look away. looking directly at it hurts--because I couldn't have done it before when I was young and had no freedom, and acknowledging the cage hurts even moreso
+
+The fact that I AM looking at it directly eye to eye now speaks to how much *safer* I am than before. How I'm no longer experiencing a situation where I'm going to be insulted for every single moment of my existence. Lucky, I am lucky to be able to meet it.
+
 #### **Response Format:**  
 {{
     "title": "Generated title (70 characters max, no punctuation or colons)",
     "content": "Generated content with proper line breaks between paragraphs. Each paragraph should be separated by a blank line. Never write the entire post as one big block of text."
 }}
 
-**Important:** Do not include any unnecessary closing braces (`}}`) unless they are part of the markdown content.
+**Important:** Do not include any unnecessary closing braces (`}}`) unless they are part of the content.
         """
 
         try:

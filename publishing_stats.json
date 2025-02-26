@@ -1,11 +1,11 @@
 {
-  "total_posts": 7,
+  "total_posts": 10,
   "categories": {
     "shitposting": 4,
-    "sermonposting": 3,
-    "nerdposting": 0
+    "sermonposting": 5,
+    "nerdposting": 1
   },
-  "last_published": "2025-02-26T16:34:43.199528",
+  "last_published": "2025-02-26T16:55:36.474504",
   "theme_frequency": {
     "Strategic Job Searching": 5,
     "Deep Learning vs. Memorization": 2,
@@ -33,7 +33,22 @@
     "Critical View on Traditional Education and Job Preparation": 1,
     "Redefining Intelligence in Learning and Career": 1,
     "Advocating for Earnestness and Ambition": 1,
-    "Embracing Practical Skills and Real-World Application": 1
+    "Embracing Practical Skills and Real-World Application": 1,
+    "Optimistic Ambition and Restlessness": 1,
+    "Playful Nerdiness and Intellectual Curiosity": 1,
+    "Conversational Intimacy and Authenticity": 1,
+    "Earnest Curiosity with a Reflective Edge": 1,
+    "Self-Aware Humor as Glue": 1,
+    "Embracing Vulnerability in Learning": 1,
+    "Redefining Professional Identity": 1,
+    "Critique of Conventional Learning": 1,
+    "The Power of Human Connection": 1,
+    "Learning Through Doing": 1,
+    "Embracing Imperfection in Learning": 1,
+    "Cultivating a Nurturing Social Environment": 1,
+    "Nurturing Curiosity and Deep Interests": 1,
+    "Redefining Ambition in a Modern Context": 1,
+    "Practical Application of Technical Skills": 1
   },
   "published_urls": [
     {
@@ -70,6 +85,21 @@
       "title": "Why building a portfolio beats just applying online",
       "url": "https://motisgroup.mataroa.blog/blog/why-building-a-portfolio-beats-just-applying-online/",
       "published_at": "2025-02-26T16:34:42.170438"
+    },
+    {
+      "title": "Ever wonder why we are all in pursuit of greatness",
+      "url": "https://motisgroup.mataroa.blog/blog/ever-wonder-why-we-are-all-in-pursuit-of-greatness/",
+      "published_at": "2025-02-26T16:48:36.461090"
+    },
+    {
+      "title": "Embracing vulnerability as our superpower",
+      "url": "https://motisgroup.mataroa.blog/blog/embracing-vulnerability-as-our-superpower/",
+      "published_at": "2025-02-26T16:52:04.812133"
+    },
+    {
+      "title": "Why trying and failing is the real success",
+      "url": "https://motisgroup.mataroa.blog/blog/why-trying-and-failing-is-the-real-success/",
+      "published_at": "2025-02-26T16:55:35.464286"
     }
   ]
 }
