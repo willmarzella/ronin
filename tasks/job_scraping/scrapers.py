@@ -82,7 +82,7 @@ class SeekScraper(BaseScraper):
 
         url = f"{self.base_url}/{keywords}-jobs/in-{location}"
         params = {
-            "daterange": "7",
+            "daterange": "3",
             "salaryrange": f"{salary_min}-{salary_max}",
             "salarytype": "annual",
             "sortmode": "ListedDate",
@@ -181,7 +181,7 @@ class SeekScraper(BaseScraper):
 
             if len(job_elements) < 22:  # Seek typically shows 22 jobs per page
                 break
-                page += 1
+            page += 1  # Increment page counter for next iteration
 
         return jobs_data
 
