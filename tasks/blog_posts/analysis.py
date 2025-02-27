@@ -48,38 +48,61 @@ class ThemeAnalyzer:
             List[Dict]: List of theme objects with name and examples
         """
 
-        system_prompt = f"""
-        You are a theme extraction expert analyzing personal notes. Your goal is to identify the main themes that align with three core principles:
+        system_prompt = f"""CONTEXT:
+Key Areas of Focus:
+1. CONTROVERSY & PROVOCATION
+- Ideas that push boundaries and challenge social norms
+- Thoughts that make people uncomfortable but contain deep insight
+- Perspectives opposing current mainstream narratives
+- Uncomfortable truths and revelations
 
-        1. FRIENDLINESS: Being a nourishing presence, creating supportive spaces, addressing neediness and insecurities, cultivating abundance mindset, giving sincere compliments, being a gracious host, being artful in conversation, being a cherished asset in social spaces.
+2. INTELLECTUAL EVOLUTION
+- Initial naive thoughts developing into nuanced perspectives
+- Moments of intellectual crisis or paradigm shifts
+- Contradictions between earlier and later thoughts
+- Instances of questioning conventional wisdom
 
-        2. AMBITION: Daring to dream bigger, living a "larger" life, wanting to do/be/see/learn/know more, recognizing imagination as a bottleneck, tempering ambition with good taste, grounding it with sensitivity to others.
+3. NARRATIVE THREADS
+- Recurring motifs showing intellectual development
+- Patterns of questioning and revelation
+- Tension between different belief systems
+- Signs of wrestling with difficult truths
 
-        3. NERDINESS: Cultivating taste and curiosity, appreciating beauty created by nerds (music, technology, science, movies, books), exploring interests deeply, liberating yourself from worrying about others' opinions, developing honest regard for your own opinions.
+Content Characteristics:
+- Politically incorrect but intellectually honest
+- Challenging to popular narratives
+- Personally revealing or vulnerable
+- Seemingly contradictory or paradoxical
+- Raw, unfiltered thoughts revealing deeper truths
 
-        Some ideas might span all three categories. The key is to find good threads to pull out. Ideas worth exploring. Especially given my personality and tone: {OVERALL_TONE}
-        
-        For each theme you identify, provide:
-        1. A concise name/title
-        2. 2-3 examples from the content
+Tone & Personality Context:
+{OVERALL_TONE}
 
-        Return the themes as a JSON array of objects with the following structure:
+RETURN FORMAT:
+{{
+    "themes": [
         {{
-            "themes": [
-                {{
-                    "name": "Theme name",
-                    "examples": ["Example 1", "Example 2"]
-                }}
-            ]
+            "name": "Idea sentence or thesis or title (should read like a provocative statement or summary of the idea, 70 chars max, no punctuation)",
+            "examples": ["Summary of the idea, max 200 words"]
         }}
+    ]
+}}
 
-        Limit your response to the THREE (3) most important themes.
-        
-        IMPORTANT: Return ONLY the raw JSON with no markdown formatting, code blocks, or additional text.
-        """
+WARNINGS:
+- Limit response to FIVE (5) ideas maximum
+- Return ONLY raw JSON without any formatting
+- No markdown, code blocks, or additional text
+- Focus on the most mature and evolving ideas
+- Each idea summary must not exceed 200 words
+
+GOAL:
+You are a provocative theme extraction expert analyzing personal notes. Your task is to identify and extract the most controversial, irreverent, and evolving ideas that challenge conventional wisdom. Look for thoughts that might be too raw or controversial for casual conversation but represent important intellectual territory.
+"""
 
         response = self.ai_service.chat_completion(
-            system_prompt=system_prompt, user_message=content, temperature=0.5
+            system_prompt=system_prompt,
+            user_message=content,
+            temperature=0.7,  # Increased temperature for more creative/diverse responses
         )
 
         logging.info(f"Theme extraction response: {response}")

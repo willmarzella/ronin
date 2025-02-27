@@ -14,7 +14,7 @@ class PostPublisher:
         Args:
             mataroa_api_key (Optional[str]): Mataroa API key for blog publishing
         """
-        self.stats_file = "publishing_stats.json"
+        self.stats_file = "./tests/publishing_stats.json"
         self.stats = self._load_stats()
         self.mataroa_service = MataroaService(api_key=mataroa_api_key)
 

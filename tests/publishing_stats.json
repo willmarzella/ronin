@@ -1,0 +1,43 @@
+{
+  "total_posts": 3,
+  "categories": {
+    "shitposting": 1,
+    "sermonposting": 2,
+    "nerdposting": 0
+  },
+  "last_published": "2025-02-27T10:44:15.311574",
+  "theme_frequency": {
+    "The Paradox of Effort: Fear as a Sign of Growth": 1,
+    "Job Hunting as Value Investing: A Strategic Shift": 1,
+    "LeetCode: A Misguided Measure of Engineering Talent": 1,
+    "Data Engineering as Cost Optimization Artistry": 1,
+    "Rejection as a Pathway to Human Connection in a Digital Age": 1,
+    "The Tyranny of Trying": 1,
+    "Redefining Job Searching": 1,
+    "Critiquing LeetCode Culture": 1,
+    "Embracing Human Connection": 1,
+    "The Art of Data Engineering": 1,
+    "Fear of Trying as Failure Itself": 1,
+    "Job Searching as Investment Strategy": 1,
+    "LeetCode: A Misguided Meritocracy": 1,
+    "Data Engineering: The Cost Optimization Art": 1,
+    "Reclaiming Human Connection": 1
+  },
+  "published_urls": [
+    {
+      "title": "Effort Isn't Failure It's a Fearful Leap Towards Growth",
+      "url": "https://motisgroup.mataroa.blog/blog/effort-isnt-failure-its-a-fearful-leap-towards-growth/",
+      "published_at": "2025-02-26T23:19:44.474882"
+    },
+    {
+      "title": "The Unseen Struggle of Constantly Trying",
+      "url": "https://motisgroup.mataroa.blog/blog/the-unseen-struggle-of-constantly-trying/",
+      "published_at": "2025-02-26T23:24:24.501609"
+    },
+    {
+      "title": "Job Hunting as the Ultimate Investment Game",
+      "url": "https://motisgroup.mataroa.blog/blog/job-hunting-as-the-ultimate-investment-game/",
+      "published_at": "2025-02-27T10:44:14.182648"
+    }
+  ]
+}

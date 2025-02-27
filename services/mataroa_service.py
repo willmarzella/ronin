@@ -106,3 +106,26 @@ class MataroaService:
             raise Exception(
                 f"Failed to fetch post: {response.status_code} - {response.text}"
             )
+
+    def delete_post(self, slug: str) -> Dict:
+        """
+        Delete a blog post by its slug.
+
+        Args:
+            slug: Post slug to delete
+
+        Returns:
+            Dict containing deletion confirmation
+
+        Raises:
+            Exception: If deletion fails
+        """
+        url = f"{self.api_url}{slug}/"
+        response = requests.delete(url, headers=self.headers)
+
+        if response.status_code != 200:
+            raise Exception(
+                f"Failed to delete post: {response.status_code} - {response.text}"
+            )
+
+        return {"ok": True}

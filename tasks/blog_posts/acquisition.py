@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple
 from services.github_service import GitHubService
 from datetime import datetime, timedelta
 from core.logging import setup_logger
+import pytz
 
 logger = setup_logger()
 
@@ -38,7 +39,8 @@ class NoteParser:
         """
         try:
             # Get timezone for consistency
-            today = datetime.now(datetime.now().astimezone().tzinfo)
+            melbourne_tz = pytz.timezone("Australia/Melbourne")
+            today = datetime.now(melbourne_tz)
             logger.info(
                 f"Looking for the {days} most recent daily notes (limit: {max_files} files)"
             )
@@ -90,7 +92,8 @@ class NoteParser:
         """
         try:
             # Get timezone for consistency
-            today = datetime.now(datetime.now().astimezone().tzinfo)
+            melbourne_tz = pytz.timezone("Australia/Melbourne")
+            today = datetime.now(melbourne_tz)
 
             # First, get all files in the directory to identify daily notes
             try:
@@ -126,7 +129,7 @@ class NoteParser:
                 try:
                     file_date = datetime.strptime(date_str, "%Y-%m-%d")
                     file_date = file_date.replace(
-                        tzinfo=today.tzinfo
+                        tzinfo=melbourne_tz
                     )  # Make timezone-aware
 
                     # Add file date for sorting
@@ -202,7 +205,8 @@ class NoteParser:
             # - "YYYY-MM-DD -Person Name.md" (no space after hyphen)
             # - "YYYY-MM-DD-Person Name.md" (no spaces around hyphen)
             convo_pattern = re.compile(r"^(\d{4}-\d{2}-\d{2})\s*-\s*(.+)\.md$")
-            today = datetime.now(datetime.now().astimezone().tzinfo)
+            melbourne_tz = pytz.timezone("Australia/Melbourne")
+            today = datetime.now(melbourne_tz)
 
             for file_info in directory_contents:
                 # Skip directories
@@ -231,7 +235,7 @@ class NoteParser:
                         # Parse the date
                         file_date = datetime.strptime(date_str, "%Y-%m-%d")
                         file_date = file_date.replace(
-                            tzinfo=today.tzinfo
+                            tzinfo=melbourne_tz
                         )  # Make timezone-aware
 
                         # Add metadata
