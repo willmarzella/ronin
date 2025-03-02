@@ -144,8 +144,71 @@ class SeekApplier:
                 with open("assets/cover_letter_example.txt", "r") as f:
                     cover_letter_example = f.read()
 
-                with open("assets/resume.txt", "r") as f:
-                    resume_text = f.read()
+                # Load tech stack-specific resume text
+                tech_stack = (
+                    self.current_tech_stack.lower()
+                    if self.current_tech_stack
+                    else "aws"
+                )
+
+                # Get resume text from tech stack-specific file in assets/cv directory
+                resume_text = ""
+                cv_file_path = f"assets/cv/{tech_stack}.txt"
+
+                try:
+                    # First, try to find a tech stack-specific resume in assets/cv directory
+                    with open(cv_file_path, "r") as f:
+                        resume_text = f.read()
+                        logging.info(
+                            f"Using tech stack-specific resume from {cv_file_path}"
+                        )
+                except FileNotFoundError:
+                    # If not found in assets/cv, check config
+                    if tech_stack in self.config["resume"]["text"]:
+                        if "file_path" in self.config["resume"]["text"][tech_stack]:
+                            resume_file_path = self.config["resume"]["text"][
+                                tech_stack
+                            ]["file_path"]
+                            try:
+                                with open(resume_file_path, "r") as f:
+                                    resume_text = f.read()
+                                    logging.info(
+                                        f"Using resume from config file_path: {resume_file_path}"
+                                    )
+                            except Exception as e:
+                                logging.error(
+                                    f"Failed to read resume file {resume_file_path}: {str(e)}"
+                                )
+                        else:
+                            # Use text directly from config if available
+                            resume_text = self.config["resume"]["text"][tech_stack].get(
+                                "content", ""
+                            )
+                            if resume_text:
+                                logging.info(
+                                    f"Using resume content from config for {tech_stack}"
+                                )
+
+                    # If still no resume text, fall back to default "aws" tech stack or default file
+                    if not resume_text and tech_stack != "aws":
+                        try:
+                            with open("assets/cv/aws.txt", "r") as f:
+                                resume_text = f.read()
+                                logging.info("Falling back to aws resume in assets/cv")
+                        except FileNotFoundError:
+                            logging.warning(
+                                f"No resume found for tech stack {tech_stack} in assets/cv, using default"
+                            )
+
+                    # Last resort: fall back to default resume file
+                    if not resume_text:
+                        try:
+                            with open("assets/resume.txt", "r") as f:
+                                resume_text = f.read()
+                                logging.info("Using default resume.txt file")
+                        except FileNotFoundError:
+                            logging.error("Default resume.txt not found!")
+                            resume_text = "Resume information not available."
 
                 system_prompt = f"""You are a professional cover letter writer. Write a concise, compelling cover letter for the following job. 
                     The letter should highlight relevant experience from my resume and demonstrate enthusiasm for the role. Use the example cover letter below to guide your writing. My name is William Marzella. Also a lot of the time the job description will be from a recruiting agency recruiting on behalf of a client. In this case, you should tailor the letter to the client, not the recruiting agency. Obviosly address the recruiting agency in the letter. And usually at the end of the job description there'll be the recruiters name or email address (in which you can usually find their name). You should address the letter to them.
@@ -229,11 +292,6 @@ class SeekApplier:
         """Get AI response for a form element"""
         try:
             tech_stack = tech_stack.lower()
-            if tech_stack not in self.config["resume"]["text"]:
-                logging.warning(
-                    f"No resume found for tech stack {tech_stack}, using aws as default"
-                )
-                tech_stack = "aws"
 
             system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. My salary expectations are $150,000 - $200,000, based on the job description you can choose to apply for a higher or lower salary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
 You MUST return your response in valid JSON format with fields that match the input type:
@@ -247,8 +305,65 @@ For select inputs, ONLY return the exact value attribute from the options provid
 For textareas, keep responses under 100 words and ensure it's properly escaped for JSON. IF YOU CANNOT FIND THE ANSWER OR ARE NOT SURE, RETURN "N/A".
 Always ensure your response is valid JSON and contains the expected fields. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED."""
 
-            with open("assets/resume.txt", "r") as f:
-                resume_text = f.read()
+            # Get resume text from tech stack-specific file in assets/cv directory
+            resume_text = ""
+            cv_file_path = f"assets/cv/{tech_stack}_resume.txt"
+
+            try:
+                # First, try to find a tech stack-specific resume in assets/cv directory
+                with open(cv_file_path, "r") as f:
+                    resume_text = f.read()
+                    logging.info(
+                        f"Using tech stack-specific resume from {cv_file_path}"
+                    )
+            except FileNotFoundError:
+                # If not found in assets/cv, check config
+                if tech_stack in self.config["resume"]["text"]:
+                    if "file_path" in self.config["resume"]["text"][tech_stack]:
+                        resume_file_path = self.config["resume"]["text"][tech_stack][
+                            "file_path"
+                        ]
+                        try:
+                            with open(resume_file_path, "r") as f:
+                                resume_text = f.read()
+                                logging.info(
+                                    f"Using resume from config file_path: {resume_file_path}"
+                                )
+                        except Exception as e:
+                            logging.error(
+                                f"Failed to read resume file {resume_file_path}: {str(e)}"
+                            )
+                    else:
+                        # Use text directly from config if available
+                        resume_text = self.config["resume"]["text"][tech_stack].get(
+                            "content", ""
+                        )
+                        if resume_text:
+                            logging.info(
+                                f"Using resume content from config for {tech_stack}"
+                            )
+
+                # If still no resume text, fall back to default "aws" tech stack or default file
+                if not resume_text and tech_stack != "aws":
+                    try:
+                        with open("assets/cv/aws_resume.txt", "r") as f:
+                            resume_text = f.read()
+                            logging.info("Falling back to aws resume in assets/cv")
+                    except FileNotFoundError:
+                        logging.warning(
+                            f"No resume found for tech stack {tech_stack} in assets/cv, using default"
+                        )
+
+                # Last resort: fall back to default resume file
+                if not resume_text:
+                    try:
+                        with open("assets/resume.txt", "r") as f:
+                            resume_text = f.read()
+                            logging.info("Using default resume.txt file")
+                    except FileNotFoundError:
+                        logging.error("Default resume.txt not found!")
+                        resume_text = "Resume information not available."
+
             system_prompt += f"\n\nMy resume: {resume_text}"
 
             user_message = f"Question: {element_info['question']}\nInput type: {element_info['type']}\n"

@@ -1,13 +1,33 @@
 """Job board scrapers for various platforms."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
-import requests
-from bs4 import BeautifulSoup
+from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 import re
 import time
+import functools
+
+import requests
+from bs4 import BeautifulSoup
 from loguru import logger
+
+
+def rate_limited(func):
+    """Decorator to implement rate limiting and error handling for requests."""
+
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        try:
+            time.sleep(self.delay)  # Rate limiting
+            return func(self, *args, **kwargs)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request error in {func.__name__}: {str(e)}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error in {func.__name__}: {str(e)}")
+            return None
+
+    return wrapper
 
 
 class BaseScraper(ABC):
@@ -19,6 +39,7 @@ class BaseScraper(ABC):
         self.delay = config.get("scraping", {}).get("delay_seconds", 2)
         self.max_jobs = config.get("scraping", {}).get("max_jobs", None)
         self.timeout = config.get("scraping", {}).get("timeout_seconds", 10)
+        self.quick_apply_only = config.get("scraping", {}).get("quick_apply_only", True)
 
         # Set up common headers
         self.session.headers.update(
@@ -27,61 +48,103 @@ class BaseScraper(ABC):
             }
         )
 
+    @rate_limited
     def make_request(self, url: str) -> Optional[BeautifulSoup]:
-        """Make an HTTP request with error handling and rate limiting."""
-        try:
-            time.sleep(self.delay)  # Rate limiting
-            response = self.session.get(url, timeout=self.timeout)
-            response.raise_for_status()
-            return BeautifulSoup(response.text, "html.parser")
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error making request to {url}: {str(e)}")
-            return None
+        """Make an HTTP request and return BeautifulSoup object."""
+        response = self.session.get(url, timeout=self.timeout)
+        response.raise_for_status()
+        return BeautifulSoup(response.text, "html.parser")
 
     @abstractmethod
-    def scrape_jobs(self) -> List[Dict]:
-        """Main scraping method to get jobs from the board."""
+    def get_job_previews(self) -> List[Dict[str, Any]]:
+        """Get job previews with minimal information."""
         pass
+
+    @abstractmethod
+    def get_job_details(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get detailed job information."""
+        pass
+
+    def scrape_jobs(self) -> List[Dict[str, Any]]:
+        """
+        Scrape all jobs with full details.
+        Default implementation for most job boards.
+        """
+        job_previews = self.get_job_previews()
+        if not job_previews:
+            return []
+
+        jobs_data = []
+        for preview in job_previews:
+            job_details = self.get_job_details(preview["job_id"])
+            if job_details:
+                # Skip jobs without quick apply if the option is enabled
+                if self.quick_apply_only and not job_details.get("quick_apply", False):
+                    logger.info(
+                        f"Skipping job without quick apply: {preview['title']} (ID: {preview['job_id']})"
+                    )
+                    continue
+
+                full_job = {**preview, **job_details}
+                jobs_data.append(full_job)
+                logger.info(
+                    f"Scraped details for: {preview['title']} (ID: {preview['job_id']})"
+                )
+
+        if self.quick_apply_only:
+            logger.info(f"Found {len(jobs_data)} jobs with quick apply option")
+        return jobs_data
 
 
 class SeekScraper(BaseScraper):
     """Scraper for Seek job board."""
+
+    # Mapping of Australian state abbreviations to city names
+    LOCATION_MAPPING = {
+        "NSW": "Sydney, NSW",
+        "VIC": "Melbourne, VIC",
+        "QLD": "Brisbane, QLD",
+        "SA": "Adelaide, SA",
+        "WA": "Perth, WA",
+        "TAS": "Hobart, TAS",
+        "ACT": "Canberra, ACT",
+        "NT": "Darwin, NT",
+    }
 
     def __init__(self, config: Dict):
         super().__init__(config)
         self.base_url = "https://www.seek.com.au"
 
     def _parse_relative_time(self, time_str: str) -> Optional[datetime]:
-        """Parse relative time string into datetime object."""
-        try:
-            match = re.search(r"Posted (\d+)([dhm]) ago", time_str)
-            if not match:
-                return None
-
-            number = int(match.group(1))
-            unit = match.group(2)
-            now = datetime.now()
-
-            if unit == "d":
-                return now - timedelta(days=number)
-            elif unit == "h":
-                return now - timedelta(hours=number)
-            elif unit == "m":
-                return now - timedelta(minutes=number)
+        """Parse relative time string (e.g., 'Posted 3d ago') into datetime."""
+        if not time_str:
             return None
-        except Exception as e:
-            logger.error(f"Error parsing relative time '{time_str}': {str(e)}")
+
+        match = re.search(r"Posted (\d+)([dhm]) ago", time_str)
+        if not match:
             return None
+
+        number = int(match.group(1))
+        unit = match.group(2)
+        now = datetime.now()
+
+        if unit == "d":
+            return now - timedelta(days=number)
+        elif unit == "h":
+            return now - timedelta(hours=number)
+        elif unit == "m":
+            return now - timedelta(minutes=number)
+        return None
 
     def build_search_url(self, page: int) -> str:
         """Build the search URL for the given page."""
-        keywords = self.config["search"]["keywords"].replace(" ", "-").lower()
-        location = self.config["search"]["location"].replace(" ", "-")
-        salary_min = self.config["search"]["salary"]["min"]
-        salary_max = self.config["search"]["salary"]["max"]
-        date_range = self.config["search"]["date_range"]
+        search_config = self.config["search"]
+        keywords = search_config["keywords"].replace(" ", "-").lower()
+        location = search_config["location"].replace(" ", "-")
+        salary_min = search_config["salary"]["min"]
+        salary_max = search_config["salary"]["max"]
+        date_range = search_config["date_range"]
 
-        url = f"{self.base_url}/{keywords}-jobs/in-{location}"
         params = {
             "daterange": date_range,
             "salaryrange": f"{salary_min}-{salary_max}",
@@ -90,128 +153,42 @@ class SeekScraper(BaseScraper):
             "page": str(page),
         }
         param_str = "&".join(f"{k}={v}" for k, v in params.items())
-        return f"{url}?{param_str}"
+        return f"{self.base_url}/{keywords}-jobs/in-{location}?{param_str}"
 
-    def extract_job_info(self, job_element: BeautifulSoup) -> Optional[Dict]:
-        """Extract job information from a job card."""
-        try:
-            job_id = job_element.get("data-job-id")
-            if not job_id:
-                return None
-
-            title_element = job_element.find("a", attrs={"data-automation": "jobTitle"})
-            company_element = job_element.find(
-                "a", attrs={"data-automation": "jobCompany"}
-            )
-
-            return {
-                "job_id": job_id,
-                "title": title_element.text.strip() if title_element else "Unknown",
-                "company": (
-                    company_element.text.strip() if company_element else "Unknown"
-                ),
-                "url": f"https://www.seek.com.au/job/{job_id}",
-                "source": "seek",
-            }
-        except Exception as e:
-            logger.error(f"Error extracting job info: {str(e)}")
+    def extract_job_info(self, job_element: BeautifulSoup) -> Optional[Dict[str, Any]]:
+        """Extract job preview information from a job card."""
+        job_id = job_element.get("data-job-id")
+        if not job_id:
             return None
 
-    def clean_location(self, location: str) -> str:
-        """Clean and standardize location strings."""
-        location_mapping = {
-            "NSW": "Sydney, NSW",
-            "VIC": "Melbourne, VIC",
-            "QLD": "Brisbane, QLD",
-            "SA": "Adelaide, SA",
-            "WA": "Perth, WA",
-            "TAS": "Hobart, TAS",
-            "ACT": "Canberra, ACT",
-            "NT": "Darwin, NT",
+        title_element = job_element.find("a", attrs={"data-automation": "jobTitle"})
+        company_element = job_element.find("a", attrs={"data-automation": "jobCompany"})
+
+        return {
+            "job_id": job_id,
+            "title": title_element.text.strip() if title_element else "Unknown",
+            "company": company_element.text.strip() if company_element else "Unknown",
+            "url": f"{self.base_url}/job/{job_id}",
+            "source": "seek",
         }
 
-        # Check each state abbreviation and map to the corresponding city
-        for state, city in location_mapping.items():
+    def clean_location(self, location: str) -> str:
+        """Map location to standard city name based on state abbreviations."""
+        if not location:
+            return "Unknown"
+
+        # Check each state abbreviation in the location string
+        for state, city in self.LOCATION_MAPPING.items():
             if state in location:
                 return city
 
-        return location  # Return original if no mapping found
+        return location.strip()
 
-    def clean_work_type(self, work_type: str) -> str:
-        """Clean and standardize work type strings."""
-        # Remove any extra whitespace and return cleaned string
-        return work_type.strip()
-
-    def get_job_details(self, job_id: str) -> Optional[Dict]:
-        """Get detailed job information."""
-        try:
-            url = f"https://www.seek.com.au/job/{job_id}"
-            soup = self.make_request(url)
-            if not soup:
-                return None
-
-            description_element = soup.find(
-                "div", attrs={"data-automation": "jobAdDetails"}
-            )
-            if not description_element:
-                return None
-
-            description_text = description_element.get_text(separator="\n").strip()
-            description_text = description_text.encode("ascii", "ignore").decode(
-                "ascii"
-            )
-
-            apply_button = soup.find("a", attrs={"data-automation": "job-detail-apply"})
-            quick_apply = apply_button and "Quick apply" in apply_button.get_text()
-
-            location_element = soup.find(
-                "span", attrs={"data-automation": "job-detail-location"}
-            )
-            work_type_element = soup.find(
-                "span", attrs={"data-automation": "job-detail-work-type"}
-            )
-
-            # implement a function to clean up location: Any text containing NSW -> Sydney, NSW, Any text containing VIC -> Melbourne, VIC, Any text containing QLD -> Brisbane, QLD, Any text containing SA -> Adelaide, SA, Any text containing WA -> Perth, WA, Any text containing TAS -> Hobart, TAS, Any text containing ACT -> Canberra, ACT, Any text containing NT -> Darwin, NT
-            location = self.clean_location(location_element.text.strip())
-            work_type = self.clean_work_type(work_type_element.text.strip())
-
-           
-
-            # Find the posted time span by looking for text content that matches our pattern
-            posted_time = None
-            for span in soup.find_all("span"):
-                if span.text and span.text.strip().startswith("Posted "):
-                    posted_time = span.text.strip()
-                    break
-
-            created_at = (
-                self._parse_relative_time(posted_time)
-                if posted_time
-                else datetime.now()
-            )
-            created_at = (
-                created_at.isoformat() if created_at else datetime.now().isoformat()
-            )
-            
-            print(location)
-            print(work_type)
-            print(created_at)
-
-            return {
-                "description": description_text,
-                "quick_apply": quick_apply,
-                "created_at": created_at,
-                "location": location,
-                "work_type": work_type,
-            }
-        except Exception as e:
-            logger.error(f"Error getting job details for {job_id}: {str(e)}")
-            return None
-
-    def get_job_previews(self) -> List[Dict]:
-        """Get job previews with minimal information to check against Airtable."""
+    def get_job_previews(self) -> List[Dict[str, Any]]:
+        """Get job previews with minimal information."""
         jobs_data = []
         page = 1
+        jobs_per_page = 22  # Seek typically shows 22 jobs per page
 
         while True:
             if self.max_jobs and len(jobs_data) >= self.max_jobs:
@@ -229,6 +206,7 @@ class SeekScraper(BaseScraper):
 
             logger.info(f"Found {len(job_elements)} job previews on page {page}")
 
+            # Process job elements on this page
             for job_element in job_elements:
                 if self.max_jobs and len(jobs_data) >= self.max_jobs:
                     break
@@ -236,41 +214,80 @@ class SeekScraper(BaseScraper):
                 job_info = self.extract_job_info(job_element)
                 if job_info:
                     jobs_data.append(job_info)
-                    logger.info(
-                        f"Added job preview: {job_info['title']} (ID: {job_info['job_id']})"
-                    )
+                    logger.debug(f"Added job preview: {job_info['title']}")
 
-            if len(job_elements) < 22:  # Seek typically shows 22 jobs per page
+            # Stop if we didn't get a full page of results
+            if len(job_elements) < jobs_per_page:
                 break
-            page += 1  # Increment page counter for next iteration
 
+            page += 1  # Move to next page
+
+        logger.info(f"Found {len(jobs_data)} total job previews")
         return jobs_data
 
-    def scrape_jobs(self) -> List[Dict]:
-        """
-        Scrape jobs from Seek.
-        This is now an optimized version that only fetches full details for new jobs.
-        """
-        jobs_data = []
-        job_previews = self.get_job_previews()
+    def get_job_details(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get detailed job information for a specific job."""
+        url = f"{self.base_url}/job/{job_id}"
+        soup = self.make_request(url)
+        if not soup:
+            return None
 
-        if not job_previews:
-            return []
+        # Check if job has quick apply first to avoid unnecessary processing
+        apply_button = soup.find("a", attrs={"data-automation": "job-detail-apply"})
+        quick_apply = apply_button and "Quick apply" in apply_button.get_text()
 
-        for preview in job_previews:
-            job_details = self.get_job_details(preview["job_id"])
-            if job_details:
-                full_job = {**preview, **job_details}
-                jobs_data.append(full_job)
-                logger.info(
-                    f"Scraped full details for job: {preview['title']} (ID: {preview['job_id']})"
-                )
+        # If quick_apply_only is enabled and this job doesn't have quick apply, return None
+        if self.quick_apply_only and not quick_apply:
+            return None
 
-        return jobs_data
+        # Extract job description
+        description_element = soup.find(
+            "div", attrs={"data-automation": "jobAdDetails"}
+        )
+        if not description_element:
+            return None
+
+        # Clean up description text
+        description_text = description_element.get_text(separator="\n").strip()
+        description_text = description_text.encode("ascii", "ignore").decode("ascii")
+
+        # Extract location and work type
+        location_element = soup.find(
+            "span", attrs={"data-automation": "job-detail-location"}
+        )
+        work_type_element = soup.find(
+            "span", attrs={"data-automation": "job-detail-work-type"}
+        )
+
+        location = self.clean_location(
+            location_element.text.strip() if location_element else ""
+        )
+        work_type = (
+            work_type_element.text.strip() if work_type_element else "Not specified"
+        )
+
+        # Find posted time
+        posted_time = None
+        for span in soup.find_all("span"):
+            if span.text and span.text.strip().startswith("Posted "):
+                posted_time = span.text.strip()
+                break
+
+        # Parse the posted time to a datetime
+        created_at = self._parse_relative_time(posted_time) or datetime.now()
+        created_at_iso = created_at.isoformat()
+
+        return {
+            "description": description_text,
+            "quick_apply": quick_apply,
+            "created_at": created_at_iso,
+            "location": location,
+            "work_type": work_type,
+        }
 
 
 def create_scraper(platform: str, config: Dict) -> BaseScraper:
-    """Factory function to create a scraper instance."""
+    """Factory function to create appropriate scraper instance."""
     scrapers = {"seek": SeekScraper}
 
     scraper_class = scrapers.get(platform.lower())

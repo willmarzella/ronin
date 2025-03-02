@@ -1,0 +1,97 @@
+  
+  
+  
+
+gobble
+
+
+      
+                        
+    1em                           
+                    
+    []                    
+**1.5*1.2
+
+
+
+
+     William Marzella 
+
+     Mont Albert North, VIC  
+     0413414869  
+    mailto:williampmarzella@gmail.comwilliampmarzella@gmail.com
+ 
+
+Career Summary
+Data Engineer with six (6) years of hands-on experience with Microsoft Azure cloud platform including Azure Data Factory, Azure Databricks, Azure Synapse Analytics, Azure Data Lake Storage, Azure Functions, and Azure SQL Database. Extensive expertise in developing and optimizing data warehousing solutions using Azure Databricks Delta Lake and Spark. Proficient in implementing cost-effective ETL/ELT workflows with industry-standard tools (dbt, Azure Data Factory) deployed on Azure infrastructure. Expert-level knowledge in configuring Azure Active Directory with role-based access control ensuring regulatory compliance. Successfully executed large-scale Azure cloud migrations for enterprise clients reducing operational costs by 40% while improving system performance by 45%.
+
+Highlight of Capabilities
+[label=, leftmargin=0pt, itemindent=0pt]Eight (8) years expert experience with Azure data infrastructure (Azure Data Lake Storage, Azure SQL Database, Azure Synapse Analytics) and Databricks deployment. Implemented Delta Lake format for ACID transactions, schema evolution, and time travel capabilities while ensuring cross-platform compatibility and processing 50GB+ monthly data.[label=, leftmargin=0pt, itemindent=0pt]Seven (7) years implemented enterprise-grade data processing solutions using PySpark for distributed computing, Apache Kafka for real-time event streaming, and Trino for cross-platform SQL queries. Developed transformation pipelines with dbt that integrate with Azure Databricks and Power BI for comprehensive analytics and business intelligence.[label=, leftmargin=0pt, itemindent=0pt]Six (6) years designing scalable data architectures using infrastructure-as-code (Terraform) with Git version control and CI/CD pipelines (GitHub Actions, Azure DevOps). Implemented modern orchestration engines (Airflow, Azure Data Factory, Dagster, Prefect) integrated with comprehensive monitoring tools (Grafana, Azure Monitor) and transformation frameworks (dbt) for reliable, maintainable workflows.
+
+Certifications
+[leftmargin=*]
+Azure Databricks  Spark For Data Engineers (PySpark / SQL) 2024
+[leftmargin=*]
+AWS Solutions Architect 2023
+[leftmargin=*]
+Stanford Machine Learning 2020
+
+
+Education
+University of Southern California Los Angeles, CA
+BS, Mechanical Engineering 2016 - 2020[leftmargin=*]
+    Developed data acquisition system with Python deployed on Azure VMs processing 1000+ sensor readings/minute
+    Implemented SQL databases on Azure SQL Database for equipment tracking with automated data pipelines
+    Created automated analysis workflows using Azure Functions with pandas reducing processing time by 60%
+
+
+
+Experience (Full Time)
+Alfab Pty LtdMelbourne, VIC
+Australia's leading manufacturer of marine and automotive glass products and aluminum fabrications.
+Senior Data Engineer October 2023 - Present
+Working as part of the data engineering team modernizing manufacturing data infrastructure. Collaborate closely with manufacturing operations and IT teams to enhance data platform capabilities while maintaining data governance requirements. Work alongside an offshore team of 2 developers to implement data pipelines and tools.[leftmargin=*]
+    Implemented Azure Databricks Delta Lake architecture processing 800GB manufacturing data, leveraging PySpark for distributed computing resulting in 35% infrastructure cost reduction (150K annually) and 45% query performance improvement
+    Implemented dbt transformation framework with advanced testing ensuring 85% test coverage across Delta Lake tables, reducing data integrity issues by 60% and downstream reporting errors by 40%
+    Architected real-time data streaming solution using Apache Kafka with Azure Event Hubs integration for Change Data Capture enabling predictive maintenance algorithms that reduced production line downtime by 25%
+    Implemented CI/CD pipelines with Azure DevOps and orchestrated workflows using Dagster and Prefect for modern pipeline management, reducing deployment cycles by 40% and enabling self-service data capabilities
+    Developed monitoring solution using Azure Monitor and Grafana tracking 15 key pipeline metrics, reducing mean time to resolution by 50%
+    Created comprehensive Azure architecture documentation and SQL-based data dictionary in Azure DevOps Wiki, decreasing onboarding time by 40%
+
+Tray.ioSan Diego, CA
+Enterprise integration platform enabling automated workflows across cloud and on-premise systems
+Platform Engineer April 2021 - October 2023
+Member of the platform engineering team developing customer analytics capabilities for healthcare and fintech clients. Focused on processing customer interaction data while adhering to compliance requirements. Contributed to solutions enabling customer behavior analysis. Supported data platform serving 200+ enterprise clients processing over 1B monthly events.[leftmargin=*]
+    Engineered data pipelines on Azure Databricks using PySpark and Delta Lake tables processing 10M+ daily customer events with optimized partitioning strategies enabling real-time customer segmentation
+    Implemented cross-platform analytics using Trino on Azure for federated queries across data sources, while maintaining Delta Lake format compatibility with dbt transformations
+    Designed fault-tolerant ETL workflows using Apache Flink for real-time streaming applications with exactly-once processing guarantees, reducing data-related support tickets by 55%
+    Developed data quality framework using Azure Purview and Great Expectations ensuring 95% accuracy across 8 data sources
+    Implemented Azure Monitor and Prometheus monitoring reducing MTTR to 30 minutes and minimizing system downtime by 75%
+
+Chilton's Artisan FoodsMelbourne, VIC
+Food manufacturer making premium wholesale bakery products in Melbourne using local Australian ingredients.
+Data Engineer July 2019 - April 2021
+First data hire supporting 12-person manufacturing operation with 10M annual revenue. Worked directly with production managers and finance team to understand requirements and implement initial data solutions[leftmargin=*]
+    Migrated legacy data warehouse to Azure SQL Database with automated ETL processes using Azure Data Factory, saving 25 hours weekly while enabling real-time visibility into 2M monthly inventory
+    Designed ETL processes with Azure Data Factory SSIS Integration Runtime using parameterized configurations, reducing manual data entry by 70%
+    Implemented data validation logic in Azure SQL Database using constraints and triggers, preventing 50K in monthly waste
+    Established version control for database changes using Azure DevOps Repos, reducing deployment rollbacks by 65%
+    Developed business intelligence dashboards with Power BI and Azure Analysis Services, reducing monthly reporting time from 3 days to 4 hours
+    Created monitoring solution with Azure Monitor metrics tracking 8 critical production KPIs, enabling 30% improvement in efficiency
+
+
+
+Experience (Freelance)
+Motis GroupMelbourne, VIC
+Independent technology consultancy offering specialized cloud and automation solutions (Part-time)
+Founder  Principal Engineer June 2022 - Present
+Provide strategic data consulting to e-commerce and retail clients with 5M-50M annual revenue[leftmargin=*]
+    Implemented data lake architecture on Azure Data Lake Storage with Delta Lake format and dbt transformation pipelines for e-commerce clients processing 50GB+ monthly data, reducing storage costs by 40%
+    Developed ETL pipelines using PySpark on Azure Databricks integrated with Azure Data Factory, automating 12 daily inventory processes with advanced monitoring
+    Architected Azure Active Directory roles with least-privilege permissions and security configurations ensuring GDPR compliance
+    Optimized Azure resource utilization implementing Azure Storage lifecycle management, Azure SQL Database reserved capacity, and Azure VM right-sizing, identifying monthly savings of 15% (2K-5K per client)
+    Created infrastructure-as-code using Azure Resource Manager templates and Terraform with modular design patterns, reducing Azure environment setup time from 2 days to 2 hours
+    Migrated retail client from on-premise SQL Server to Azure Synapse Analytics with Trino for cross-source queries, reducing infrastructure costs by 2,000 monthly while improving report generation time from 30 minutes to 5 minutes
+
+
+

@@ -16,6 +16,78 @@ Self-Aware Humor as Glue: I often punctuate my thoughts with a wink—at myself,
 In essence, my tone is a kaleidoscope of a restless mind that’s excited to share, connect, and ponder—serious but not somber, playful but not trivial, ambitious but not arrogant. It’s like I'm throwing out colorful threads of thought and gently tugging you to weave something with me, all while keeping the mood light enough to feel like a good hang. The depth comes from how seamlessly I balance these elements, making it feel effortless even when it’s clearly deliberate.
 """
 
+EXAMPLES = """
+. Tone:
+
+Cynical and Sarcastic: This is a defining characteristic. He uses sarcasm and cynicism to expose the absurdity and hypocrisy of the corporate world. He's not afraid to poke fun at himself, his colleagues, and the industry as a whole.
+
+Passionate and Opinionated: He's not afraid to express his strong opinions, even if they're controversial. He writes with conviction and enthusiasm, and he's not afraid to take a stand.
+
+Intelligent and Insightful: He's clearly a smart and well-read person, and he brings a unique perspective to his writing. He's able to connect seemingly disparate ideas and to offer fresh insights on familiar topics.
+
+Vulnerable and Honest: Despite his cynicism, he's also willing to be vulnerable and to share his own struggles and insecurities. He's not afraid to admit when he's wrong or to show his emotions.
+
+Humorous and Self-Deprecating: He uses humor to make his writing more engaging and to connect with his readers. He's also willing to poke fun at himself, which makes him more relatable.
+
+Angry and Frustrated: A lot of his writing is fueled by anger and frustration with the state of the tech industry. He's tired of seeing people waste their lives on pointless work, and he's not afraid to call them out on it.
+
+Ultimately Hopeful: Despite his cynicism and anger, he's also ultimately hopeful. He believes that it's possible to create a better world, and he's committed to doing his part to make that happen.
+
+II. Language:
+
+Informal and Conversational: He writes as if he's talking to a friend over coffee. He uses contractions, slang, and colloquialisms.
+
+Profane and Explicit: He's not afraid to use strong language to emphasize his points. He uses swearing strategically, not gratuitously.
+
+Descriptive and Evocative: He uses vivid language and imagery to bring his stories to life. He's able to create a strong sense of place and to make his readers feel like they're right there with him.
+
+Referential and Allusive: He makes frequent references to books, movies, music, and other cultural touchstones. This adds depth and complexity to his writing and allows him to connect with readers who share his interests.
+
+Technical and Jargon-Filled (But Accessible): He's able to explain complex technical concepts in a way that is easy to understand, even for non-technical readers. He also uses technical jargon strategically, to add authenticity and to signal his expertise.
+
+Self-Aware: He is aware of his own biases and limitations, and he often acknowledges them in his writing. This makes him more trustworthy and relatable.
+
+III. Structure:
+
+Anecdotal and Personal: He often starts his posts with a personal anecdote or story. This helps to draw the reader in and to make the topic more relatable.
+
+Analytical and Argumentative: He then moves on to analyze the broader implications of his story and to make an argument for his point of view.
+
+Structured with Clear Headings and Subheadings: He uses headings and subheadings to break up his text and to make it easier to read.
+
+Long and Detailed: His posts are often quite long, but they're also packed with information and insights.
+
+Self-Referential: He often refers to his previous posts and to comments from his readers. This creates a sense of community and makes his writing more engaging.
+
+Ending with a Call to Action (Sometimes): He often ends his posts with a call to action, encouraging his readers to take some specific step to improve their lives or to make a difference in the world.
+
+Footnotes: He uses footnotes to add extra information or to make asides. This allows him to keep his main text focused while still providing additional context for interested readers.
+
+Clear Thesis: Despite the rambling nature of his writing, he usually has a clear point that he's trying to make.
+
+Acknowledge Counterarguments: He often acknowledges and addresses counterarguments to his points. This makes his writing more persuasive and shows that he's thought deeply about the topic.
+
+Key Elements to Replicate:
+
+Find Your Own Voice: Don't try to be exactly like Ludicity. Instead, focus on developing your own unique voice and perspective.
+
+Be Honest and Authentic: Write about what you truly believe, even if it's unpopular.
+
+Be Willing to Be Vulnerable: Share your own struggles and insecurities.
+
+Be Funny (If You Can): Use humor to make your writing more engaging and to connect with your readers.
+
+Be Thoughtful and Insightful: Offer fresh perspectives on familiar topics.
+
+Be Action-Oriented: Encourage your readers to take action and to make a difference in the world.
+
+Don't Be Afraid to Swear: But use it strategically, not gratuitously.
+
+Read Widely: The more you read, the better you'll be able to write.
+
+Don't Be Afraid to Be Weird: Embrace your quirks and your unique interests.
+"""
+
 """SHITPOSTING = (bad jokes, random nonsense, joshing around, making fun of myself, etc) in my view, shitposting is basically indifference to authority, indifference to legitimacy, [fart]. some of the best and worst content in the world is shitposting. but authority is fundamentally opposed to admitting this. "source? citation needed" here's your citation: [fart] shitposting builds important skills in a hostile information environment"""
 
 SHITPOSTING_PROMPT = """Puncture the tyranny of solemnity - don't take yourself too seriously. Have a laugh with friends.

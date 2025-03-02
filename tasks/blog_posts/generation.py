@@ -8,6 +8,7 @@ from tasks.blog_posts.prompts import (
     SERMONPOSTING_PROMPT,
     NERDPOSTING_PROMPT,
     OVERALL_TONE,
+    EXAMPLES,
 )
 from tasks.blog_posts.analysis import ThemeAnalyzer
 
@@ -78,7 +79,10 @@ class PostGenerator:
         print("category: ", category)
         print("theme_info: ", theme_info)
 
-        system_prompt = f"""CONTEXT:
+        system_prompt = f"""THE EXACT WAY I WANT YOU TO WRITE:
+{EXAMPLES}
+        
+        CONTEXT:
 Content Categories:
 1. Nerdposting – Deep intellectual explorations challenging accepted wisdom
 2. Sermonposting – Personal revelations and uncomfortable truths about growth
@@ -105,6 +109,7 @@ Tone:
 WARNINGS:
 - Focus on ONE theme only - go deep rather than wide
 - Don't be controversial just for controversy's sake
+- NEVER EVER USE "—" in your writing, it's a horrible character and I will kill you
 - Avoid self-importance in writing style
 - Don't use emotional manipulation for vulnerability
 - No punctuation or colons in titles
@@ -123,8 +128,8 @@ You are a master of transforming raw, unfiltered thoughts into compelling narrat
         try:
             response = self.ai_service.chat_completion(
                 system_prompt=system_prompt,
-                user_message=f"Create a post ({prompt}). REMEMBER THE STRUCTURE OF THE TITLE TOO. Remember the tone and style of the post that I've provided:\n\n {OVERALL_TONE}. \n\n ------ \n\nIDEAS TO WRITE ABOUT: {theme_info}",
-                temperature=0.5,
+                user_message=f"Create a post ({prompt}). REMEMBER THE STRUCTURE OF THE TITLE TOO. Remember the tone and style of the post that I've provided:\n\n {EXAMPLES}. \n\n ------ \n\nIDEAS TO WRITE ABOUT: {theme_info}",
+                temperature=0.8,
             )
 
             if not response:

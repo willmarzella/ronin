@@ -5,9 +5,9 @@
 # Core Search Settings
 #-----------------------------------------------
 search:
-  keywords: '"Data engineer" OR "data engineers" OR "software engineer" OR "software engineers"' # Use quotes for exact matches
+  keywords: '"Data engineer" OR "data engineers" OR "data scientist" OR "data scientists" OR "data analyst" OR "data analysts" OR "data architect" OR "data architects"'
   location: 'All-Australia' # Location to search in
-  date_range: 3 # Number of days to look back, changed to 3 because it wasn't finding any new jobs
+  date_range: 30 # Number of days to look back, changed to 3 because it wasn't finding any new jobs
   sort_mode: 'ListedDate' # ListedDate, Relevance, etc.
   salary:
     min: 120000 # Minimum acceptable salary
@@ -19,18 +19,10 @@ search:
 #-----------------------------------------------
 name: 'William Marzella'
 resume:
-  skills: # List your actual skills
-    - Python
-    - SQL
-    - AWS
-    - Spark
-    - Docker
-    - Kubernetes
   preferences:
-    aws_resume_id: '9419c886-3610-4afe-9c7f-93addae36cdc'
-    azure_resume_id: '6ac46d5e-d3b7-43e0-8c98-d5b0a4006eb1'
-    remote: true # Prefer remote work?
-    min_salary: 120000 # Minimum acceptable salary
+    aws_resume_id: 'f60eefd0-2cbc-4b81-8f7b-ad1a6d597cb6'
+    azure_resume_id: '8fc1e015-1e49-479a-bcc7-dfe92eaffc6f'
+    mixed_resume_id: '48bca7af-e09e-4b06-80b0-aef6727e89d4'
   text:
     aws: |
       CAREER OBJECTIVES AND SUMMARY
@@ -231,7 +223,8 @@ platforms:
 scraping:
   max_jobs: 0 # Max jobs per run (0 = unlimited)
   delay_seconds: 0 # Delay between requests
-  timeout_seconds: 10 # Request timeout
+  timeout_seconds: 3 # Request timeout
+  quick_apply_only: true # Only apply to jobs with quick apply enabled
 
 analysis:
   min_score: 40 # Minimum match score (0-100)
