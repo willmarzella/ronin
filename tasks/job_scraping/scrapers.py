@@ -79,10 +79,11 @@ class SeekScraper(BaseScraper):
         location = self.config["search"]["location"].replace(" ", "-")
         salary_min = self.config["search"]["salary"]["min"]
         salary_max = self.config["search"]["salary"]["max"]
+        date_range = self.config["search"]["date_range"]
 
         url = f"{self.base_url}/{keywords}-jobs/in-{location}"
         params = {
-            "daterange": "3",
+            "daterange": date_range,
             "salaryrange": f"{salary_min}-{salary_max}",
             "salarytype": "annual",
             "sortmode": "ListedDate",
@@ -116,6 +117,31 @@ class SeekScraper(BaseScraper):
             logger.error(f"Error extracting job info: {str(e)}")
             return None
 
+    def clean_location(self, location: str) -> str:
+        """Clean and standardize location strings."""
+        location_mapping = {
+            "NSW": "Sydney, NSW",
+            "VIC": "Melbourne, VIC",
+            "QLD": "Brisbane, QLD",
+            "SA": "Adelaide, SA",
+            "WA": "Perth, WA",
+            "TAS": "Hobart, TAS",
+            "ACT": "Canberra, ACT",
+            "NT": "Darwin, NT",
+        }
+
+        # Check each state abbreviation and map to the corresponding city
+        for state, city in location_mapping.items():
+            if state in location:
+                return city
+
+        return location  # Return original if no mapping found
+
+    def clean_work_type(self, work_type: str) -> str:
+        """Clean and standardize work type strings."""
+        # Remove any extra whitespace and return cleaned string
+        return work_type.strip()
+
     def get_job_details(self, job_id: str) -> Optional[Dict]:
         """Get detailed job information."""
         try:
@@ -138,10 +164,45 @@ class SeekScraper(BaseScraper):
             apply_button = soup.find("a", attrs={"data-automation": "job-detail-apply"})
             quick_apply = apply_button and "Quick apply" in apply_button.get_text()
 
+            location_element = soup.find(
+                "span", attrs={"data-automation": "job-detail-location"}
+            )
+            work_type_element = soup.find(
+                "span", attrs={"data-automation": "job-detail-work-type"}
+            )
+
+            # implement a function to clean up location: Any text containing NSW -> Sydney, NSW, Any text containing VIC -> Melbourne, VIC, Any text containing QLD -> Brisbane, QLD, Any text containing SA -> Adelaide, SA, Any text containing WA -> Perth, WA, Any text containing TAS -> Hobart, TAS, Any text containing ACT -> Canberra, ACT, Any text containing NT -> Darwin, NT
+            location = self.clean_location(location_element.text.strip())
+            work_type = self.clean_work_type(work_type_element.text.strip())
+
+           
+
+            # Find the posted time span by looking for text content that matches our pattern
+            posted_time = None
+            for span in soup.find_all("span"):
+                if span.text and span.text.strip().startswith("Posted "):
+                    posted_time = span.text.strip()
+                    break
+
+            created_at = (
+                self._parse_relative_time(posted_time)
+                if posted_time
+                else datetime.now()
+            )
+            created_at = (
+                created_at.isoformat() if created_at else datetime.now().isoformat()
+            )
+            
+            print(location)
+            print(work_type)
+            print(created_at)
+
             return {
                 "description": description_text,
                 "quick_apply": quick_apply,
-                "created_at": datetime.now().isoformat(),
+                "created_at": created_at,
+                "location": location,
+                "work_type": work_type,
             }
         except Exception as e:
             logger.error(f"Error getting job details for {job_id}: {str(e)}")

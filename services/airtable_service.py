@@ -192,20 +192,10 @@ class AirtableManager:
     def insert_job(self, job_data: Dict) -> bool:
         """Insert a job into Airtable if it doesn't exist"""
         job_id = job_data["job_id"]
-        title = job_data["title"]
-        company = job_data["company"]
-        created_at = job_data.get("created_at", time.strftime("%Y-%m-%d"))
 
         # Skip if job ID already exists
         if job_id in self.existing_job_ids:
             logging.info(f"Job {job_id} already exists in Airtable, skipping")
-            return False
-
-        # Skip if similar job title and company combination exists within time window
-        if self._is_duplicate_job(title, company, created_at):
-            logging.info(
-                f"Similar job already exists within time window: {title} at {company}, skipping"
-            )
             return False
 
         try:
@@ -223,7 +213,7 @@ class AirtableManager:
                 "Job ID": job_id,
                 "Description": job_data["description"],
                 "Score": analysis_data.get("score", 0),
-                "Tech Stack": ", ".join(analysis_data.get("tech_stack", [])),
+                "Tech Stack": analysis_data.get("tech_stack", "N/A"),
                 "Recommendation": analysis_data.get("recommendation", ""),
                 "URL": url,
                 "Source": source,  # Add source field
@@ -233,6 +223,7 @@ class AirtableManager:
                 "Type": job_data.get("work_type", ""),
                 "Location": job_data.get("location", ""),
                 "Status": "DISCOVERED",  # Initial status
+                "Keywords": ", ".join(analysis_data.get("tech_keywords", [])),
             }
 
             # Create record in Airtable
@@ -352,6 +343,7 @@ class AirtableManager:
                         f"Missing record_id or status for job: {job.get('title', 'Unknown')}"
                     )
                     continue
+                print(f"Updating status for job {job.get('title', 'Unknown')} to {status}")
 
                 fields = {"Status": status}
 

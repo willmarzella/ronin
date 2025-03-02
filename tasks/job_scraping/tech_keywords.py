@@ -4,16 +4,16 @@ import json
 
 from typing import Dict, List, Optional
 from loguru import logger
-from tasks.job_scraping.prompts import JOB_ANALYSIS_PROMPT
+from tasks.job_scraping.prompts import TECH_KEYWORDS_PROMPT
 
 
-class JobAnalyzerService:
+class TechKeywordsService:
     """Service for analyzing job postings using OpenAI."""
 
     def __init__(self, config: Dict, client):
         self.config = config
         self.client = client  # Store the OpenAI client
-        self._system_prompt = JOB_ANALYSIS_PROMPT
+        self._system_prompt = TECH_KEYWORDS_PROMPT
 
     def analyze_job(self, job_data: Dict) -> Optional[Dict]:
         """
@@ -34,7 +34,7 @@ class JobAnalyzerService:
                     {"role": "system", "content": self._system_prompt},
                     {
                         "role": "user",
-                        "content": f"Analyze this job description:\n\n{job_data['description']}",
+                        "content": f"Get the tech keywords from this job description:\n\n{job_data['description']}",
                     },
                 ],
                 temperature=0.7,
@@ -58,21 +58,20 @@ class JobAnalyzerService:
 
                 if not analysis_data:
                     logger.error(
-                        f"No valid analysis data in OpenAI response for job {job_data.get('job_id')}"
+                        f"No valid keywords data in OpenAI response for job {job_data.get('job_id')}"
                     )
                     return None
 
-                # Map GCP to AWS (since we're focusing on AWS/Azure)
-                if analysis_data.get("tech_stack") == "GCP":
-                    analysis_data["tech_stack"] = "AWS"
-
                 # Validate required fields
-                if not all(
-                    k in analysis_data
-                    for k in ["score", "tech_stack", "recommendation"]
-                ):
-                    logger.error("Missing required fields in analysis data")
+                if "tech_keywords" not in analysis_data:
+                    logger.error("Missing tech_keywords field in analysis data")
                     return None
+
+                # Ensure tech_keywords is a list
+                if not isinstance(analysis_data["tech_keywords"], list):
+                    logger.error("tech_keywords must be a list")
+                    return None
+
                 return {**job_data, "analysis": analysis_data}
 
             except Exception as e:

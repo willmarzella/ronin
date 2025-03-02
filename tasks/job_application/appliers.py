@@ -84,16 +84,19 @@ class SeekApplier:
             url = f"https://www.seek.com.au/job/{job_id}"
             self.driver.get(url)
 
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "[data-automation='job-detail-apply']")
+            # Look for apply button with a short timeout
+            try:
+                apply_button = WebDriverWait(self.driver, 5).until(
+                    EC.presence_of_element_located(
+                        (By.CSS_SELECTOR, "[data-automation='job-detail-apply']")
+                    )
                 )
-            )
-
-            apply_button = self.driver.find_element(
-                By.CSS_SELECTOR, "[data-automation='job-detail-apply']"
-            )
-            apply_button.click()
+                apply_button.click()
+            except TimeoutException:
+                logging.info(
+                    f"No apply button found for job {job_id}, assuming already applied"
+                )
+                return "APPLIED"
 
         except Exception as e:
             raise Exception(f"Failed to navigate to job {job_id}: {str(e)}")
@@ -145,8 +148,8 @@ class SeekApplier:
                     resume_text = f.read()
 
                 system_prompt = f"""You are a professional cover letter writer. Write a concise, compelling cover letter for the following job. 
-                    The letter should highlight relevant experience from my resume and demonstrate enthusiasm for the role. Use the example cover letter below to guide your writing. My name is William Marzella.
-                    Keep the tone professional but personable. Maximum 250 words.
+                    The letter should highlight relevant experience from my resume and demonstrate enthusiasm for the role. Use the example cover letter below to guide your writing. My name is William Marzella. Also a lot of the time the job description will be from a recruiting agency recruiting on behalf of a client. In this case, you should tailor the letter to the client, not the recruiting agency. Obviosly address the recruiting agency in the letter. And usually at the end of the job description there'll be the recruiters name or email address (in which you can usually find their name). You should address the letter to them.
+                    Keep the tone professional but conversational and personable. Maximum 250 words.
 
                     My resume: {resume_text}
                     
@@ -232,7 +235,7 @@ class SeekApplier:
                 )
                 tech_stack = "aws"
 
-            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
+            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. My salary expectations are $150,000 - $200,000, based on the job description you can choose to apply for a higher or lower salary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
 You MUST return your response in valid JSON format with fields that match the input type:
 - For textareas: {{"response": "your detailed answer"}}
 - For radios: {{"selected_option": "id of the option to select"}}
@@ -241,7 +244,7 @@ You MUST return your response in valid JSON format with fields that match the in
 
 For radio and checkbox inputs, ONLY return the exact ID from the options provided, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM.
 For select inputs, ONLY return the exact value attribute from the options provided, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM.
-For textareas, keep responses under 100 words and ensure it's properly escaped for JSON.
+For textareas, keep responses under 100 words and ensure it's properly escaped for JSON. IF YOU CANNOT FIND THE ANSWER OR ARE NOT SURE, RETURN "N/A".
 Always ensure your response is valid JSON and contains the expected fields. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED."""
 
             with open("assets/resume.txt", "r") as f:
@@ -559,6 +562,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
     def _handle_screening_questions(self) -> bool:
         """Handle any screening questions on the application."""
         try:
+            print("On screening questions page")
             try:
                 WebDriverWait(self.driver, 3).until(
                     lambda driver: len(self._get_form_elements()) > 0
@@ -571,6 +575,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 return True
 
             elements = self._get_form_elements()
+            print(f"Found {len(elements)} elements")
             if not elements:
                 return True
 
@@ -618,15 +623,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
         """Submit the application after all questions are answered."""
         try:
             time.sleep(2)
-            print("Waiting for review continue button")
-
-            try:
-                privacy_checkbox = self.driver.find_element(By.ID, "privacyPolicy")
-                if not privacy_checkbox.is_selected():
-                    privacy_checkbox.click()
-                    time.sleep(0.5)
-            except NoSuchElementException:
-                pass
+            print("On update seek Profile page")
 
             WebDriverWait(self.driver, 3).until(
                 EC.presence_of_element_located(
@@ -643,7 +640,19 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
 
             time.sleep(2)
 
-            print("Waiting for submit button")
+            print("On final review page")
+
+            try:
+                WebDriverWait(self.driver, 3).until(
+                    EC.presence_of_element_located((By.ID, "privacyPolicy"))
+                )
+                privacy_checkbox = self.driver.find_element(By.ID, "privacyPolicy")
+                if not privacy_checkbox.is_selected():
+                    print("Clicking privacy checkbox")
+                    privacy_checkbox.click()
+                time.sleep(0.5)
+            except TimeoutException:
+                logging.info("No privacy checkbox found, moving to submission")
 
             WebDriverWait(self.driver, 3).until(
                 EC.presence_of_element_located(
@@ -656,9 +665,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
             )
             submit_button.click()
 
-            print("Clicked submit button")
-
-            time.sleep(2)
+            print("Clicked final submit button")
 
             success_indicators = [
                 "success" in self.driver.current_url,
@@ -696,7 +703,10 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
             if not self.is_logged_in:
                 self._login()
 
-            self._navigate_to_job(job_id)
+            navigation_result = self._navigate_to_job(job_id)
+            if navigation_result == "APPLIED":
+                return "APPLIED"
+
             self._handle_resume(job_id, tech_stack)
             self._handle_cover_letter(
                 score=score,
@@ -726,13 +736,13 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
 
             if any(success_indicators):
                 logging.info(f"Successfully applied to job {job_id}")
-                return "SUCCESS"
+                return "APPLIED"
 
             if not submission_result:
                 logging.warning(f"Application may have failed for job {job_id}")
-                return "FAILED"
+                return "APP_ERROR"
 
-            return "SUCCESS"
+            return "APPLIED"
 
         except Exception as e:
             logging.warning(f"Exception during application for job {job_id}: {str(e)}")
@@ -753,8 +763,8 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 ]
             ):
                 logging.info(f"Application successful despite errors for job {job_id}")
-                return "SUCCESS"
-            return "FAILED"
+                return "APPLIED"
+            return "APP_ERROR"
 
         finally:
             self.current_tech_stack = None

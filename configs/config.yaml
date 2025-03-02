@@ -5,12 +5,10 @@
 # Core Search Settings
 #-----------------------------------------------
 search:
-  keywords: '"Data engineer" OR "data engineers"' # Use quotes for exact matches
+  keywords: '"Data engineer" OR "data engineers" OR "software engineer" OR "software engineers"' # Use quotes for exact matches
   location: 'All-Australia' # Location to search in
   date_range: 3 # Number of days to look back, changed to 3 because it wasn't finding any new jobs
   sort_mode: 'ListedDate' # ListedDate, Relevance, etc.
-  type: 'standard' # standard, contract, temporary
-  experience_level: 'entry' # entry, mid, senior
   salary:
     min: 120000 # Minimum acceptable salary
     max: 250000 # Maximum salary to filter
@@ -29,20 +27,10 @@ resume:
     - Docker
     - Kubernetes
   preferences:
-    aws_resume_id: '89c09056-29ee-4c48-bd30-8ee3ca631a2d'
+    aws_resume_id: '9419c886-3610-4afe-9c7f-93addae36cdc'
     azure_resume_id: '6ac46d5e-d3b7-43e0-8c98-d5b0a4006eb1'
     remote: true # Prefer remote work?
     min_salary: 120000 # Minimum acceptable salary
-    industries: # Preferred industries
-      - Technology
-      - Finance
-      - Healthcare
-    exclude_keywords: # Red flags or dealbreakers
-      - 'PHP'
-      - 'Wordpress'
-      - '24/7'
-      - 'on-call'
-      - 'family environment' # We all know what this means
   text:
     aws: |
       CAREER OBJECTIVES AND SUMMARY

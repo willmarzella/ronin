@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from core.config import load_config
 from tasks.job_scraping.scrapers import create_scraper
 from tasks.job_scraping.job_analyzer import JobAnalyzerService
+from tasks.job_scraping.tech_keywords import TechKeywordsService
 from services.airtable_service import AirtableManager
 from core.logging import setup_logger
 
@@ -28,7 +29,9 @@ class JobSearchPipeline:
         self.openai_client = self._setup_openai()
         self.airtable = AirtableManager()
         self.analyzer = JobAnalyzerService(self.config, self.openai_client)
-
+        self.tech_keywords_service = TechKeywordsService(
+            self.config, self.openai_client
+        )
         # Pipeline context for sharing data between tasks
         self.context: Dict[str, Any] = {}
 
@@ -116,7 +119,16 @@ class JobSearchPipeline:
                     f"Processing job: {job['title']} (ID: {job['job_id']})"
                 )
                 enriched_job = self.analyzer.analyze_job(job)
-                if enriched_job and enriched_job.get("analysis"):
+                tech_keywords_job = self.tech_keywords_service.analyze_job(job)
+
+                # Merge tech keywords analysis with main analysis
+                if enriched_job and tech_keywords_job:
+                    if isinstance(enriched_job.get("analysis"), dict) and isinstance(
+                        tech_keywords_job.get("analysis"), dict
+                    ):
+                        enriched_job["analysis"]["tech_keywords"] = tech_keywords_job[
+                            "analysis"
+                        ].get("tech_keywords", [])
                     processed_jobs.append(enriched_job)
                     score = (
                         enriched_job["analysis"].get("score", "N/A")
@@ -168,14 +180,19 @@ class JobSearchPipeline:
                         else "N/A"
                     ),
                     "tech_stack": (
-                        job.get("analysis", {}).get("tech_stack", [])
+                        job.get("analysis", {}).get("tech_stack", "N/A")
                         if isinstance(job.get("analysis"), dict)
-                        else []
+                        else "N/A"
                     ),
                     "recommendation": (
                         job.get("analysis", {}).get("recommendation", "")
                         if isinstance(job.get("analysis"), dict)
                         else ""
+                    ),
+                    "tech_keywords": (
+                        job.get("analysis", {}).get("tech_keywords", [])
+                        if isinstance(job.get("analysis"), dict)
+                        else []
                     ),
                 }
                 successful_jobs.append(job_summary)
