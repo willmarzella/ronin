@@ -1,11 +1,14 @@
 """Job board scrapers for various platforms."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime, timedelta
 import re
 import time
 import functools
+import json
+import logging
+import random
 
 import requests
 from bs4 import BeautifulSoup
@@ -114,6 +117,40 @@ class SeekScraper(BaseScraper):
     def __init__(self, config: Dict):
         super().__init__(config)
         self.base_url = "https://www.seek.com.au"
+        self.search_config = config.get("search", {})
+        self._parse_search_keywords()
+        # Track which keyword group we're currently searching
+        self.current_keyword_group_index = 0
+
+    def _parse_search_keywords(self):
+        """Parse search keywords from the config which is now a list of OR-separated queries."""
+        keywords_list = self.search_config.get("keywords", [])
+
+        # Handle both string and list configurations for backward compatibility
+        if isinstance(keywords_list, str):
+            keywords_list = [keywords_list]
+
+        # Store both the raw keyword groups and the parsed individual keywords
+        self.keyword_groups = keywords_list
+        self.target_keywords = []
+
+        # Extract all individual keywords from all groups
+        for keyword_group in keywords_list:
+            # Use regex to find all quoted strings in this group
+            matches = re.findall(r'"([^"]*)"', keyword_group)
+            parsed_keywords = [keyword.lower() for keyword in matches if keyword]
+
+            if not parsed_keywords:
+                # Fallback if no quoted terms found - split by OR and strip
+                parsed_keywords = [
+                    k.strip().lower() for k in keyword_group.split("OR") if k.strip()
+                ]
+
+            # Add these keywords to our master list
+            self.target_keywords.extend(parsed_keywords)
+
+        print(f"Parsed target keywords: {self.target_keywords}")
+        print(f"Using {len(self.keyword_groups)} keyword groups for searches")
 
     def _parse_relative_time(self, time_str: str) -> Optional[datetime]:
         """Parse relative time string (e.g., 'Posted 3d ago') into datetime."""
@@ -136,14 +173,36 @@ class SeekScraper(BaseScraper):
             return now - timedelta(minutes=number)
         return None
 
-    def build_search_url(self, page: int) -> str:
-        """Build the search URL for the given page."""
-        search_config = self.config["search"]
-        keywords = search_config["keywords"].replace(" ", "-").lower()
-        location = search_config["location"].replace(" ", "-")
-        salary_min = search_config["salary"]["min"]
-        salary_max = search_config["salary"]["max"]
-        date_range = search_config["date_range"]
+    def build_search_url(self, page: int, keyword_index: Optional[int] = None) -> str:
+        """Build the Seek search URL with parameters for a specific keyword group."""
+        # Determine which keyword group to use
+        if keyword_index is not None:
+            idx = keyword_index
+        else:
+            idx = self.current_keyword_group_index
+
+        # Make sure the index is valid
+        if idx < 0 or idx >= len(self.keyword_groups):
+            raise ValueError(f"Invalid keyword group index: {idx}")
+
+        # Get the keyword group for this search
+        keyword_group = self.keyword_groups[idx]
+
+        # For URL construction, we strip quotes and replace spaces with hyphens
+        keywords = keyword_group.replace('"', "").replace(" OR ", "-OR-")
+        keywords = keywords.replace(" ", "-")
+
+        print(f"Using keyword group {idx}: {keyword_group} -> URL format: {keywords}")
+
+        location = self.search_config.get("location", "All Australia").replace(" ", "-")
+        salary_config = self.search_config.get("salary", {})
+        salary_min = salary_config.get("min", 0)
+        salary_max = salary_config.get("max", 999999)
+        date_range = self.search_config.get("date_range", 30)
+
+        print(
+            f"Building URL with: {keywords}, {location}, {salary_min}-{salary_max}, {date_range}"
+        )
 
         params = {
             "daterange": date_range,
@@ -152,11 +211,15 @@ class SeekScraper(BaseScraper):
             "sortmode": "ListedDate",
             "page": str(page),
         }
+
         param_str = "&".join(f"{k}={v}" for k, v in params.items())
-        return f"{self.base_url}/{keywords}-jobs/in-{location}?{param_str}"
+        return (
+            f"{self.base_url}/{keywords}-jobs/in-{location}/contract-temp?{param_str}"
+        )
 
     def extract_job_info(self, job_element: BeautifulSoup) -> Optional[Dict[str, Any]]:
         """Extract job preview information from a job card."""
+
         job_id = job_element.get("data-job-id")
         if not job_id:
             return None
@@ -164,13 +227,49 @@ class SeekScraper(BaseScraper):
         title_element = job_element.find("a", attrs={"data-automation": "jobTitle"})
         company_element = job_element.find("a", attrs={"data-automation": "jobCompany"})
 
+        if not title_element:
+            return None
+
+        job_title = title_element.text.strip()
+
+        # Validate that the job title contains at least one of the target keywords
+        matching_keyword = self._get_matching_keyword(job_title)
+        if not matching_keyword:
+            logger.debug(f"Skipping job: '{job_title}' - doesn't match target keywords")
+            return None
+
+        logger.info(f"Found job '{job_title}' matching keyword '{matching_keyword}'")
+
         return {
             "job_id": job_id,
-            "title": title_element.text.strip() if title_element else "Unknown",
+            "title": job_title,
             "company": company_element.text.strip() if company_element else "Unknown",
             "url": f"{self.base_url}/job/{job_id}",
             "source": "seek",
+            "matching_keyword": matching_keyword,
         }
+
+    def _get_matching_keyword(self, title: str) -> Optional[str]:
+        """Check if job title contains any of the target keywords and return the matching keyword."""
+        if not self.target_keywords:
+            return "No keywords defined"
+
+        title_lower = title.lower()
+
+        # Check if any of the target keywords are in the title
+        for keyword in self.target_keywords:
+            # For multi-word keywords, we want to match the exact phrase
+            if " " in keyword:
+                if keyword in title_lower:
+                    return keyword
+            else:
+                # For single-word keywords, check for word boundaries
+                # This prevents matching 'data' in 'database administrator'
+                word_pattern = r"\b{}\b".format(re.escape(keyword))
+                if re.search(word_pattern, title_lower):
+                    return keyword
+
+        return None
 
     def clean_location(self, location: str) -> str:
         """Map location to standard city name based on state abbreviations."""
@@ -185,7 +284,46 @@ class SeekScraper(BaseScraper):
         return location.strip()
 
     def get_job_previews(self) -> List[Dict[str, Any]]:
-        """Get job previews with minimal information."""
+        """Get job previews with minimal information by iterating through all keyword groups."""
+        all_jobs_data = []
+        seen_job_ids = (
+            set()
+        )  # To avoid duplicate jobs across different keyword searches
+
+        # Iterate through each keyword group
+        for keyword_index in range(len(self.keyword_groups)):
+            self.current_keyword_group_index = keyword_index
+            print(
+                f"\n--- Searching with keyword group {keyword_index + 1}/{len(self.keyword_groups)}: {self.keyword_groups[keyword_index]} ---\n"
+            )
+
+            # Search for this keyword group
+            jobs_data = self._get_jobs_for_current_keyword()
+
+            # Add new jobs to our combined results
+            for job in jobs_data:
+                job_id = job.get("job_id")
+                if job_id and job_id not in seen_job_ids:
+                    seen_job_ids.add(job_id)
+                    all_jobs_data.append(job)
+
+            print(
+                f"Found {len(jobs_data)} jobs for keyword group {keyword_index + 1}, "
+                f"total unique jobs so far: {len(all_jobs_data)}"
+            )
+
+            # Check if we've reached the max jobs limit
+            if self.max_jobs and len(all_jobs_data) >= self.max_jobs:
+                print(f"Reached maximum jobs limit ({self.max_jobs})")
+                break
+
+        print(
+            f"Total unique jobs found across all keyword groups: {len(all_jobs_data)}"
+        )
+        return all_jobs_data
+
+    def _get_jobs_for_current_keyword(self) -> List[Dict[str, Any]]:
+        """Get job previews for the current keyword group."""
         jobs_data = []
         page = 1
         jobs_per_page = 22  # Seek typically shows 22 jobs per page
@@ -214,76 +352,97 @@ class SeekScraper(BaseScraper):
                 job_info = self.extract_job_info(job_element)
                 if job_info:
                     jobs_data.append(job_info)
-                    logger.debug(f"Added job preview: {job_info['title']}")
 
-            # Stop if we didn't get a full page of results
             if len(job_elements) < jobs_per_page:
+                logger.info("No more pages available")
                 break
 
-            page += 1  # Move to next page
+            page += 1
 
-        logger.info(f"Found {len(jobs_data)} total job previews")
         return jobs_data
 
     def get_job_details(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed job information for a specific job."""
         url = f"{self.base_url}/job/{job_id}"
-        soup = self.make_request(url)
-        if not soup:
+        logger.info(f"Fetching job details from: {url}")
+
+        try:
+            soup = self.make_request(url)
+            if not soup:
+                logger.error(f"Failed to get HTML content for job {job_id}")
+                return None
+
+            # Check if job has quick apply first to avoid unnecessary processing
+            apply_button = soup.find("a", attrs={"data-automation": "job-detail-apply"})
+            quick_apply = apply_button and "Quick apply" in apply_button.get_text()
+
+            # If quick_apply_only is enabled and this job doesn't have quick apply, return None
+            if self.quick_apply_only and not quick_apply:
+                logger.info(f"Skipping job {job_id} - Quick apply not available")
+                return None
+
+            # Extract job description
+            description_element = soup.find(
+                "div", attrs={"data-automation": "jobAdDetails"}
+            )
+            if not description_element:
+                logger.error(f"Could not find job description element for job {job_id}")
+                return None
+
+            # Clean up description text
+            description_text = description_element.get_text(separator="\n").strip()
+            description_text = description_text.encode("ascii", "ignore").decode(
+                "ascii"
+            )
+            logger.debug(
+                f"Extracted description of length {len(description_text)} for job {job_id}"
+            )
+
+            # Extract location and work type
+            location_element = soup.find(
+                "span", attrs={"data-automation": "job-detail-location"}
+            )
+            location = (
+                self.clean_location(location_element.text.strip())
+                if location_element
+                else "Unknown"
+            )
+
+            work_type_element = soup.find(
+                "span", attrs={"data-automation": "job-detail-worktype"}
+            )
+            work_type = (
+                work_type_element.text.strip() if work_type_element else "Unknown"
+            )
+
+            # Posted time information
+            posted_time = None
+            for span in soup.find_all("span"):
+                if span.text and span.text.strip().startswith("Posted "):
+                    posted_time = span.text.strip()
+                    break
+
+            # Parse the posted time to a datetime
+            created_at = self._parse_relative_time(posted_time) or datetime.now()
+            created_at_iso = created_at.isoformat()
+
+            # Build the job details dictionary
+            job_details = {
+                "description": description_text,
+                "quick_apply": quick_apply,
+                "created_at": created_at_iso,
+                "location": location,
+                "work_type": work_type,
+            }
+
+            logger.info(
+                f"Successfully extracted details for job {job_id} (Location: {location}, Work Type: {work_type})"
+            )
+            return job_details
+
+        except Exception as e:
+            logger.exception(f"Error extracting job details for {job_id}: {str(e)}")
             return None
-
-        # Check if job has quick apply first to avoid unnecessary processing
-        apply_button = soup.find("a", attrs={"data-automation": "job-detail-apply"})
-        quick_apply = apply_button and "Quick apply" in apply_button.get_text()
-
-        # If quick_apply_only is enabled and this job doesn't have quick apply, return None
-        if self.quick_apply_only and not quick_apply:
-            return None
-
-        # Extract job description
-        description_element = soup.find(
-            "div", attrs={"data-automation": "jobAdDetails"}
-        )
-        if not description_element:
-            return None
-
-        # Clean up description text
-        description_text = description_element.get_text(separator="\n").strip()
-        description_text = description_text.encode("ascii", "ignore").decode("ascii")
-
-        # Extract location and work type
-        location_element = soup.find(
-            "span", attrs={"data-automation": "job-detail-location"}
-        )
-        work_type_element = soup.find(
-            "span", attrs={"data-automation": "job-detail-work-type"}
-        )
-
-        location = self.clean_location(
-            location_element.text.strip() if location_element else ""
-        )
-        work_type = (
-            work_type_element.text.strip() if work_type_element else "Not specified"
-        )
-
-        # Find posted time
-        posted_time = None
-        for span in soup.find_all("span"):
-            if span.text and span.text.strip().startswith("Posted "):
-                posted_time = span.text.strip()
-                break
-
-        # Parse the posted time to a datetime
-        created_at = self._parse_relative_time(posted_time) or datetime.now()
-        created_at_iso = created_at.isoformat()
-
-        return {
-            "description": description_text,
-            "quick_apply": quick_apply,
-            "created_at": created_at_iso,
-            "location": location,
-            "work_type": work_type,
-        }
 
 
 def create_scraper(platform: str, config: Dict) -> BaseScraper:

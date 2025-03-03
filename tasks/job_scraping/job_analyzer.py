@@ -26,10 +26,26 @@ class JobAnalyzerService:
             Dictionary containing the enriched job data with OpenAI analysis,
             or None if analysis fails
         """
+        job_id = job_data.get("job_id", "unknown")
+        job_title = job_data.get("title", "unknown")
+
+        logger.info(f"Starting job analysis for '{job_title}' (ID: {job_id})")
+
+        if not job_data.get("description"):
+            logger.error(
+                f"Job {job_id} ({job_title}) has no description. Skipping analysis."
+            )
+            return None
+
         try:
+            logger.debug(f"Making OpenAI API call for job {job_id} ({job_title})")
+            # Get job analysis from OpenAI using the client directly
+            model = self.config.get("analysis", {}).get("model", "gpt-4-turbo-preview")
+            logger.debug(f"Using model: {model}")
+
             # Get job analysis from OpenAI using the client directly
             response = self.client.chat.completions.create(
-                model="gpt-4-turbo-preview",  # or your preferred model
+                model=model,
                 messages=[
                     {"role": "system", "content": self._system_prompt},
                     {
@@ -42,49 +58,71 @@ class JobAnalyzerService:
 
             if not response:
                 logger.error(
-                    f"Failed to get analysis from OpenAI for job {job_data.get('job_id')}"
+                    f"Failed to get analysis from OpenAI for job {job_id} ({job_title})"
                 )
                 return None
 
             try:
                 # Extract and clean the content from the response
                 content = response.choices[0].message.content
+                logger.debug(f"Received response from OpenAI for job {job_id}")
 
-                # Remove markdown code block if present
-                content = content.replace("```json\n", "").replace("\n```", "").strip()
+                # Try to parse the JSON directly from the content
+                # Sometimes the AI returns with extra text around the JSON
+                try:
+                    # Try direct JSON parsing first
+                    analysis = json.loads(content)
+                except json.JSONDecodeError:
+                    # If direct parsing fails, try to extract JSON from the text
+                    logger.warning(
+                        f"Direct JSON parse failed for job {job_id}, trying to extract JSON"
+                    )
+                    import re
 
-                # Parse the JSON
-                analysis_data = json.loads(content)
+                    json_match = re.search(
+                        r"({.*})", content.replace("\n", " "), re.DOTALL
+                    )
+                    if json_match:
+                        try:
+                            analysis = json.loads(json_match.group(1))
+                        except json.JSONDecodeError:
+                            logger.error(
+                                f"Failed to extract valid JSON for job {job_id}"
+                            )
+                            return None
+                    else:
+                        logger.error(
+                            f"No JSON pattern found in response for job {job_id}"
+                        )
+                        return None
 
-                if not analysis_data:
-                    logger.error(
-                        f"No valid analysis data in OpenAI response for job {job_data.get('job_id')}"
+                # Create enriched job data with analysis
+                enriched_job = job_data.copy()
+                enriched_job["analysis"] = analysis
+
+                # Apply minimum score filtering if configured
+                min_score = self.config.get("analysis", {}).get("min_score", 0)
+                job_score = analysis.get("score", 0)
+
+                if job_score < min_score:
+                    logger.info(
+                        f"Job {job_id} ({job_title}) score {job_score} below minimum {min_score}"
                     )
                     return None
 
-                # Map GCP to AWS (since we're focusing on AWS/Azure)
-                if analysis_data.get("tech_stack") == "GCP":
-                    analysis_data["tech_stack"] = "AWS"
-
-                # Validate required fields
-                if not all(
-                    k in analysis_data
-                    for k in ["score", "tech_stack", "recommendation"]
-                ):
-                    logger.error("Missing required fields in analysis data")
-                    return None
-                return {**job_data, "analysis": analysis_data}
+                return enriched_job
 
             except Exception as e:
-                logger.error(
-                    f"Failed to process OpenAI response for job {job_data.get('job_id')}: {str(e)}"
+                logger.exception(
+                    f"Error parsing OpenAI response for job {job_id} ({job_title}): {str(e)}"
                 )
-                logger.error(f"Raw response: {response}")
+                logger.debug(
+                    f"Raw response content: {response.choices[0].message.content}"
+                )
                 return None
 
         except Exception as e:
-            logger.error(
-                f"Error analyzing job {job_data.get('title', 'Unknown')} (ID: {job_data.get('job_id', 'Unknown')}): {str(e)}"
+            logger.exception(
+                f"Error calling OpenAI API for job {job_id} ({job_title}): {str(e)}"
             )
-            logger.exception("Full traceback:")
             return None
