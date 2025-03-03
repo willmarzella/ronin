@@ -7,7 +7,7 @@
 search:
   keywords: '"Data engineer" OR "data engineers" OR "data scientist" OR "data scientists" OR "data analyst" OR "data analysts" OR "data architect" OR "data architects"'
   location: 'All-Australia' # Location to search in
-  date_range: 30 # Number of days to look back, changed to 3 because it wasn't finding any new jobs
+  date_range: 3 # Number of days to look back, changed to 3 because it wasn't finding any new jobs
   sort_mode: 'ListedDate' # ListedDate, Relevance, etc.
   salary:
     min: 120000 # Minimum acceptable salary
