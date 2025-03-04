@@ -5,14 +5,17 @@
 # Core Search Settings
 #-----------------------------------------------
 search:
-  keywords: 
+  keywords:
     - '"Data engineer" OR "data engineers"'
-    - '"data scientist" OR "data scientists"'
-    - '"data analyst" OR "data analysts"'
-    - '"data architect" OR "data architects"'
-    - '"machine learning engineer" OR "machine learning engineers"'
-    - '"big data"'
-  location: 'All-Melbourne-VIC' # Location to search in
+    # - '"software engineer" OR "software engineers"'
+    - '"cloud engineer" OR "cloud engineers"'
+    - '"cloud architect" OR "cloud architects"'
+    # - '"data scientist" OR "data scientists"'
+    # - '"data analyst" OR "data analysts"'
+    # - '"data architect" OR "data architects"'
+    # - '"machine learning engineer" OR "machine learning engineers"'
+    # - '"big data"'
+  location: 'All-Australia' # Location to search in
   date_range: 3 # Number of days to look back, changed to 3 because it wasn't finding any new jobs
   sort_mode: 'ListedDate' # ListedDate, Relevance, etc.
   salary:

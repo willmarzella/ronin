@@ -42,6 +42,15 @@ class AirtableManager:
             # Initialize table directly with API key
             self.table = Table(self.api_key, self.base_id, self.table_name)
 
+            # Initialize companies table
+            self.companies_table_name = "Companies"
+            self.companies_table = Table(
+                self.api_key, self.base_id, self.companies_table_name
+            )
+
+            # Cache for existing companies
+            self.existing_companies = {}
+
             # Test the connection by making a simple request
             try:
                 logging.info("Testing Airtable connection...")
@@ -189,6 +198,62 @@ class AirtableManager:
             logging.error(f"Error checking for duplicate job: {str(e)}")
             return False
 
+    def _get_or_create_company(self, company_name: str) -> Optional[str]:
+        """
+        Get existing company record ID or create a new one if it doesn't exist.
+
+        Args:
+            company_name: Name of the company
+
+        Returns:
+            str: Record ID of the company or None if error
+        """
+        if not company_name:
+            logging.warning("Empty company name provided, cannot create company record")
+            return None
+
+        # Check if company already exists in cache (case-insensitive)
+        company_lower = company_name.lower()
+        if company_lower in self.existing_companies:
+            logging.debug(f"Company '{company_name}' found in cache")
+            return self.existing_companies[company_lower]
+
+        try:
+            # Look up company in Airtable
+            formula = f"LOWER({{Name}}) = '{company_lower}'"
+            company_records = self.companies_table.all(formula=formula)
+
+            if company_records:
+                # Company exists, save to cache and return ID
+                company_id = company_records[0]["id"]
+                self.existing_companies[company_lower] = company_id
+                logging.info(
+                    f"Found existing company record for '{company_name}' with ID: {company_id}"
+                )
+                return company_id
+
+            # Create new company record
+            company_data = {
+                "Name": company_name,
+                "Created At": datetime.now().isoformat(),
+            }
+
+            new_record = self.companies_table.create(company_data)
+            company_id = new_record["id"]
+
+            # Add to cache
+            self.existing_companies[company_lower] = company_id
+            logging.info(
+                f"Created new company record for '{company_name}' with ID: {company_id}"
+            )
+
+            return company_id
+        except Exception as e:
+            logging.error(
+                f"Error getting/creating company record for '{company_name}': {str(e)}"
+            )
+            return None
+
     def insert_job(self, job_data: Dict) -> bool:
         """Insert a job into Airtable if it doesn't exist"""
         job_id = job_data["job_id"]
@@ -206,10 +271,13 @@ class AirtableManager:
             url = job_data.get("url", "")
             source = job_data.get("source") or self._get_job_source(url)
 
+            # Get or create company record
+            company_name = job_data.get("company", "")
+            company_record_id = self._get_or_create_company(company_name)
+
             # Format the data for Airtable
             airtable_data = {
                 "Title": job_data["title"],
-                "Company": job_data["company"],
                 "Job ID": job_id,
                 "Description": job_data["description"],
                 "Score": analysis_data.get("score", 0),
@@ -225,6 +293,16 @@ class AirtableManager:
                 "Status": "DISCOVERED",  # Initial status
                 "Keywords": ", ".join(analysis_data.get("tech_keywords", [])),
             }
+
+            # Add company link if we have a company record ID
+            if company_record_id:
+
+                airtable_data["Company"] = [
+                    company_record_id
+                ]  # Airtable requires an array for links
+                logging.info(
+                    f"Linking job {job_id} to company '{company_name}' (ID: {company_record_id})"
+                )
 
             # Create record in Airtable
             self.table.create(airtable_data)
@@ -343,7 +421,9 @@ class AirtableManager:
                         f"Missing record_id or status for job: {job.get('title', 'Unknown')}"
                     )
                     continue
-                print(f"Updating status for job {job.get('title', 'Unknown')} to {status}")
+                print(
+                    f"Updating status for job {job.get('title', 'Unknown')} to {status}"
+                )
 
                 fields = {"Status": status}
 

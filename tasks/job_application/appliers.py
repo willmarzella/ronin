@@ -299,10 +299,9 @@ class SeekApplier:
     def _submit_application(self) -> bool:
         """Submit the application after all questions are answered."""
         try:
-            time.sleep(2)
             print("On update seek Profile page")
 
-            WebDriverWait(self.driver, 3).until(
+            WebDriverWait(self.driver, 1.5).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "[data-testid='continue-button']")
                 )
@@ -315,23 +314,23 @@ class SeekApplier:
 
             print("Clicked continue button")
 
-            time.sleep(2)
+            time.sleep(0.5)
 
             print("On final review page")
 
             try:
-                WebDriverWait(self.driver, 3).until(
+                WebDriverWait(self.driver, 1.5).until(
                     EC.presence_of_element_located((By.ID, "privacyPolicy"))
                 )
                 privacy_checkbox = self.driver.find_element(By.ID, "privacyPolicy")
                 if not privacy_checkbox.is_selected():
                     print("Clicking privacy checkbox")
                     privacy_checkbox.click()
-                time.sleep(0.5)
+                time.sleep(0.2)
             except TimeoutException:
                 logging.info("No privacy checkbox found, moving to submission")
 
-            WebDriverWait(self.driver, 3).until(
+            WebDriverWait(self.driver, 1.5).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "[data-testid='review-submit-application']")
                 )
@@ -344,8 +343,13 @@ class SeekApplier:
 
             print("Clicked final submit button")
 
-            success_indicators = [
-                "success" in self.driver.current_url,
+            if "success" in self.driver.current_url:
+                return True
+
+            if "submitted" in self.driver.page_source.lower():
+                return True
+
+            success_elements = [
                 bool(
                     self.driver.find_elements(By.CSS_SELECTOR, "[id='applicationSent']")
                 ),
@@ -354,17 +358,13 @@ class SeekApplier:
                         By.CSS_SELECTOR, "[data-testid='application-success']"
                     )
                 ),
-                "submitted" in self.driver.page_source.lower(),
             ]
 
-            return any(success_indicators)
+            return any(success_elements)
 
         except Exception as e:
             logging.warning(f"Issue during submission process: {str(e)}")
-            success_url_check = "success" in self.driver.current_url
-            if success_url_check:
-                return True
-            return False
+            return "success" in self.driver.current_url
 
     def apply_to_job(
         self, job_id, job_description, score, tech_stack, company_name, title
@@ -396,30 +396,15 @@ class SeekApplier:
                 if not self._handle_screening_questions():
                     logging.warning("Issue with screening questions, but continuing...")
 
+            # Use the optimized _submit_application method which already checks for success
             submission_result = self._submit_application()
 
-            success_indicators = [
-                "success" in self.driver.current_url,
-                bool(
-                    self.driver.find_elements(By.CSS_SELECTOR, "[id='applicationSent']")
-                ),
-                bool(
-                    self.driver.find_elements(
-                        By.CSS_SELECTOR, "[data-testid='application-success']"
-                    )
-                ),
-                "submitted" in self.driver.page_source.lower(),
-            ]
-
-            if any(success_indicators):
+            if submission_result:
                 logging.info(f"Successfully applied to job {job_id}")
                 return "APPLIED"
-
-            if not submission_result:
+            else:
                 logging.warning(f"Application may have failed for job {job_id}")
                 return "APP_ERROR"
-
-            return "APPLIED"
 
         except Exception as e:
             logging.warning(f"Exception during application for job {job_id}: {str(e)}")
