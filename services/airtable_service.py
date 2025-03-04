@@ -73,6 +73,32 @@ class AirtableManager:
             logging.error(f"Failed to initialize AirtableManager: {str(e)}")
             raise
 
+    def _get_company_name_by_id(self, company_id: str) -> str:
+        """
+        Get company name from company record ID.
+
+        Args:
+            company_id: Airtable record ID of the company
+
+        Returns:
+            str: Company name or "Unknown Company" if not found
+        """
+        # First check cache (with inverted lookup)
+        for name, id in self.existing_companies.items():
+            if id == company_id:
+                return name
+
+        # If not in cache, fetch from Airtable
+        try:
+            company_record = self.companies_table.get(company_id)
+            if company_record and "fields" in company_record:
+                company_name = company_record["fields"].get("Name", "Unknown Company")
+                return company_name
+        except Exception as e:
+            logging.error(f"Error getting company name for ID {company_id}: {str(e)}")
+
+        return "Unknown Company"
+
     def _get_job_source(self, url: str) -> str:
         """Determine job source from URL."""
         try:
@@ -186,7 +212,7 @@ class AirtableManager:
             # Create formula to search for matching title and company within date range
             formula = f"""AND(
                 LOWER({{Title}}) = '{title}',
-                LOWER({{Company}}) = '{company}',
+                LOWER({{Company Name}}) = '{company}',
                 IS_AFTER({{Created At}}, '{date_min}'),
                 IS_BEFORE({{Created At}}, '{date_max}')
             )"""
@@ -278,6 +304,7 @@ class AirtableManager:
             # Format the data for Airtable
             airtable_data = {
                 "Title": job_data["title"],
+                "Company Name": company_name,  # Store actual company name
                 "Job ID": job_id,
                 "Description": job_data["description"],
                 "Score": analysis_data.get("score", 0),
@@ -296,10 +323,7 @@ class AirtableManager:
 
             # Add company link if we have a company record ID
             if company_record_id:
-
-                airtable_data["Company"] = [
-                    company_record_id
-                ]  # Airtable requires an array for links
+                airtable_data["Company"] = [company_record_id]  # Link to company record
                 logging.info(
                     f"Linking job {job_id} to company '{company_name}' (ID: {company_record_id})"
                 )
@@ -383,6 +407,17 @@ class AirtableManager:
                             )
                             continue
 
+                        # Get company name - first try direct field, then try resolving from link
+                        company_name = fields.get("Company Name", "")
+                        if (
+                            not company_name
+                            and "Company" in fields
+                            and fields["Company"]
+                        ):
+                            # Company is a link, get the actual company name
+                            company_id = fields["Company"][0]  # First linked record
+                            company_name = self._get_company_name_by_id(company_id)
+
                         jobs.append(
                             {
                                 "job_id": job_id,
@@ -393,7 +428,7 @@ class AirtableManager:
                                 "source": source,
                                 "url": url,
                                 "score": fields.get("Score", ""),
-                                "company": fields.get("Company", ""),
+                                "company": company_name,
                             }
                         )
                     except Exception as e:

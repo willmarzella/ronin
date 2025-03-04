@@ -165,6 +165,9 @@ class SeekApplier:
                 )
             )
 
+            # Log company name to verify we're using the actual name not ID
+            logging.info(f"Generating cover letter for company: {company_name}")
+
             if score and score > 60:
                 add_cover_letter = self.driver.find_element(
                     By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_1']"
@@ -376,6 +379,9 @@ class SeekApplier:
 
             self.current_tech_stack = tech_stack
             self.current_job_description = job_description
+
+            # Log to verify we're using the right company name
+            logging.info(f"Applying to job at company: {company_name}")
 
             if not self.is_logged_in:
                 self._login()
