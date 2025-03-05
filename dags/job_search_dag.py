@@ -2,8 +2,10 @@ import json
 import os
 import sys
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Callable
 from functools import wraps
+import logging
+import yaml
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,6 +18,8 @@ from tasks.job_scraping.scrapers import create_scraper
 from tasks.job_scraping.job_analyzer import JobAnalyzerService
 from tasks.job_scraping.tech_keywords import TechKeywordsService
 from services.airtable_service import AirtableManager
+from services.openai_service import OpenAIService
+from services.notification_service import NotificationService
 from core.logging import setup_logger
 
 
@@ -41,17 +45,30 @@ class JobSearchPipeline:
     def __init__(self):
         # Initialize logger and configuration
         self.logger = setup_logger()
-        load_dotenv()
-        self.config = load_config()
+        self.config = self._load_config()
 
         # Initialize services
-        self.openai_client = self._setup_openai()
         self.airtable = AirtableManager()
-        self.analyzer = JobAnalyzerService(self.config, self.openai_client)
-        self.tech_keywords_service = TechKeywordsService(
-            self.config, self.openai_client
-        )
+        self.tech_keywords_service = TechKeywordsService()
+        self.notification_service = NotificationService(self.config)
+
+        # Initialize state
         self.context = {}
+
+        # Set up OpenAI service as needed
+        self._setup_openai()
+
+    def _load_config(self):
+        """Load configuration from config.yaml"""
+        config_path = os.path.join(
+            os.path.dirname(__file__), "..", "configs", "config.yaml"
+        )
+        try:
+            with open(config_path, "r") as f:
+                return yaml.safe_load(f)
+        except Exception as e:
+            self.logger.error(f"Error loading config: {str(e)}")
+            return {}
 
     def _setup_openai(self):
         """Configure OpenAI client with error handling"""
@@ -267,8 +284,50 @@ class JobSearchPipeline:
             return False
 
         self.logger.info(f"Saving {len(processed_jobs)} jobs to Airtable")
-        self.airtable.batch_insert_jobs(processed_jobs)
-        return True
+        try:
+            # Get the actual count of successful saves
+            result = self.airtable.batch_insert_jobs(processed_jobs)
+            self.context["jobs_saved"] = result.get("new_jobs", 0)
+            self.context["duplicate_jobs"] = result.get("duplicates", 0)
+            self.context["error_jobs"] = result.get("errors", 0)
+
+            # Send notification if there are errors
+            if result.get("errors", 0) > 0:
+                error_message = f"Encountered {result['errors']} errors while saving jobs to Airtable"
+                self.notification_service.send_error_notification(
+                    error_message=error_message,
+                    context={
+                        "platform": platform,
+                        "jobs_processed": len(processed_jobs),
+                        "jobs_saved": result.get("new_jobs", 0),
+                        "jobs_errors": result.get("errors", 0),
+                        "error_type": "AIRTABLE_SAVE_ERROR",
+                    },
+                )
+
+            return result.get("new_jobs", 0) > 0
+        except Exception as e:
+            self.logger.error(f"Failed to save jobs to Airtable: {str(e)}")
+            self.context["jobs_saved"] = 0
+            self.context["duplicate_jobs"] = 0
+            self.context["error_jobs"] = len(processed_jobs)
+
+            # Send notification about the exception
+            error_message = (
+                f"Exception occurred while saving jobs to Airtable: {str(e)}"
+            )
+            self.notification_service.send_error_notification(
+                error_message=error_message,
+                context={
+                    "platform": platform,
+                    "jobs_processed": len(processed_jobs),
+                    "jobs_errors": len(processed_jobs),
+                    "exception": e,
+                    "error_type": "AIRTABLE_EXCEPTION",
+                },
+            )
+
+            return False
 
     def print_results(self, platform: str):
         """Print summary of job processing results"""
@@ -321,47 +380,107 @@ class JobSearchPipeline:
         self.context = {}  # Reset context for this platform
         self.logger.info(f"===== Starting pipeline for {platform.upper()} =====")
 
-        # Step 1: Scrape jobs
-        raw_jobs = self.scrape_jobs(platform)
-        if not raw_jobs:
-            self.logger.warning(
-                f"No jobs found for {platform}. Skipping remaining steps."
-            )
-            return {"status": "completed", "jobs_processed": 0, "platform": platform}
+        try:
+            # Step 1: Scrape jobs
+            raw_jobs = self.scrape_jobs(platform)
+            if not raw_jobs:
+                self.logger.warning(
+                    f"No jobs found for {platform}. Skipping remaining steps."
+                )
+                return {
+                    "status": "completed",
+                    "jobs_processed": 0,
+                    "platform": platform,
+                }
 
-        self.logger.info(
-            f"Scraped {len(raw_jobs)} jobs from {platform}. Continuing to analysis..."
-        )
-
-        # Step 2: Analyze jobs
-        processed_jobs = self.analyze_jobs(platform)
-        jobs_saved = 0
-
-        # Step 3: Save to Airtable if we have processed jobs
-        if processed_jobs:
             self.logger.info(
-                f"Proceeding to save {len(processed_jobs)} analyzed jobs to Airtable..."
+                f"Scraped {len(raw_jobs)} jobs from {platform}. Continuing to analysis..."
             )
-            save_result = self.save_jobs(platform)
 
-            if save_result:
-                jobs_saved = len(processed_jobs)
-                self.logger.info(f"Successfully saved {jobs_saved} jobs to Airtable")
+            # Step 2: Analyze jobs
+            processed_jobs = self.analyze_jobs(platform)
+
+            # Step 3: Save to Airtable if we have processed jobs
+            if processed_jobs:
+                self.logger.info(
+                    f"Proceeding to save {len(processed_jobs)} analyzed jobs to Airtable..."
+                )
+                save_result = self.save_jobs(platform)
+
+                # Get the actual counts from context
+                jobs_saved = self.context.get("jobs_saved", 0)
+                duplicate_jobs = self.context.get("duplicate_jobs", 0)
+                error_jobs = self.context.get("error_jobs", 0)
+
+                if save_result:
+                    self.logger.info(
+                        f"Successfully saved {jobs_saved} jobs to Airtable"
+                    )
+                    if duplicate_jobs > 0:
+                        self.logger.info(f"Skipped {duplicate_jobs} duplicate jobs")
+                    if error_jobs > 0:
+                        self.logger.warning(
+                            f"Failed to save {error_jobs} jobs due to errors"
+                        )
+                else:
+                    if jobs_saved > 0:
+                        self.logger.info(
+                            f"Partially successful: saved {jobs_saved} jobs to Airtable"
+                        )
+                        if duplicate_jobs > 0:
+                            self.logger.info(f"Skipped {duplicate_jobs} duplicate jobs")
+                        self.logger.error(
+                            f"Failed to save {error_jobs} jobs due to errors"
+                        )
+                    else:
+                        error_msg = f"Failed to save any jobs to Airtable. {error_jobs} jobs had errors."
+                        self.logger.error(error_msg)
+                        # Only send a notification if all jobs failed and none were saved
+                        self.notification_service.send_error_notification(
+                            error_message=error_msg,
+                            context={
+                                "platform": platform,
+                                "jobs_processed": len(processed_jobs),
+                                "jobs_errors": error_jobs,
+                                "error_type": "COMPLETE_SAVE_FAILURE",
+                            },
+                        )
+
+                # Print results summary
+                self.print_results(platform)
             else:
-                self.logger.error("Failed to save jobs to Airtable")
+                self.logger.warning(
+                    "No jobs passed analysis. Nothing to save to Airtable."
+                )
 
-            # Print results summary
-            self.print_results(platform)
-        else:
-            self.logger.warning("No jobs passed analysis. Nothing to save to Airtable.")
+            self.logger.info(f"===== Completed pipeline for {platform.upper()} =====")
+            return {
+                "status": "success",
+                "platform": platform,
+                "jobs_processed": len(processed_jobs),
+                "jobs_saved": self.context.get("jobs_saved", 0),
+                "jobs_duplicates": self.context.get("duplicate_jobs", 0),
+                "jobs_errors": self.context.get("error_jobs", 0),
+            }
+        except Exception as e:
+            self.logger.error(f"Error processing platform {platform}: {str(e)}")
 
-        self.logger.info(f"===== Completed pipeline for {platform.upper()} =====")
-        return {
-            "status": "success",
-            "platform": platform,
-            "jobs_processed": len(processed_jobs),
-            "jobs_saved": jobs_saved,
-        }
+            # Send notification about the platform processing error
+            error_message = f"Error processing platform {platform}: {str(e)}"
+            self.notification_service.send_error_notification(
+                error_message=error_message,
+                context={
+                    "platform": platform,
+                    "exception": e,
+                    "error_type": "PLATFORM_PROCESSING_ERROR",
+                },
+            )
+
+            return {
+                "status": "error",
+                "platform": platform,
+                "error": str(e),
+            }
 
     def run(self) -> Dict[str, Any]:
         """Execute the complete pipeline for all platforms"""
@@ -379,26 +498,33 @@ class JobSearchPipeline:
                 if result["status"] == "success":
                     total_jobs_processed += result["jobs_processed"]
 
-            duration = (datetime.now() - start_time).total_seconds()
+            # Calculate duration
+            duration = datetime.now() - start_time
+            duration_seconds = duration.total_seconds()
+            duration_readable = str(duration).split(".")[0]  # HH:MM:SS
 
-            pipeline_results = {
+            self.logger.info(f"Job search pipeline completed in {duration_readable}")
+            self.logger.info(f"Total jobs processed: {total_jobs_processed}")
+
+            return {
                 "status": "success",
-                "platforms_processed": len(platforms),
+                "platforms": platform_results,
                 "total_jobs_processed": total_jobs_processed,
-                "duration_seconds": duration,
-                "platform_results": platform_results,
+                "duration_seconds": duration_seconds,
             }
-
-            self.logger.info(f"Pipeline completed in {duration:.2f} seconds")
-            return pipeline_results
-
         except Exception as e:
-            duration = (datetime.now() - start_time).total_seconds()
-            self.logger.exception(f"Pipeline failed: {str(e)}")
+            self.logger.error(f"Error in job search pipeline: {str(e)}")
+
+            # Send notification about the unhandled exception
+            error_message = f"Unhandled exception in job search pipeline: {str(e)}"
+            self.notification_service.send_error_notification(
+                error_message=error_message,
+                context={"exception": e, "error_type": "PIPELINE_EXCEPTION"},
+            )
+
             return {
                 "status": "error",
                 "error": str(e),
-                "duration_seconds": duration,
             }
 
 

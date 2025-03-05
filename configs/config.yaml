@@ -7,12 +7,13 @@
 search:
   keywords:
     - '"Data engineer" OR "data engineers"'
-    # - '"software engineer" OR "software engineers"'
-    - '"cloud engineer" OR "cloud engineers"'
-    - '"cloud architect" OR "cloud architects"'
+    # # - '"software engineer" OR "software engineers"'
+    # - '"cloud engineer" OR "cloud engineers"'
+    # - '"cloud architect" OR "cloud architects"'
+    - '"data consultant" OR "data consultants"'
     # - '"data scientist" OR "data scientists"'
     # - '"data analyst" OR "data analysts"'
-    # - '"data architect" OR "data architects"'
+    - '"data architect" OR "data architects"'
     # - '"machine learning engineer" OR "machine learning engineers"'
     # - '"big data"'
   location: 'All-Australia' # Location to search in
@@ -22,6 +23,33 @@ search:
     min: 120000 # Minimum acceptable salary
     max: 250000 # Maximum salary to filter
     type: 'annual' # annual, hourly, daily, contract
+
+#-----------------------------------------------
+# Notifications
+#-----------------------------------------------
+notifications:
+  slack:
+    # Set this or use SLACK_WEBHOOK_URL environment variable
+    webhook_url: '' # Add your Slack webhook URL here
+    notify_on_error: true
+    notify_on_warning: true
+    notify_on_success: false
+    pipelines:
+      job_search:
+        notify_on_error: true
+        notify_on_warning: true
+        notify_on_success: false
+        channel: '#job-search-alerts' # Optional specific channel override
+      job_outreach:
+        notify_on_error: true
+        notify_on_warning: true
+        notify_on_success: false
+        channel: '#job-outreach-alerts' # Optional specific channel override
+      job_application:
+        notify_on_error: true
+        notify_on_warning: true
+        notify_on_success: true
+        channel: '#job-application-alerts' # Optional specific channel override
 
 #-----------------------------------------------
 # Your Profile
@@ -236,5 +264,5 @@ scraping:
   quick_apply_only: true # Only apply to jobs with quick apply enabled
 
 analysis:
-  min_score: 0 # Minimum match score (0-100)
+  min_score: 40 # Minimum match score (0-100)
   model: gpt-4 # OpenAI model to use

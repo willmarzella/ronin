@@ -409,7 +409,7 @@ class SeekScraper(BaseScraper):
             )
 
             work_type_element = soup.find(
-                "span", attrs={"data-automation": "job-detail-worktype"}
+                "span", attrs={"data-automation": "job-detail-work-type"}
             )
             work_type = (
                 work_type_element.text.strip() if work_type_element else "Unknown"

@@ -304,7 +304,6 @@ class AirtableManager:
             # Format the data for Airtable
             airtable_data = {
                 "Title": job_data["title"],
-                "Company Name": company_name,  # Store actual company name
                 "Job ID": job_id,
                 "Description": job_data["description"],
                 "Score": analysis_data.get("score", 0),
@@ -361,10 +360,18 @@ class AirtableManager:
                 logging.error(f"Failed to insert job {job['job_id']}: {str(e)}")
                 continue
 
+        results = {
+            "new_jobs": new_jobs_count,
+            "duplicates": duplicate_count,
+            "errors": error_count,
+        }
+
         logging.info(
             f"Batch insert complete: {new_jobs_count} new jobs added, "
             f"{duplicate_count} duplicates skipped, {error_count} errors"
         )
+
+        return results
 
     def update_record(self, record_id: str, fields: dict):
         """Update an existing record in Airtable"""
