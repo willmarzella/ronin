@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 import yaml
 from services.notification_service import NotificationService
 
@@ -31,23 +32,91 @@ def test_slack_notification():
         )
         return False
 
-    # Send a test notification
-    result = notification_service.send_slack_message(
-        message="This is a test notification from the Job Search Pipeline",
-        title="🧪 Test Notification",
-        color="#36a64f",  # Green color for test
-        fields={
-            "Environment": os.environ.get("ENV", "development"),
-            "Test Time": "Now",
-        },
-    )
+    # Get the pipeline to test from command-line arguments or use default
+    pipeline_name = "Test Pipeline"
+    if len(sys.argv) > 1:
+        pipeline_name = sys.argv[1]
+        print(f"Testing notifications for pipeline: {pipeline_name}")
 
-    if result:
-        print("✅ Test notification sent successfully!")
+    # Get notification type to test from command-line arguments or test all
+    notification_type = "all"
+    if len(sys.argv) > 2:
+        notification_type = sys.argv[2].lower()
+        print(f"Testing notification type: {notification_type}")
+
+    success = True
+    test_time = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    # Test success notification
+    if notification_type in ["all", "success"]:
+        result = notification_service.send_success_notification(
+            message=f"This is a test SUCCESS notification from the {pipeline_name}",
+            context={
+                "Environment": os.environ.get("ENV", "development"),
+                "Test Time": test_time,
+                "Sample Data": "123",
+            },
+            pipeline_name=pipeline_name,
+        )
+
+        if result:
+            print(f"✅ Success notification sent successfully for {pipeline_name}")
+        else:
+            print(f"❌ Failed to send success notification for {pipeline_name}")
+            success = False
+
+    # Test warning notification
+    if notification_type in ["all", "warning"]:
+        result = notification_service.send_warning_notification(
+            warning_message=f"This is a test WARNING notification from the {pipeline_name}",
+            context={
+                "Environment": os.environ.get("ENV", "development"),
+                "Test Time": test_time,
+                "Warning Level": "Medium",
+            },
+            pipeline_name=pipeline_name,
+        )
+
+        if result:
+            print(f"✅ Warning notification sent successfully for {pipeline_name}")
+        else:
+            print(f"❌ Failed to send warning notification for {pipeline_name}")
+            success = False
+
+    # Test error notification
+    if notification_type in ["all", "error"]:
+        result = notification_service.send_error_notification(
+            error_message=f"This is a test ERROR notification from the {pipeline_name}",
+            context={
+                "Environment": os.environ.get("ENV", "development"),
+                "Test Time": test_time,
+                "Error Code": "TEST-123",
+                "exception": Exception("This is a test exception"),
+            },
+            pipeline_name=pipeline_name,
+        )
+
+        if result:
+            print(f"✅ Error notification sent successfully for {pipeline_name}")
+        else:
+            print(f"❌ Failed to send error notification for {pipeline_name}")
+            success = False
+
+    if success:
+        print("\n✅ All test notifications sent successfully!")
     else:
-        print("❌ Failed to send test notification.")
+        print("\n❌ Some notifications failed to send.")
 
-    return result
+    print("\nUsage:")
+    print("  python test_slack_notification.py [pipeline_name] [notification_type]")
+    print("    pipeline_name: Name of the pipeline to test notifications for")
+    print(
+        "    notification_type: Type of notification to test (success, warning, error, all)"
+    )
+    print("\nExample:")
+    print("  python test_slack_notification.py 'Job Search Pipeline' error")
+
+    return success
 
 
 if __name__ == "__main__":

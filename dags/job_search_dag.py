@@ -18,7 +18,6 @@ from tasks.job_scraping.scrapers import create_scraper
 from tasks.job_scraping.job_analyzer import JobAnalyzerService
 from tasks.job_scraping.tech_keywords import TechKeywordsService
 from services.airtable_service import AirtableManager
-from services.openai_service import OpenAIService
 from services.notification_service import NotificationService
 from core.logging import setup_logger
 
@@ -35,7 +34,27 @@ def task_handler(func):
             self.logger.info(f"Completed {task_name} for {platform.upper()}")
             return result
         except Exception as e:
-            self.logger.exception(f"Error during {task_name} for {platform}: {str(e)}")
+            error_msg = f"Error during {task_name} for {platform}: {str(e)}"
+            self.logger.exception(error_msg)
+
+            # Send notification if notification service is available
+            if hasattr(self, "notification_service"):
+                try:
+                    self.notification_service.send_error_notification(
+                        error_message=error_msg,
+                        context={
+                            "platform": platform,
+                            "task": task_name,
+                            "exception": e,
+                            "error_type": "TASK_ERROR",
+                        },
+                        pipeline_name="Job Search Pipeline",
+                    )
+                except Exception as notify_error:
+                    self.logger.error(
+                        f"Failed to send error notification: {str(notify_error)}"
+                    )
+
             return []
 
     return wrapper
@@ -45,18 +64,20 @@ class JobSearchPipeline:
     def __init__(self):
         # Initialize logger and configuration
         self.logger = setup_logger()
-        self.config = self._load_config()
+        load_dotenv()
+        self.config = load_config()
 
         # Initialize services
+        self.openai_client = self._setup_openai()
         self.airtable = AirtableManager()
-        self.tech_keywords_service = TechKeywordsService()
+        self.analyzer = JobAnalyzerService(self.config, self.openai_client)
+        self.tech_keywords_service = TechKeywordsService(
+            self.config, self.openai_client
+        )
         self.notification_service = NotificationService(self.config)
 
         # Initialize state
         self.context = {}
-
-        # Set up OpenAI service as needed
-        self._setup_openai()
 
     def _load_config(self):
         """Load configuration from config.yaml"""
@@ -71,33 +92,24 @@ class JobSearchPipeline:
             return {}
 
     def _setup_openai(self):
-        """Configure OpenAI client with error handling"""
-        openai_api_key = os.getenv("OPENAI_API_KEY")
+        """Set up OpenAI client."""
+        openai_api_key = os.environ.get("OPENAI_API_KEY", "")
+        model = self.config.get("analysis", {}).get("model", "gpt-4")
+
         if not openai_api_key:
-            error_msg = "OPENAI_API_KEY not found in environment variables"
+            error_msg = (
+                "OpenAI API key not found in environment. "
+                "Please set OPENAI_API_KEY environment variable."
+            )
             self.logger.error(error_msg)
-            raise ValueError(error_msg)
+            raise RuntimeError(error_msg)
 
         try:
-            self.logger.info("Initializing OpenAI client")
+            self.logger.debug(f"Initializing OpenAI with model: {model}")
             client = OpenAI(api_key=openai_api_key)
-
-            # Test the connection with a simple request
-            try:
-                self.logger.debug("Testing OpenAI API connection")
-                test_response = client.models.list()
-                self.logger.info(
-                    f"OpenAI connection successful. Available models: {len(test_response.data)}"
-                )
-            except Exception as e:
-                self.logger.warning(f"OpenAI connection test failed: {str(e)}")
-                self.logger.warning(
-                    "Continuing anyway, but you may experience issues with analysis"
-                )
-
             return client
         except Exception as e:
-            error_msg = f"Failed to initialize OpenAI client: {str(e)}"
+            error_msg = f"Failed to initialize OpenAI: {str(e)}"
             self.logger.error(error_msg)
             raise RuntimeError(error_msg)
 
@@ -303,6 +315,7 @@ class JobSearchPipeline:
                         "jobs_errors": result.get("errors", 0),
                         "error_type": "AIRTABLE_SAVE_ERROR",
                     },
+                    pipeline_name="Job Search Pipeline",
                 )
 
             return result.get("new_jobs", 0) > 0
@@ -325,6 +338,7 @@ class JobSearchPipeline:
                     "exception": e,
                     "error_type": "AIRTABLE_EXCEPTION",
                 },
+                pipeline_name="Job Search Pipeline",
             )
 
             return False
@@ -444,6 +458,7 @@ class JobSearchPipeline:
                                 "jobs_errors": error_jobs,
                                 "error_type": "COMPLETE_SAVE_FAILURE",
                             },
+                            pipeline_name="Job Search Pipeline",
                         )
 
                 # Print results summary
@@ -474,6 +489,7 @@ class JobSearchPipeline:
                     "exception": e,
                     "error_type": "PLATFORM_PROCESSING_ERROR",
                 },
+                pipeline_name="Job Search Pipeline",
             )
 
             return {
@@ -491,12 +507,16 @@ class JobSearchPipeline:
             platforms = ["seek"]  # Could be expanded based on config
             platform_results = []
             total_jobs_processed = 0
+            total_jobs_saved = 0
+            total_jobs_errors = 0
 
             for platform in platforms:
                 result = self.process_platform(platform)
                 platform_results.append(result)
                 if result["status"] == "success":
-                    total_jobs_processed += result["jobs_processed"]
+                    total_jobs_processed += result.get("jobs_processed", 0)
+                    total_jobs_saved += result.get("jobs_saved", 0)
+                    total_jobs_errors += result.get("jobs_errors", 0)
 
             # Calculate duration
             duration = datetime.now() - start_time
@@ -505,11 +525,30 @@ class JobSearchPipeline:
 
             self.logger.info(f"Job search pipeline completed in {duration_readable}")
             self.logger.info(f"Total jobs processed: {total_jobs_processed}")
+            self.logger.info(f"Total jobs saved: {total_jobs_saved}")
+            if total_jobs_errors > 0:
+                self.logger.warning(f"Total jobs with errors: {total_jobs_errors}")
+
+            # Send success notification with summary
+            success_message = f"Job search pipeline completed in {duration_readable}"
+            self.notification_service.send_success_notification(
+                message=success_message,
+                context={
+                    "jobs_processed": total_jobs_processed,
+                    "jobs_saved": total_jobs_saved,
+                    "jobs_with_errors": total_jobs_errors,
+                    "duration": duration_readable,
+                    "platforms": ", ".join([p["platform"] for p in platform_results]),
+                },
+                pipeline_name="Job Search Pipeline",
+            )
 
             return {
                 "status": "success",
                 "platforms": platform_results,
                 "total_jobs_processed": total_jobs_processed,
+                "total_jobs_saved": total_jobs_saved,
+                "total_jobs_errors": total_jobs_errors,
                 "duration_seconds": duration_seconds,
             }
         except Exception as e:
@@ -520,6 +559,7 @@ class JobSearchPipeline:
             self.notification_service.send_error_notification(
                 error_message=error_message,
                 context={"exception": e, "error_type": "PIPELINE_EXCEPTION"},
+                pipeline_name="Job Search Pipeline",
             )
 
             return {
@@ -536,14 +576,27 @@ def main():
         # Print final summary
         if results["status"] == "success":
             print("\nPipeline Summary:")
-            print(f"Platforms Processed: {results['platforms_processed']}")
+            print(
+                f"Platforms: {', '.join([p['platform'] for p in results['platforms']])}"
+            )
             print(f"Total Jobs Processed: {results['total_jobs_processed']}")
+            print(f"Total Jobs Saved: {results['total_jobs_saved']}")
+            if results.get("total_jobs_errors", 0) > 0:
+                print(f"Total Jobs with Errors: {results['total_jobs_errors']}")
             print(f"Duration: {results['duration_seconds']:.2f} seconds")
 
-            for result in results["platform_results"]:
-                print(
-                    f"\n{result['platform'].upper()}: {result['status']} - {result['jobs_processed']} jobs processed"
-                )
+            for platform_result in results["platforms"]:
+                platform = platform_result["platform"].upper()
+                status = platform_result["status"]
+                jobs_processed = platform_result.get("jobs_processed", 0)
+                jobs_saved = platform_result.get("jobs_saved", 0)
+                jobs_errors = platform_result.get("jobs_errors", 0)
+
+                print(f"\n{platform}: {status}")
+                print(f"  Jobs Processed: {jobs_processed}")
+                print(f"  Jobs Saved: {jobs_saved}")
+                if jobs_errors > 0:
+                    print(f"  Jobs with Errors: {jobs_errors}")
         else:
             print(f"\nPipeline failed: {results['error']}")
 

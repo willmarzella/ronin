@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import time
 import requests
 from typing import Dict, Any, Optional, List
 
@@ -81,7 +82,7 @@ class NotificationService:
                 attachment["footer_icon"] = footer_icon
 
             # Add timestamp
-            attachment["ts"] = int(os.time()) if hasattr(os, "time") else None
+            attachment["ts"] = int(time.time())
 
             payload = {"attachments": [attachment]}
 
