@@ -2,7 +2,7 @@
 LinkedIn Outreach DAG for contacting potential hiring managers and recruiters.
 
 This DAG:
-1. Retrieves job listings from Airtable 
+1. Retrieves job listings from Airtable
 2. For each job:
    - Logs into LinkedIn
    - Navigates to the company's LinkedIn page
@@ -78,25 +78,94 @@ class LinkedInOutreachPipeline:
         try:
             self.logger.info("Setting up Chrome WebDriver")
 
+            from selenium.webdriver.chrome.service import Service
+            import os
+
             chrome_options = Options()
+
+            # First check if CHROME_BINARY_PATH environment variable is set
+            chrome_env_path = os.environ.get("CHROME_BINARY_PATH")
+            if chrome_env_path and os.path.exists(chrome_env_path):
+                chrome_options.binary_location = chrome_env_path
+                self.logger.info(
+                    f"Using Chrome at path from environment variable: {chrome_env_path}"
+                )
+            else:
+                # Try multiple common Chrome locations on macOS
+                chrome_locations = [
+                    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",  # Standard location
+                    os.path.expanduser(
+                        "~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+                    ),  # User's Applications folder
+                    "/Applications/Chromium.app/Contents/MacOS/Chromium",  # Chromium alternative
+                    os.path.expanduser(
+                        "~/Applications/Chromium.app/Contents/MacOS/Chromium"
+                    ),  # User's Chromium
+                ]
+
+                chrome_found = False
+                for location in chrome_locations:
+                    if os.path.exists(location):
+                        chrome_options.binary_location = location
+                        chrome_found = True
+                        self.logger.info(f"Found Chrome at: {location}")
+                        break
+
+                if not chrome_found:
+                    self.logger.warning(
+                        "Chrome binary not found in common locations. Proceeding without setting binary location."
+                    )
+                    self.logger.warning(
+                        "Consider setting CHROME_BINARY_PATH in your .env file to specify the Chrome location."
+                    )
+
+            # Minimal essential options
             chrome_options.add_argument("--start-maximized")
             chrome_options.add_argument("--disable-notifications")
             chrome_options.add_argument("--disable-extensions")
 
+            # Exclude automation flags to avoid detection
+            chrome_options.add_experimental_option(
+                "excludeSwitches", ["enable-automation"]
+            )
+            chrome_options.add_experimental_option("useAutomationExtension", False)
+
             # If headless mode is needed (not recommended for LinkedIn)
             # chrome_options.add_argument("--headless")
 
-            self.driver = webdriver.Chrome(options=chrome_options)
+            # Attempt initialization with retries
+            max_retries = 3
+            retry_count = 0
 
-            # Set implicit wait time
-            self.driver.implicitly_wait(10)
+            while retry_count < max_retries:
+                try:
+                    self.driver = webdriver.Chrome(options=chrome_options)
 
-            # Initialize the login handler
-            self.login_handler = LinkedInLoginHandler(self.driver)
+                    # Set implicit wait time
+                    self.driver.implicitly_wait(10)
 
-            return True
+                    # Initialize the login handler
+                    self.login_handler = LinkedInLoginHandler(self.driver)
+
+                    self.logger.info("Chrome WebDriver initialized successfully")
+                    return True
+                except Exception as e:
+                    retry_count += 1
+                    self.logger.warning(
+                        f"Attempt {retry_count}/{max_retries} to initialize Chrome WebDriver failed: {str(e)}"
+                    )
+
+                    # Wait a bit before retrying
+                    time.sleep(2)
+
+                    if retry_count >= max_retries:
+                        self.logger.error(
+                            f"Failed to initialize Chrome WebDriver after {max_retries} attempts"
+                        )
+                        return False
+
         except Exception as e:
-            self.logger.error(f"Error setting up WebDriver: {str(e)}")
+            self.logger.error(f"Error in WebDriver setup: {str(e)}")
             return False
 
     def get_pending_jobs(self) -> List[Dict]:

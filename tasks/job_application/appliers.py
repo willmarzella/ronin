@@ -3,8 +3,8 @@
 from typing import Dict, Optional
 import logging
 import time
+import os
 
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -16,6 +16,7 @@ from services.ai_service import AIService
 from core.config import load_config
 from tasks.job_application.cover_letter import CoverLetterGenerator
 from tasks.job_application.question_answer import QuestionAnswerHandler
+from tasks.job_application.chrome import ChromeDriver
 
 
 class SeekApplier:
@@ -63,60 +64,19 @@ class SeekApplier:
         self.ai_service = AIService()
         self.cover_letter_generator = CoverLetterGenerator(self.ai_service)
         self.question_handler = QuestionAnswerHandler(self.ai_service, self.config)
-        self.driver = None
-        self.is_logged_in = False
+        self.chrome_driver = ChromeDriver()
         self.current_tech_stack = None
         self.current_job_description = None
-
-    def _setup_driver(self):
-        """Initialize Chrome WebDriver with local browser"""
-        if self.driver:
-            return
-
-        options = webdriver.ChromeOptions()
-        options.add_argument("--remote-debugging-port=9222")
-        options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        options.add_experimental_option("useAutomationExtension", False)
-        options.add_experimental_option("detach", True)
-
-        try:
-            self.driver = webdriver.Chrome(options=options)
-            self.driver.implicitly_wait(10)
-            self.driver.set_window_size(1920, 1080)
-            logging.info("Chrome WebDriver initialized successfully with local browser")
-        except Exception as e:
-            logging.error(f"Failed to initialize Chrome WebDriver: {str(e)}")
-            raise
-
-    def _login(self):
-        """Handle Seek.com.au login process."""
-        if self.is_logged_in:
-            return
-
-        try:
-            self.driver.get("https://www.seek.com.au")
-
-            print("\n=== Login Required ===")
-            print("1. Please sign in with Google in the browser window")
-            print("2. Make sure you're fully logged in")
-            print("3. Press Enter when ready to continue...")
-            input()
-
-            self.is_logged_in = True
-            logging.info("Successfully logged into Seek")
-
-        except Exception as e:
-            raise Exception(f"Failed to login to Seek: {str(e)}")
 
     def _navigate_to_job(self, job_id: str):
         """Navigate to the specific job application page."""
         try:
             url = f"https://www.seek.com.au/job/{job_id}"
-            self.driver.get(url)
+            self.chrome_driver.navigate_to(url)
 
             # Look for apply button with a short timeout
             try:
-                apply_button = WebDriverWait(self.driver, 5).until(
+                apply_button = WebDriverWait(self.chrome_driver.driver, 5).until(
                     EC.presence_of_element_located(
                         (By.CSS_SELECTOR, "[data-automation='job-detail-apply']")
                     )
@@ -134,7 +94,7 @@ class SeekApplier:
     def _handle_resume(self, job_id: str, tech_stack: str):
         """Handle resume selection for Seek applications."""
         try:
-            WebDriverWait(self.driver, 10).until(
+            WebDriverWait(self.chrome_driver.driver, 10).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "[data-testid='select-input']")
                 )
@@ -145,7 +105,7 @@ class SeekApplier:
                 resume_id = self.azure_resume_id
 
             resume_select = Select(
-                self.driver.find_element(
+                self.chrome_driver.driver.find_element(
                     By.CSS_SELECTOR, "[data-testid='select-input']"
                 )
             )
@@ -159,7 +119,7 @@ class SeekApplier:
     ):
         """Handle cover letter requirements for Seek applications."""
         try:
-            WebDriverWait(self.driver, 3).until(
+            WebDriverWait(self.chrome_driver.driver, 3).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_2']")
                 )
@@ -169,7 +129,7 @@ class SeekApplier:
             logging.info(f"Generating cover letter for company: {company_name}")
 
             if score and score > 60:
-                add_cover_letter = self.driver.find_element(
+                add_cover_letter = self.chrome_driver.driver.find_element(
                     By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_1']"
                 )
                 add_cover_letter.click()
@@ -183,18 +143,20 @@ class SeekApplier:
                 )
 
                 if cover_letter:
-                    cover_letter_input = WebDriverWait(self.driver, 3).until(
+                    cover_letter_input = WebDriverWait(
+                        self.chrome_driver.driver, 3
+                    ).until(
                         EC.presence_of_element_located((By.ID, "coverLetter-text-:r6:"))
                     )
                     cover_letter_input.clear()
                     cover_letter_input.send_keys(cover_letter["response"])
             else:
-                no_cover_select = self.driver.find_element(
+                no_cover_select = self.chrome_driver.driver.find_element(
                     By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_2']"
                 )
                 no_cover_select.click()
 
-            continue_button = self.driver.find_element(
+            continue_button = self.chrome_driver.driver.find_element(
                 By.CSS_SELECTOR, "[data-testid='continue-button']"
             )
             continue_button.click()
@@ -207,7 +169,7 @@ class SeekApplier:
         try:
             element_id = element.get_attribute("id")
             if element_id:
-                label = self.driver.find_element(
+                label = self.chrome_driver.driver.find_element(
                     By.CSS_SELECTOR, f'label[for="{element_id}"]'
                 )
                 if label:
@@ -239,7 +201,7 @@ class SeekApplier:
         try:
             print("On screening questions page")
             try:
-                WebDriverWait(self.driver, 3).until(
+                WebDriverWait(self.chrome_driver.driver, 3).until(
                     lambda driver: len(self.question_handler.get_form_elements(driver))
                     > 0
                     or "review" in driver.current_url
@@ -250,7 +212,9 @@ class SeekApplier:
                 )
                 return True
 
-            elements = self.question_handler.get_form_elements(self.driver)
+            elements = self.question_handler.get_form_elements(
+                self.chrome_driver.driver
+            )
             print(f"Found {len(elements)} elements")
             if not elements:
                 return True
@@ -273,7 +237,7 @@ class SeekApplier:
                         continue
 
                     self.question_handler.apply_ai_response(
-                        element_info, ai_response, self.driver
+                        element_info, ai_response, self.chrome_driver.driver
                     )
                     print(f"Applied {element_info['question']} with {ai_response}")
 
@@ -284,7 +248,7 @@ class SeekApplier:
                     continue
 
             try:
-                continue_button = WebDriverWait(self.driver, 3).until(
+                continue_button = WebDriverWait(self.chrome_driver.driver, 3).until(
                     EC.element_to_be_clickable(
                         (By.CSS_SELECTOR, "[data-testid='continue-button']")
                     )
@@ -304,13 +268,13 @@ class SeekApplier:
         try:
             print("On update seek Profile page")
 
-            WebDriverWait(self.driver, 1.5).until(
+            WebDriverWait(self.chrome_driver.driver, 1.5).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "[data-testid='continue-button']")
                 )
             )
 
-            continue_button = self.driver.find_element(
+            continue_button = self.chrome_driver.driver.find_element(
                 By.CSS_SELECTOR, "[data-testid='continue-button']"
             )
             continue_button.click()
@@ -322,10 +286,12 @@ class SeekApplier:
             print("On final review page")
 
             try:
-                WebDriverWait(self.driver, 1.5).until(
+                WebDriverWait(self.chrome_driver.driver, 1.5).until(
                     EC.presence_of_element_located((By.ID, "privacyPolicy"))
                 )
-                privacy_checkbox = self.driver.find_element(By.ID, "privacyPolicy")
+                privacy_checkbox = self.chrome_driver.driver.find_element(
+                    By.ID, "privacyPolicy"
+                )
                 if not privacy_checkbox.is_selected():
                     print("Clicking privacy checkbox")
                     privacy_checkbox.click()
@@ -333,31 +299,33 @@ class SeekApplier:
             except TimeoutException:
                 logging.info("No privacy checkbox found, moving to submission")
 
-            WebDriverWait(self.driver, 1.5).until(
+            WebDriverWait(self.chrome_driver.driver, 1.5).until(
                 EC.presence_of_element_located(
                     (By.CSS_SELECTOR, "[data-testid='review-submit-application']")
                 )
             )
 
-            submit_button = self.driver.find_element(
+            submit_button = self.chrome_driver.driver.find_element(
                 By.CSS_SELECTOR, "[data-testid='review-submit-application']"
             )
             submit_button.click()
 
             print("Clicked final submit button")
 
-            if "success" in self.driver.current_url:
+            if "success" in self.chrome_driver.current_url:
                 return True
 
-            if "submitted" in self.driver.page_source.lower():
+            if "submitted" in self.chrome_driver.page_source.lower():
                 return True
 
             success_elements = [
                 bool(
-                    self.driver.find_elements(By.CSS_SELECTOR, "[id='applicationSent']")
+                    self.chrome_driver.driver.find_elements(
+                        By.CSS_SELECTOR, "[id='applicationSent']"
+                    )
                 ),
                 bool(
-                    self.driver.find_elements(
+                    self.chrome_driver.driver.find_elements(
                         By.CSS_SELECTOR, "[data-testid='application-success']"
                     )
                 ),
@@ -367,15 +335,15 @@ class SeekApplier:
 
         except Exception as e:
             logging.warning(f"Issue during submission process: {str(e)}")
-            return "success" in self.driver.current_url
+            return "success" in self.chrome_driver.current_url
 
     def apply_to_job(
         self, job_id, job_description, score, tech_stack, company_name, title
     ):
         """Apply to a specific job on Seek"""
         try:
-            if not self.driver:
-                self._setup_driver()
+            # Initialize chrome driver if not already initialized
+            self.chrome_driver.initialize()
 
             self.current_tech_stack = tech_stack
             self.current_job_description = job_description
@@ -383,8 +351,8 @@ class SeekApplier:
             # Log to verify we're using the right company name
             logging.info(f"Applying to job at company: {company_name}")
 
-            if not self.is_logged_in:
-                self._login()
+            if not self.chrome_driver.is_logged_in:
+                self.chrome_driver.login_seek()
 
             navigation_result = self._navigate_to_job(job_id)
             if navigation_result == "APPLIED":
@@ -398,7 +366,7 @@ class SeekApplier:
                 company_name=company_name,
             )
 
-            if "role-requirements" in self.driver.current_url:
+            if "role-requirements" in self.chrome_driver.current_url:
                 if not self._handle_screening_questions():
                     logging.warning("Issue with screening questions, but continuing...")
 
@@ -414,20 +382,20 @@ class SeekApplier:
 
         except Exception as e:
             logging.warning(f"Exception during application for job {job_id}: {str(e)}")
-            if self.driver and any(
+            if self.chrome_driver.driver and any(
                 [
-                    "success" in self.driver.current_url,
+                    "success" in self.chrome_driver.current_url,
                     bool(
-                        self.driver.find_elements(
+                        self.chrome_driver.driver.find_elements(
                             By.CSS_SELECTOR, "[id='applicationSent']"
                         )
                     ),
                     bool(
-                        self.driver.find_elements(
+                        self.chrome_driver.driver.find_elements(
                             By.CSS_SELECTOR, "[data-testid='application-success']"
                         )
                     ),
-                    "submitted" in self.driver.page_source.lower(),
+                    "submitted" in self.chrome_driver.page_source.lower(),
                 ]
             ):
                 logging.info(f"Application successful despite errors for job {job_id}")
@@ -440,7 +408,4 @@ class SeekApplier:
 
     def cleanup(self):
         """Clean up resources - call this when completely done with all applications"""
-        if self.driver:
-            self.driver.quit()
-            self.driver = None
-            self.is_logged_in = False
+        self.chrome_driver.cleanup()

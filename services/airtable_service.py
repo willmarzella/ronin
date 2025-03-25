@@ -309,6 +309,7 @@ class AirtableManager:
                 "Score": analysis_data.get("score", 0),
                 "Tech Stack": analysis_data.get("tech_stack", "N/A"),
                 "Recommendation": analysis_data.get("recommendation", ""),
+                "Overview": analysis_data.get("overview", ""),
                 "URL": url,
                 "Source": source,  # Add source field
                 "Quick Apply": job_data.get("quick_apply", False),
