@@ -1,97 +1,123 @@
-  
-  
-  
+<!-- ROLE: data_engineer -->
 
-gobble
+# William Marzella
 
+Mont Albert North, VIC | 0413414869 | [williampmarzella@gmail.com](mailto:williampmarzella@gmail.com)
 
-      
-                        
-    1em                           
-                    
-    []                    
-**1.5*1.2
+## Career Summary
 
+Data Engineer with six (6) years of hands-on experience with Amazon Web Services (AWS) cloud platform including AWS S3, AWS EC2, AWS Lambda, AWS Redshift, AWS Glue, and AWS RDS. Extensive expertise in developing and optimizing data warehousing solutions using Snowflake on AWS. Proficient in implementing cost-effective ETL/ELT workflows with industry-standard tools (dbt, Apache Airflow, AWS Step Functions) deployed on AWS infrastructure. Expert-level knowledge in configuring AWS IAM roles with least-privilege security model ensuring regulatory compliance. Tech stack agnostic approach using Terraform IaC for consistent deployment of AWS resources, Snowflake schemas, and RBAC configurations. Successfully executed large-scale AWS cloud migrations for enterprise clients reducing operational costs while improving system performance.
 
+## Highlight of Capabilities
 
+- Eight (8) years expert experience with AWS data infrastructure (S3, EC2, Lambda, Redshift, Glue, RDS) and database technologies (PostgreSQL, SQL Server, Snowflake). Implemented enterprise-grade data lake solutions using Snowflake and AWS S3, processing 50GB+ monthly data while ensuring optimal query performance through clustering keys, materialized views, and metadata-driven design patterns.
+- Seven (7) years implementing enterprise-grade data processing solutions utilizing Python-based orchestration frameworks (Apache Airflow, AWS Step Functions) for workflow automation. Developed production-grade ETL/ELT workflows with dbt, Snowpipes, Streams, and Tasks for data transformations, alongside PySpark for distributed computing on AWS EMR, delivering robust business reporting solutions with optimized SQL queries.
+- Six (6) years designing scalable data architectures using infrastructure-as-code (Terraform) with Git version control and CI/CD pipelines (GitHub Actions, AWS CodePipeline). Implemented DevOps best practices including automated testing, continuous deployment, and comprehensive monitoring (Grafana, CloudWatch) for AWS and Snowflake environments, enabling cost-optimized, reliable data platforms capable of handling terabyte-scale workloads.
 
-     William Marzella 
+## Education
 
-     Mont Albert North, VIC  
-     0413414869  
-    mailto:williampmarzella@gmail.comwilliampmarzella@gmail.com
- 
+**University of Southern California** | Los Angeles, CA
 
-Career Summary
-Data Engineer with six (6) years of hands-on experience with Amazon Web Services (AWS) cloud platform including AWS S3, AWS EC2, AWS Lambda, AWS Redshift, AWS Glue, and AWS RDS. Extensive expertise in developing and optimizing data warehousing solutions using Snowflake on AWS. Proficient in implementing cost-effective ETL/ELT workflows with industry-standard tools (dbt, Apache Airflow) deployed on AWS infrastructure. Expert-level knowledge in configuring AWS IAM roles with least-privilege security model ensuring regulatory compliance. Successfully executed large-scale AWS cloud migrations for enterprise clients reducing operational costs by 40% while improving system performance by 45%.
+*BS, Mechanical Engineering* | 2016 -- 2020
 
-Highlight of Capabilities
-[label=, leftmargin=0pt, itemindent=0pt]Eight (8) years expert experience with AWS data infrastructure (S3, EC2, Lambda, Redshift, Glue, RDS) and database technologies (PostgreSQL, SQL Server, Snowflake). Implemented data lake solutions using Apache Iceberg and Delta Lake formats, processing 50GB+ monthly data while ensuring optimal performance and maintainability.[label=, leftmargin=0pt, itemindent=0pt]Seven (7) years implementing enterprise-grade data processing solutions using PySpark for distributed computing, Apache Kafka for real-time event streaming, and Trino for cross-platform SQL queries. Developed Python and SQL-based data pipelines that balance performance with maintainability while supporting business reporting needs through Tableau and Power BI.[label=, leftmargin=0pt, itemindent=0pt]Six (6) years designing scalable data architectures using infrastructure-as-code (Terraform) with Git version control and CI/CD pipelines (GitHub Actions, AWS CodePipeline). Implemented modern orchestration engines (Airflow, Dagster, Prefect) integrated with comprehensive monitoring tools (Grafana, CloudWatch) and transformation frameworks (dbt) for reliable, maintainable workflows.
+- Developed data acquisition system with Python deployed on AWS EC2 processing 1000+ sensor readings/minute
+- Implemented MySQL databases on AWS RDS for equipment tracking with automated data pipelines using Python ETL scripts
+- Created automated analysis workflows using AWS Lambda with pandas and SQL queries reducing processing time by 65%
 
-Certifications
-[leftmargin=*]
-Azure Databricks  Spark For Data Engineers (PySpark / SQL) 2024
-[leftmargin=*]
-AWS Solutions Architect 2023
-[leftmargin=*]
-Stanford Machine Learning 2020
+## Certifications
 
+- AWS Data Engineer Associate -- *Amazon Web Services* | 2025
+- Terraform Certified Associate -- *HashiCorp* | 2025
+- SnowPro® Core Certification -- *Snowflake* | 2025
+- AWS Solutions Architect Associate -- *Amazon Web Services* | 2023
+- dbt Fundamentals Certification -- *dbt Labs* | 2024
 
-Education
-University of Southern California Los Angeles, CA
-BS, Mechanical Engineering 2016 - 2020[leftmargin=*]
-    Developed data acquisition system with Python deployed on AWS EC2 processing 1000+ sensor readings/minute
-    Implemented MySQL databases on AWS RDS for equipment tracking with automated data pipelines
-    Created automated analysis workflows using AWS Lambda with pandas reducing processing time by 60%
+## Experience (Full Time)
 
+### **REST Industry Super** | Melbourne, VIC
 
+Australia's leading industry superannuation fund managing over $70 billion in retirement assets for 1.7 million members across diverse sectors with award-winning digital services.
 
-Experience (Full Time)
-Alfab Pty LtdMelbourne, VIC
-Australia's leading manufacturer of marine and automotive glass products and aluminum fabrications.
-Senior Data Engineer October 2023 - Present
-Working as part of the data engineering team modernizing manufacturing data infrastructure. Collaborate closely with manufacturing operations and IT teams to enhance data platform capabilities while maintaining data governance requirements. Work alongside an offshore team of 2 developers to implement data pipelines and tools.[leftmargin=*]
-    Implemented AWS and Snowflake data warehouse architecture processing 800GB manufacturing data resulting in 35% AWS infrastructure cost reduction (150K annually) and 45% query performance improvement
-    Developed AWS Lambda functions and Snowflake stored procedures with 85% test coverage ensuring data integrity and reducing downstream errors by 40%
-    Designed real-time data streaming solution using Apache Kafka with Debezium connectors for Change Data Capture enabling predictive maintenance algorithms that reduced production line downtime by 25%
-    Implemented CI/CD pipelines with AWS CodePipeline and orchestrated workflows using Dagster and Prefect, reducing deployment cycles by 40% and improving pipeline reliability by 65%
-    Developed monitoring solution using Amazon CloudWatch and Grafana tracking 15 key pipeline metrics, reducing mean time to resolution by 50%
-    Created comprehensive AWS architecture documentation and SQL-based data dictionary in AWS-hosted Confluence, decreasing onboarding time by 40%
+*Data Engineer* | March 2025 -- Present
 
-Tray.ioSan Diego, CA
-Enterprise integration platform enabling automated workflows across cloud and on-premise systems
-Platform Engineer April 2021 - October 2023
-Member of the platform engineering team developing customer analytics capabilities for healthcare and fintech clients. Focused on processing customer interaction data while adhering to compliance requirements. Contributed to solutions enabling customer behavior analysis. Supported data platform serving 200+ enterprise clients processing over 1B monthly events.[leftmargin=*]
-    Engineered data pipelines using PySpark on AWS EMR with Delta Lake tables processing 10M+ daily customer events with optimized partitioning strategies, enabling real-time customer segmentation
-    Implemented AWS-based customer journey analytics using PySpark and Snowflake SQL on AWS infrastructure improving marketing retention metrics by 25% (2M+ in preserved ARR)
-    Designed fault-tolerant ETL workflows using Apache Flink for real-time streaming applications with exactly-once processing guarantees, reducing data-related support tickets by 55%
-    Developed data quality framework using AWS Glue Data Quality and Great Expectations ensuring 95% accuracy across 8 data sources
-    Implemented Amazon CloudWatch and Prometheus monitoring reducing MTTR to 30 minutes and minimizing system downtime by 75%
+Working on a cross functional team of data engineers, data scientists, and business analysts to migrate legacy Redshift data warehouse to Snowflake while implementing a modern data platform. Developed data pipelines and tools to support analytics and reporting requirements, including machine learning solutions for predictive member analytics.
 
-Chilton's Artisan FoodsMelbourne, VIC
-Food manufacturer making premium wholesale bakery products in Melbourne using local Australian ingredients.
-Data Engineer July 2019 - April 2021
-First data hire supporting 12-person manufacturing operation with 10M annual revenue. Worked directly with production managers and finance team to understand requirements and implement initial data solutions[leftmargin=*]
-    Migrated legacy data warehouse to AWS RDS SQL Server with automated ETL processes using AWS Glue, saving 25 hours weekly while enabling real-time visibility into 2M monthly inventory
-    Designed ETL processes using AWS Glue with PySpark, implementing data quality processes with dbt, reducing manual data entry by 70% and enabling real-time inventory tracking
-    Implemented data validation logic in AWS RDS using SQL Server constraints and triggers, preventing 50K in monthly waste
-    Established Git-based version control using AWS CodeCommit with comprehensive CI/CD pipelines, reducing deployment rollbacks by 65% while ensuring consistent database change management
-    Developed business intelligence dashboards with Amazon QuickSight, Tableau, and Power BI, reducing monthly reporting time from 3 days to 4 hours while implementing Git-based version control for report templates
-    Created monitoring solution with AWS CloudWatch metrics tracking 8 critical production KPIs, enabling 30% improvement in efficiency
+- Implemented AWS Glue, Step Functions, and Lambda data pipelines to process superannuation transaction data, reducing ETL processing time while maintaining complete data lineage for regulatory compliance
+- Developed reusable Terraform modules for standardized AWS infrastructure deployment (EC2, S3, ELB) and Snowflake schema provisioning with RBAC, increasing environment consistency and reducing setup time by 70%
+- Architected secure API integration framework using AWS Lambda, API Gateway, and Python for partner superannuation fund data exchange
+- Enhanced data governance framework implementing column-level access controls in Snowflake with row-level security patterns meeting financial data privacy requirements
+- Established DevOps CI/CD pipelines for automated testing and deployment of data workflows across development, staging and production environments with zero-downtime implementations
+- Implemented comprehensive data quality framework using dbt tests and Snowflake constraints for member contribution and investment data validation, improving data quality by 35%
+- Built member churn prediction solution using AWS SageMaker with XGBoost models, automating model training pipelines and deploying model endpoints that improved member retention by 12% through targeted engagement initiatives
+- Developed automated ETL processes using dbt and Amazon Managed Apache Airflow (AMAA) with Terraform-deployed AWS Glue workflows, preparing financial time-series data that enabled investment recommendation models achieving 18% better accuracy than previous rule-based systems
+- Optimized Snowflake query performance through materialized views, clustering keys, and dbt incremental models for financial reporting workloads, reducing compute costs by 40% while maintaining sub-second performance for critical dashboards
+- Developed automated data pipelines using dbt, Snowpipe, Streams, and Tasks with Python UDFs, orchestrated via AMAA, enabling near real-time data processing while minimizing compute resource consumption
 
+### **Alfab Pty Ltd** | Melbourne, VIC
 
+Australia's premier manufacturing enterprise specializing in precision glass and aluminum fabrication with $10M annual revenue, operating state-of-the-art production facilities serving automotive and marine industries across Asia-Pacific.
 
-Experience (Freelance)
-Motis GroupMelbourne, VIC
+*Senior Data Engineer* | October 2023 -- March 2025
+
+Working as part of the data engineering team modernizing manufacturing data infrastructure. Collaborate closely with manufacturing operations and IT teams to enhance data platform capabilities while maintaining data governance requirements. Work alongside an offshore team of 2 developers to implement data pipelines and tools.
+
+- Implemented AWS and Snowflake data warehouse architecture processing 800GB manufacturing data resulting in 35% AWS infrastructure cost reduction ($150K annually) through Terraform-managed infrastructure and optimized Snowflake virtual warehouses
+- Led migration of legacy on-premise Oracle Data Warehouse to Snowflake on AWS, architecting scalable data models and implementing dbt transformations that reduced monthly maintenance costs by 60% while improving query performance by 75% and enabling cloud-native analytics capabilities
+- Developed AWS Lambda functions and Snowflake stored procedures with Python UDFs ensuring data integrity and reducing downstream errors by 45%
+- Designed real-time data streaming solution using Snowpipe and Streams for Change Data Capture enabling predictive maintenance algorithms to reduce production line downtime by 22%
+- Implemented CI/CD pipelines with AWS CodePipeline and orchestrated workflows using Apache Airflow on AWS ECS, reducing deployment cycles and improving pipeline reliability
+- Developed monitoring solution using Amazon CloudWatch and Grafana tracking 15 key pipeline metrics, reducing mean time to resolution from 4 hours to 45 minutes
+- Created comprehensive AWS architecture documentation and SQL-based data dictionary in AWS-hosted Confluence, decreasing onboarding time for new team members by 50%
+- Built feature engineering pipeline using dbt transformations in Snowflake for quality control models that reduced defect rates by 18%
+- Implemented DevOps best practices with infrastructure-as-code (Terraform) for both AWS resources and Snowflake objects, enabling consistent cross-environment deployments and reducing configuration drift
+
+### **Tray.io** | San Diego, CA
+
+Leading enterprise iPaaS (integration Platform as a Service) powering mission-critical data workflows for 200+ Fortune 500 companies processing over 1B monthly events, with specialized solutions for healthcare and fintech sectors requiring high-security, compliance-focused data integration.
+
+*Platform Engineer* | April 2021 -- October 2023
+
+Member of the platform engineering team developing customer analytics capabilities for healthcare and fintech clients. Focused on processing customer interaction data while adhering to compliance requirements. Contributed to solutions enabling customer behavior analysis. Supported data platform serving 200+ enterprise clients processing over 1B monthly events.
+
+- Engineered data pipelines using PySpark on AWS EMR with Delta Lake tables processing 10M+ daily customer events with optimized partitioning strategies, enabling real-time customer segmentation
+- Implemented AWS-based customer journey analytics using Databricks SQL and PySpark improving marketing retention metrics ($2M+ in preserved ARR)
+- Designed fault-tolerant ETL workflows using Apache Spark Structured Streaming for real-time applications with exactly-once processing guarantees, reducing data-related support tickets by 35%
+- Developed data quality framework using AWS Glue Data Quality and Great Expectations ensuring 95% accuracy across 8 data sources
+- Implemented Amazon CloudWatch and Prometheus monitoring reducing MTTR from 30 minutes to 15 minutes and minimizing system downtime
+- Created machine learning feature pipelines using AWS Glue and Databricks MLflow for customer churn prediction models that improved retention through targeted interventions
+- Deployed recommendation engine infrastructure using Apache Spark ML with A/B testing framework, increasing user engagement metrics by 28%
+
+### **Chilton's Artisan Foods** | Melbourne, VIC
+
+Award-winning specialty food manufacturer producing premium artisanal bakery products with $10M annual revenue, supplying Australia's top restaurants and gourmet retailers while maintaining farm-to-table supply chain with 100% locally-sourced Australian ingredients and sustainable manufacturing practices.
+
+*Data Engineer* | July 2019 -- April 2021
+
+First data hire supporting 12-person manufacturing operation with $10M annual revenue. Worked directly with production managers and finance team to understand requirements and implement initial data solutions
+
+- Migrated legacy data warehouse to Snowflake on AWS with automated ETL processes using Python-based AWS Glue jobs, saving 25 hours weekly while enabling real-time visibility into $2M monthly inventory
+- Designed ETL/ELT processes using dbt for Snowflake transformations with comprehensive tests, reducing manual data entry by 80% and enabling real-time inventory tracking
+- Implemented data validation logic in Snowflake using constraints and stored procedures, preventing $50K in monthly inventory waste
+- Established Git-based version control with AWS CodeCommit and comprehensive CI/CD pipelines, reducing deployment rollbacks and ensuring consistent database change management
+- Developed business intelligence dashboards with Snowflake-connected Tableau, reducing monthly reporting time from 3 days to 4 hours while implementing version-controlled dbt models as single source of truth
+- Created monitoring solution with AWS CloudWatch and Snowflake query monitoring tracking 8 critical production KPIs, enabling 15% improvement in manufacturing efficiency
+- Implemented Terraform IaC for AWS resource provisioning and Snowflake object creation, enabling consistent deployment across environments and reducing configuration errors by 60%
+
+## Experience (Freelance)
+
+### **Motis Group** | Melbourne, VIC
+
 Independent technology consultancy offering specialized cloud and automation solutions (Part-time)
-Founder  Principal Engineer June 2022 - Present
-Provide strategic data consulting to e-commerce and retail clients with 5M-50M annual revenue[leftmargin=*]
-    Implemented data lake architecture combining Apache Iceberg and Delta Lake on AWS S3 with AWS Glue catalog for e-commerce clients processing 50GB+ monthly data, reducing storage costs by 40%
-    Developed ETL pipelines using AWS Glue with Python shell and PySpark jobs, automating 12 daily inventory processes
-    Architected AWS IAM roles with least-privilege permissions and security configurations ensuring GDPR compliance
-    Optimized AWS resource utilization implementing S3 intelligent tiering, RDS reserved instances, and EC2 right-sizing, identifying monthly savings of 15% (2K-5K per client)
-    Created infrastructure-as-code using Terraform with modular design patterns, reducing AWS environment setup time from 2 days to 2 hours
-    Migrated retail client from on-premise SQL Server to AWS RDS and integrated Trino for federated queries across data sources, reducing infrastructure costs by 2,000 monthly while improving report generation time from 30 minutes to 5 minutes
 
+*Founder & Principal Engineer* | June 2022 -- Present
 
+Provide strategic data consulting to e-commerce and retail clients with $5M-50M annual revenue
 
+- Implemented modern data architecture using Snowflake on AWS for e-commerce clients processing 50GB+ monthly data, reducing storage costs by 45% while improving query performance
+- Developed ETL pipelines using dbt, Snowpipe, and Python UDFs, automating 12 daily inventory processes with 99.9% reliability
+- Architected AWS IAM roles with least-privilege permissions and Snowflake RBAC ensuring GDPR compliance for sensitive customer data
+- Optimized cloud resource utilization implementing Snowflake resource monitors, AWS S3 intelligent tiering, and EC2 right-sizing through Terraform, identifying monthly savings of $2K-5K per client
+- Created infrastructure-as-code using Terraform with modular design patterns for both AWS resources and Snowflake objects, reducing environment setup time from 2 days to 2 hours while ensuring consistent deployments
+- Migrated retail client from on-premise SQL Server to Snowflake on AWS with dbt transformations, reducing infrastructure costs by $2,000 monthly while improving report generation time from 30 minutes to 5 minutes
+- Designed ML model deployment architecture using Snowflake Python UDFs and AWS SageMaker for retail demand forecasting, improving inventory planning accuracy by 25%
+- Built automated data orchestration solutions using Apache Airflow on AWS ECS with dbt Core for transformation workflows, enabling fully automated data pipelines with comprehensive monitoring and alerting

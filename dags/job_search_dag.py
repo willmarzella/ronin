@@ -113,10 +113,28 @@ class JobSearchPipeline:
             self.logger.error(error_msg)
             raise RuntimeError(error_msg)
 
+    def _get_default_headers(self):
+        """Get realistic browser headers for requests"""
+        return {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "DNT": "1",
+            "Cache-Control": "max-age=0",
+        }
+
     @task_handler
     def scrape_jobs(self, platform: str) -> List[Dict]:
         """Scrape raw jobs from the platform and filter existing ones"""
         scraper = create_scraper(platform, self.config)
+        scraper.headers = self._get_default_headers()
         self.logger.info(f"Starting job scraping from {platform}...")
 
         # Get job previews
