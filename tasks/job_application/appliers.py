@@ -263,8 +263,8 @@ class SeekApplier:
             logging.error(f"Failed to handle screening questions: {str(e)}")
             return False
 
-    def _submit_application(self) -> bool:
-        """Submit the application after all questions are answered."""
+    def _update_seek_profile(self) -> bool:
+        """Update the Seek profile with the latest resume."""
         try:
             print("On update seek Profile page")
 
@@ -277,12 +277,21 @@ class SeekApplier:
             continue_button = self.chrome_driver.driver.find_element(
                 By.CSS_SELECTOR, "[data-testid='continue-button']"
             )
+            
             continue_button.click()
 
             print("Clicked continue button")
+            
+            time.sleep(2)
 
-            time.sleep(0.5)
+            return True
+        except Exception as e:
+            logging.error(f"Failed to update Seek profile: {str(e)}")
+            return False
 
+    def _submit_application(self) -> bool:
+        """Submit the application after all questions are answered."""
+        try:
             print("On final review page")
 
             try:
@@ -370,7 +379,7 @@ class SeekApplier:
                 if not self._handle_screening_questions():
                     logging.warning("Issue with screening questions, but continuing...")
 
-            # Use the optimized _submit_application method which already checks for success
+            self._update_seek_profile()
             submission_result = self._submit_application()
 
             if submission_result:
