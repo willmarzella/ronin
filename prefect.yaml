@@ -1,0 +1,74 @@
+# File: prefect.yaml
+# This file configures the Prefect project.
+
+name: ronin
+prefect-version: 2.14.4
+
+build:
+  - prefect_docker.deployments.steps.build_docker_image:
+      requires: prefect-docker>=0.3.1
+      image_name: "{{ environ.get('IMAGE_NAME', 'ronin') }}"
+      tag: "{{ environ.get('IMAGE_TAG', 'latest') }}"
+      dockerfile: auto
+      platform: "{{ environ.get('PLATFORM', 'linux/amd64') }}"
+
+push:
+  - prefect_docker.deployments.steps.push_docker_image:
+      requires: prefect-docker>=0.3.1
+      image_name: "{{ environ.get('IMAGE_NAME', 'ronin') }}"
+      tag: "{{ environ.get('IMAGE_TAG', 'latest') }}"
+
+pull:
+  - prefect.deployments.steps.set_working_directory:
+      directory: /opt/prefect
+
+deployments:
+  job_search:
+    name: job-search
+    entrypoint: flows/job_search_flow.py:job_search_flow
+    work_pool:
+      name: default-agent-pool
+      work_queue_name: default
+    schedule:
+      cron: '0 9 * * *'
+      timezone: UTC
+    parameters:
+      platforms: ['linkedin', 'indeed', 'glassdoor']
+    description: 'Job search pipeline that scrapes job listings, analyzes them, and stores results'
+    tags: ['job-search', 'automation']
+
+  job_application:
+    name: job-application
+    entrypoint: flows/job_application_flow.py:job_application_flow
+    work_pool:
+      name: default-agent-pool
+      work_queue_name: default
+    schedule:
+      cron: '0 12 * * *'
+      timezone: UTC
+    description: 'Job application pipeline that prepares and submits applications'
+    tags: ['job-application', 'automation']
+
+  job_outreach:
+    name: job-outreach
+    entrypoint: flows/job_outreach_flow.py:job_outreach_flow
+    work_pool:
+      name: default-agent-pool
+      work_queue_name: default
+    schedule:
+      cron: '0 15 * * *'
+      timezone: UTC
+    description: 'Job outreach pipeline that manages follow-ups and networking'
+    tags: ['job-outreach', 'automation']
+
+  blog_generator:
+    name: blog-generator
+    entrypoint: flows/blog_generator_flow.py:blog_generator_flow
+    work_pool:
+      name: default-agent-pool
+      work_queue_name: default
+    schedule:
+      cron: '0 18 * * 2' # Every Tuesday at 6 PM
+      timezone: UTC
+    description: 'Blog post generator pipeline'
+    tags: ['blog', 'content-generation']

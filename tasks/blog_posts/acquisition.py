@@ -1,8 +1,8 @@
 import re
 from typing import Dict, List, Tuple
-from services.github_service import GitHubService
+from blocks.github_service import GitHubService
 from datetime import datetime, timedelta
-from core.logging import setup_logger
+from utils.logging import setup_logger
 import pytz
 
 logger = setup_logger()

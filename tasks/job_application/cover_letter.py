@@ -4,7 +4,7 @@ import logging
 from typing import Dict, Optional, Any
 import os
 
-from services.ai_service import AIService
+from blocks.ai_service import AIService
 
 
 class CoverLetterGenerator:
@@ -106,7 +106,7 @@ class CoverLetterGenerator:
 
         # Try to load from config if available
         try:
-            from core.config import load_config
+            from utils.config import load_config
 
             config = load_config()
 

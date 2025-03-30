@@ -13,13 +13,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from core.config import load_config
+from utils.config import load_config
 from tasks.job_scraping.scrapers import create_scraper
 from tasks.job_scraping.job_analyzer import JobAnalyzerService
 from tasks.job_scraping.tech_keywords import TechKeywordsService
-from services.airtable_service import AirtableManager
-from services.notification_service import NotificationService
-from core.logging import setup_logger
+from blocks.airtable_service import AirtableManager
+from blocks.notification_service import NotificationService
+from utils.logging import setup_logger
 
 
 def task_handler(func):

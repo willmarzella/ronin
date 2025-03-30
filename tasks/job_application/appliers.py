@@ -11,9 +11,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import Select
 
-from services.airtable_service import AirtableManager
-from services.ai_service import AIService
-from core.config import load_config
+from blocks.airtable_service import AirtableManager
+from blocks.ai_service import AIService
+from utils.config import load_config
 from tasks.job_application.cover_letter import CoverLetterGenerator
 from tasks.job_application.question_answer import QuestionAnswerHandler
 from tasks.job_application.chrome import ChromeDriver

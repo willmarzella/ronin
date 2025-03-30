@@ -2,7 +2,7 @@
 
 from typing import Dict, List, Optional
 import logging
-from services.ai_service import AIService
+from blocks.ai_service import AIService
 from tasks.blog_posts.prompts import (
     SHITPOSTING_PROMPT,
     SERMONPOSTING_PROMPT,

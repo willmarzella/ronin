@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(project_root)
 
-from services.mataroa_service import MataroaService
+from blocks.mataroa_service import MataroaService
 
 
 def delete_blog_post(slug: str, api_key: Optional[str] = None) -> Dict:

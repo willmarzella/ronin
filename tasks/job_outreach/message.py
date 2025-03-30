@@ -4,7 +4,7 @@ import logging
 import json
 from typing import Dict, Any, Tuple, Optional
 
-from services.ai_service import AIService
+from blocks.ai_service import AIService
 from tasks.job_outreach import prompts
 
 

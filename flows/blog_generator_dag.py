@@ -15,7 +15,7 @@ from tasks.blog_posts import (
     PostPublisher,
     PostGenerator,
 )
-from services.ai_service import AIService
+from blocks.ai_service import AIService
 from models.blog_post import BlogPost
 
 # Configure logging

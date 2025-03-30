@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ronin"
+version = "0.1.0"
+description = "Automation workflows using Prefect"
+requires-python = ">=3.10"
+readme = "README.md"
+authors = [
+    {name = "Author", email = "example@example.com"}
+]
+
+[project.optional-dependencies]
+dev = [
+    "black==24.2.0",
+    "flake8==6.0.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "--cov=. --cov-report=xml --cov-report=term-missing -v"
+
+[tool.prefect]
+default_work_pool = "default-agent-pool"

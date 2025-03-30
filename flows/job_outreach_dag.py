@@ -31,8 +31,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
-from services.airtable_service import AirtableManager
-from services.ai_service import AIService
+from blocks.airtable_service import AirtableManager
+from blocks.ai_service import AIService
 from tasks.job_outreach import (
     LinkedInLoginHandler,
     LinkedInSearcher,
@@ -41,8 +41,8 @@ from tasks.job_outreach import (
     LinkedInMessageGenerator,
     OutreachTracker,
 )
-from core.config import load_config
-from core.logging import setup_logger
+from utils.config import load_config
+from utils.logging import setup_logger
 
 
 class LinkedInOutreachPipeline:

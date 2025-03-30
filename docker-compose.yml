@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  prefect-server:
+    image: prefecthq/prefect:2.14.4-python3.10
+    ports:
+      - '4200:4200'
+    volumes:
+      - prefect-data:/root/.prefect
+    environment:
+      - PREFECT_UI_API_URL=http://localhost:4200/api
+      - PREFECT_API_URL=http://localhost:4200/api
+      - PREFECT_SERVER_API_HOST=0.0.0.0
+    command: prefect server start --host 0.0.0.0
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4200/api/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - prefect-network
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=prefect
+      - POSTGRES_PASSWORD=prefect
+      - POSTGRES_DB=prefect
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'prefect']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - prefect-network
+
+  prefect-worker:
+    build: .
+    volumes:
+      - .:/opt/prefect
+      - ~/.aws:/root/.aws:ro
+    environment:
+      - PREFECT_API_URL=http://prefect-server:4200/api
+      - PYTHONPATH=/opt/prefect
+    depends_on:
+      prefect-server:
+        condition: service_healthy
+    networks:
+      - prefect-network
+
+networks:
+  prefect-network:
+    driver: bridge
+
+volumes:
+  prefect-data:
+  postgres-data:

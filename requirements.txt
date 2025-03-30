@@ -12,3 +12,7 @@ black==24.2.0
 flake8==6.0.0
 pygithub==2.1.1
 pytz>=2024.1
+prefect>=2.14.4
+prefect-aws>=0.4.0
+prefect-dask>=0.2.4
+pydantic>=2.5.2

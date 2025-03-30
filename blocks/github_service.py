@@ -3,7 +3,7 @@ from github import Github, Repository, ContentFile
 import os
 import base64
 from datetime import datetime
-from core.logging import setup_logger
+from utils.logging import setup_logger
 
 logger = setup_logger()
 

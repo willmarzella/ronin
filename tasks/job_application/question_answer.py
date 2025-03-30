@@ -4,7 +4,7 @@ import logging
 import json
 from typing import Dict, List, Optional, Any
 
-from services.ai_service import AIService
+from blocks.ai_service import AIService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 
@@ -25,7 +25,7 @@ class QuestionAnswerHandler:
         self.ai_service = ai_service or AIService()
 
         if config is None:
-            from core.config import load_config
+            from utils.config import load_config
 
             self.config = load_config()
         else:

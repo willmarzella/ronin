@@ -9,9 +9,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
 from tasks.job_application.appliers import SeekApplier
-from services.airtable_service import AirtableManager
-from core.config import load_config
-from core.logging import setup_logger
+from blocks.airtable_service import AirtableManager
+from utils.config import load_config
+from utils.logging import setup_logger
 
 
 class JobApplicationPipeline:
