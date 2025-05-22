@@ -6,6 +6,8 @@ from typing import List, Dict, Any, Optional, Callable
 from functools import wraps
 import logging
 import yaml
+import random
+import time
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -115,8 +117,15 @@ class JobSearchPipeline:
 
     def _get_default_headers(self):
         """Get realistic browser headers for requests"""
+        user_agents = [
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+        ]
+
         return {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "User-Agent": random.choice(user_agents),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
             "Accept-Encoding": "gzip, deflate, br",
@@ -128,13 +137,37 @@ class JobSearchPipeline:
             "Sec-Fetch-User": "?1",
             "DNT": "1",
             "Cache-Control": "max-age=0",
+            "Referer": "https://www.google.com/",
         }
+
+    def _get_proxies(self):
+        """Get a proxy from configured proxy list or service"""
+        proxy_list = self.config.get("proxies", [])
+        if not proxy_list:
+            self.logger.warning("No proxies configured, continuing without proxy")
+            return None
+
+        proxy = random.choice(proxy_list)
+        self.logger.info(
+            f"Using proxy: {proxy.split('@')[-1]}"
+        )  # Log only domain, not credentials
+
+        return {"http": f"http://{proxy}", "https": f"http://{proxy}"}
 
     @task_handler
     def scrape_jobs(self, platform: str) -> List[Dict]:
         """Scrape raw jobs from the platform and filter existing ones"""
         scraper = create_scraper(platform, self.config)
         scraper.headers = self._get_default_headers()
+
+        # Add proxy support
+        proxies = self._get_proxies()
+        if proxies:
+            scraper.proxies = proxies
+
+        # Add delay between requests
+        scraper.delay = random.uniform(3, 7)
+
         self.logger.info(f"Starting job scraping from {platform}...")
 
         # Get job previews
