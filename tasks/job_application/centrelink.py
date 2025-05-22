@@ -4,6 +4,7 @@ from typing import Dict, Optional, List
 import logging
 import time
 import re
+import os
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -396,213 +397,345 @@ class CentrelinkApplier:
     def _navigate_to_job(self, job_id: str):
         """Navigate to the specific job application page with zero wait."""
         try:
-            # Try navigating directly to the apply URL - fastest approach
+            # Direct navigation to apply URL - fastest approach
             apply_url = f"{self.base_url}/individuals/jobs/apply/{job_id}"
             self.chrome_driver.navigate_to(apply_url)
-
-            # No wait time - we'll handle checking for button immediately
-            # time.sleep is completely removed here
-
+            # No wait time - we'll handle checking in the apply_to_job function
         except Exception as e:
             logging.error(f"Failed to navigate to job {job_id}: {str(e)}")
 
     def _click_next_step(self) -> bool:
-        """Click the 'Next step' button on the application form with ultra-fast approach."""
+        """Click the 'Continue' button on the application form with blazing speed."""
         try:
-            # Target the exact button structure shown in the comment
-            # <button type="button" class="mint-button primary mobileBlock" data-v-438dc630=""><span class="mint-button-inner"><span class="visually-hidden" role="status"></span><!----><span class="mint-button-text" aria-hidden="false"><!----> Next step <!----></span></span></button>
-
-            # Direct JavaScript approach - fastest possible method
-            script = """
-                // Ultra-fast button finder and clicker
-                // First, try the most specific selectors
-                var btn = document.querySelector('.mint-button.primary.mobileBlock') || 
-                          document.querySelector('button.primary') || 
-                          document.querySelector('.mint-button') ||
-                          document.querySelector('button[data-v-438dc630]');
-                          
-                if (btn) {
-                    // Quick scroll (if needed) and immediate click
-                    var rect = btn.getBoundingClientRect();
-                    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+            # TURBO SPEED: Direct JavaScript execution for maximum speed
+            turbo_script = """
+                // BLAZING FAST button finder and clicker
+                // Try multiple approaches in one go for maximum speed
+                
+                // First look for Submit button specifically (final step)
+                var submitButtons = document.querySelectorAll('button');
+                for (var i = 0; i < submitButtons.length; i++) {
+                    var btn = submitButtons[i];
+                    if (btn.offsetParent === null) continue; // Skip hidden buttons
+                    
+                    var text = btn.textContent.toLowerCase().trim();
+                    if (text === 'submit' || text.includes('submit application') || text.includes('apply now')) {
+                        console.log("Found submit button: " + text);
                         btn.scrollIntoView({block: 'center'});
-                    }
-                    try { 
-                        btn.click(); 
-                        return true; 
-                    } catch(e) {
-                        // If direct click fails, use event dispatch
-                        var evt = new MouseEvent('click', {
-                            bubbles: true,
-                            cancelable: true,
-                            view: window
-                        });
-                        btn.dispatchEvent(evt);
-                        return true;
+                        btn.click();
+                        return "CLICKED_SUBMIT";
                     }
                 }
                 
-                // Fast text-based search if specific selectors failed
+                // Approach 1: Direct attribute targeting (fastest)
+                var btn = document.querySelector('button[data-v-cb7c258b]');
+                if (btn && btn.offsetParent !== null) {
+                    btn.scrollIntoView({block: 'center'});
+                    btn.click();
+                    return "CLICKED_DIRECT";
+                }
+                
+                // Approach 2: Text content targeting (very fast)
                 var allButtons = document.querySelectorAll('button');
                 for (var i = 0; i < allButtons.length; i++) {
-                    var btnText = allButtons[i].textContent.toLowerCase();
-                    if (btnText.includes('next') || btnText.includes('continue') || btnText.includes('submit')) {
-                        allButtons[i].scrollIntoView({block: 'center'});
-                        allButtons[i].click();
-                        return true;
+                    var button = allButtons[i];
+                    if (button.offsetParent === null) continue; // Skip hidden buttons
+                    
+                    var text = button.textContent.toLowerCase().trim();
+                    if (text === 'continue' || text.includes('next step')) {
+                        button.scrollIntoView({block: 'center'});
+                        button.click();
+                        return "CLICKED_TEXT";
                     }
                 }
                 
-                // Try spans with button text that might be inside buttons (last resort)
-                var buttonTextSpans = document.querySelectorAll('span.mint-button-text');
-                for (var i = 0; i < buttonTextSpans.length; i++) {
-                    if (buttonTextSpans[i].textContent.toLowerCase().includes('next') || 
-                        buttonTextSpans[i].textContent.toLowerCase().includes('continue')) {
-                        var parentButton = buttonTextSpans[i].closest('button');
-                        if (parentButton) {
-                            parentButton.click();
-                            return true;
-                        }
-                    }
+                // Approach 3: Class-based targeting (fast)
+                var primaryBtn = document.querySelector('.mint-button.primary');
+                if (primaryBtn && primaryBtn.offsetParent !== null) {
+                    primaryBtn.scrollIntoView({block: 'center'});
+                    primaryBtn.click();
+                    return "CLICKED_CLASS";
+                }
+                
+                // Approach 4: Any button with primary class (fallback)
+                var anyPrimaryBtn = document.querySelector('button.primary');
+                if (anyPrimaryBtn && anyPrimaryBtn.offsetParent !== null) {
+                    anyPrimaryBtn.scrollIntoView({block: 'center'});
+                    anyPrimaryBtn.click();
+                    return "CLICKED_ANY_PRIMARY";
+                }
+                
+                // Approach 5: ANY visible button as last resort
+                var allVisibleButtons = Array.from(document.querySelectorAll('button')).filter(b => b.offsetParent !== null);
+                if (allVisibleButtons.length > 0) {
+                    // Try to find the most prominent button (largest or centered)
+                    allVisibleButtons.sort((a, b) => {
+                        var aRect = a.getBoundingClientRect();
+                        var bRect = b.getBoundingClientRect();
+                        // Sort by size (area) - larger buttons are likely more important
+                        return (bRect.width * bRect.height) - (aRect.width * aRect.height);
+                    });
+                    
+                    // Click the largest visible button
+                    allVisibleButtons[0].scrollIntoView({block: 'center'});
+                    allVisibleButtons[0].click();
+                    return "CLICKED_LARGEST_BUTTON";
+                }
+                
+                return "NO_BUTTON_FOUND";
+            """
+
+            result = self.chrome_driver.driver.execute_script(turbo_script)
+
+            if "CLICKED" in result:
+                # Minimal wait - just enough for the page to respond
+                time.sleep(0.5)
+                return True
+
+            # Super fast fallback using Selenium if JavaScript approach failed
+            try:
+                # Look for Submit button first
+                try:
+                    submit_button = self.chrome_driver.driver.find_element(
+                        By.XPATH,
+                        '//button[contains(translate(., "SUBMIT", "submit"), "submit") or contains(., "Apply")]',
+                    )
+                    self.chrome_driver.driver.execute_script(
+                        "arguments[0].click();", submit_button
+                    )
+                    time.sleep(0.5)
+                    return True
+                except Exception:
+                    pass
+
+                # Then try Continue button
+                continue_button = self.chrome_driver.driver.find_element(
+                    By.XPATH,
+                    '//button[contains(translate(., "CONTINUE", "continue"), "continue")]',
+                )
+                self.chrome_driver.driver.execute_script(
+                    "arguments[0].click();", continue_button
+                )
+                time.sleep(0.5)
+                return True
+            except Exception:
+                pass
+
+            return False
+        except Exception as e:
+            logging.error(f"Error in click_next_step: {str(e)}")
+            return False
+
+    def _is_success_page(self) -> bool:
+        """Ultra-fast check if we're on a success page."""
+        try:
+            # TURBO: Combined URL and content check in one JavaScript execution
+            turbo_success_script = """
+                var url = window.location.href.toLowerCase();
+                var urlSuccess = url.includes('success');
+                
+                // Only check content if URL looks promising
+                if (urlSuccess) {
+                    var pageText = document.body.textContent.toLowerCase();
+                    var hasSuccessText = 
+                        pageText.includes('successfully applied') ||
+                        pageText.includes('application successful') ||
+                        pageText.includes('application submitted') ||
+                        pageText.includes('application complete');
+                    
+                    return hasSuccessText;
                 }
                 
                 return false;
             """
 
-            result = self.chrome_driver.driver.execute_script(script)
-            if result:
-                # Ultra-minimal wait after click
-                time.sleep(0.1)  # Ultra-fast: reduced from 0.2s to 0.1s
-                return True
-
-            # Quick fallback using Selenium if JavaScript approach failed
-            for selector in [
-                ".mint-button.primary.mobileBlock",
-                ".mint-button.primary",
-                "button.primary",
-                ".mint-button",
-            ]:
-                try:
-                    element = WebDriverWait(self.chrome_driver.driver, 0.2).until(
-                        EC.presence_of_element_located((By.CSS_SELECTOR, selector))
-                    )
-                    # Use JavaScript click to avoid any Selenium overhead
-                    self.chrome_driver.driver.execute_script(
-                        "arguments[0].click();", element
-                    )
-                    time.sleep(0.1)  # Ultra-fast: reduced from 0.2s to 0.1s
-                    return True
-                except Exception:
-                    continue
-
+            return self.chrome_driver.driver.execute_script(turbo_success_script)
+        except Exception:
             return False
-        except Exception as e:
-            logging.debug(f"Error in click_next_step: {str(e)}")
-            return False
+
+    def _check_page_status(self) -> str:
+        """Blazingly fast check of the current page status."""
+        try:
+            # TURBO: All checks in one JavaScript execution
+            turbo_status_script = """
+                var url = window.location.href.toLowerCase();
+                var text = document.body.textContent.toLowerCase();
+                
+                // Success check
+                if (url.includes('success') && 
+                    (text.includes('successfully applied') || 
+                     text.includes('application successful') ||
+                     text.includes('application submitted') ||
+                     text.includes('application complete'))) {
+                    return 'SUCCESS';
+                }
+                
+                // Already applied check
+                if (text.includes('already applied') || text.includes('have already applied')) {
+                    return 'ALREADY_APPLIED';
+                }
+                
+                // Invalid link check
+                if (text.includes('link is invalid') || text.includes('invalid link') || text.includes('job not found')) {
+                    return 'INVALID_LINK';
+                }
+                
+                return 'NORMAL';
+            """
+
+            status = self.chrome_driver.driver.execute_script(turbo_status_script)
+            if status in ["SUCCESS", "ALREADY_APPLIED", "INVALID_LINK"]:
+                return status
+
+            return "NORMAL"
+        except Exception:
+            return "NORMAL"
 
     def _complete_application_steps(self) -> bool:
-        """Complete all steps in the application process with ultra-fast approach."""
+        """Complete all steps in the application process with blazing speed."""
         try:
-            # There are typically 4 steps in the application
-            for step in range(4):
-                # Check for success after each step for early exit
-                if "success" in self.chrome_driver.current_url:
-                    logging.info(f"Success detected after step {step}, exiting early")
+            max_steps = 8  # Increased to allow for more steps
+            step_count = 0
+            last_content_hash = None
+            consecutive_stuck_count = 0
+
+            # TURBO: Fast content hash function
+            fast_hash_script = """
+                // Ultra-fast content hash
+                var hash = '';
+                
+                // Get visible buttons (most important for state detection)
+                var buttons = document.querySelectorAll('button');
+                for (var i = 0; i < Math.min(buttons.length, 5); i++) {
+                    if (buttons[i].offsetParent !== null) {
+                        hash += buttons[i].textContent.trim().substring(0, 10) + ';';
+                    }
+                }
+                
+                // Get headings for page identification
+                var h1s = document.querySelectorAll('h1');
+                if (h1s.length > 0) {
+                    hash += h1s[0].textContent.trim() + ';';
+                }
+                
+                return hash;
+            """
+
+            while step_count < max_steps:
+                # Generate quick content hash
+                current_content_hash = self.chrome_driver.driver.execute_script(
+                    fast_hash_script
+                )
+
+                # Quick success check
+                if self._is_success_page():
                     return True
 
-                if not self._click_next_step():
-                    # Try once more before giving up on this step
-                    time.sleep(0.1)
-                    if not self._click_next_step():
-                        logging.warning(f"Failed on step {step+1}, but will continue")
+                # Check if stuck
+                if current_content_hash == last_content_hash and step_count > 0:
+                    consecutive_stuck_count += 1
+                    if consecutive_stuck_count >= 2:
+                        # Try clicking any button as a last resort
+                        self.chrome_driver.driver.execute_script(
+                            """
+                            // Look for submit buttons first
+                            var submitButtons = Array.from(document.querySelectorAll('button')).filter(b => 
+                                b.offsetParent !== null && 
+                                (b.textContent.toLowerCase().includes('submit') || 
+                                 b.textContent.toLowerCase().includes('apply'))
+                            );
+                            
+                            if (submitButtons.length > 0) {
+                                submitButtons[0].scrollIntoView({block: 'center'});
+                                submitButtons[0].click();
+                                return;
+                            }
+                            
+                            // Then try any button
+                            var buttons = document.querySelectorAll('button');
+                            for (var i = 0; i < buttons.length; i++) {
+                                if (buttons[i].offsetParent !== null && !buttons[i].disabled) {
+                                    buttons[i].click();
+                                    break;
+                                }
+                            }
+                        """
+                        )
 
-                # Ultra-minimal wait between steps
-                time.sleep(0.1)  # Ultra-fast: reduced from 0.2s to 0.1s
+                        # Wait a bit longer after this emergency click
+                        time.sleep(1)
 
-            return True
+                        if consecutive_stuck_count >= 3:
+                            # Final attempt: Look for a submit button specifically
+                            try:
+                                submit_buttons = self.chrome_driver.driver.find_elements(
+                                    By.XPATH,
+                                    '//button[contains(translate(., "SUBMIT", "submit"), "submit") or contains(., "Apply")]',
+                                )
+                                if submit_buttons:
+                                    for btn in submit_buttons:
+                                        try:
+                                            if btn.is_displayed():
+                                                self.chrome_driver.driver.execute_script(
+                                                    "arguments[0].click();", btn
+                                                )
+                                                time.sleep(1)
+                                                break
+                                        except Exception:
+                                            continue
+                            except Exception:
+                                pass
+
+                            break
+                else:
+                    consecutive_stuck_count = 0
+
+                # Click next button - turbo version
+                clicked = self._click_next_step()
+                if not clicked:
+                    # One retry with minimal wait
+                    time.sleep(0.5)
+                    clicked = self._click_next_step()
+                    if not clicked and step_count > 1:
+                        # Last resort: try to find any submit button
+                        try:
+                            submit_buttons = self.chrome_driver.driver.find_elements(
+                                By.XPATH,
+                                '//button[contains(translate(., "SUBMIT", "submit"), "submit") or contains(., "Apply")]',
+                            )
+                            if submit_buttons:
+                                for btn in submit_buttons:
+                                    try:
+                                        if btn.is_displayed():
+                                            self.chrome_driver.driver.execute_script(
+                                                "arguments[0].click();", btn
+                                            )
+                                            time.sleep(1)
+                                            break
+                                    except Exception:
+                                        continue
+                                # Continue even if we found and clicked a submit button
+                            else:
+                                break
+                        except Exception:
+                            break
+
+                # Minimal wait between steps
+                time.sleep(0.5)
+                last_content_hash = current_content_hash
+                step_count += 1
+
+            # Final success check
+            return self._is_success_page()
+
         except Exception as e:
             logging.error(f"Error completing application steps: {str(e)}")
             return False
 
-    # Fast success check - uses lightweight methods
-    def _is_success_page(self) -> bool:
-        """Ultra-fast check if we're on a success page."""
-        try:
-            # Quick URL check first (fastest)
-            if "success" in self.chrome_driver.current_url:
-                return True
-
-            # Quick JavaScript check for success indicators
-            script = """
-                // Fast check for common success page elements
-                return (
-                    document.title.toLowerCase().includes('success') ||
-                    document.documentElement.textContent.includes('successfully applied') ||
-                    document.documentElement.textContent.includes('application successful') ||
-                    document.querySelector('.success-message, .application-success, [class*="success"]') !== null
-                );
-            """
-            return self.chrome_driver.driver.execute_script(script)
-        except Exception:
-            return False
-
-    # Unified error check function to reduce redundancy
-    def _check_page_status(self) -> str:
-        """Check the current page status - returns one of:
-        'ALREADY_APPLIED', 'INVALID_LINK', 'SUCCESS', or 'NORMAL'
-        """
-        try:
-            # Quick success check first
-            if self._is_success_page():
-                return "SUCCESS"
-
-            # Fast JavaScript check for common page status indicators
-            script = """
-                var text = document.documentElement.textContent.toLowerCase();
-                if (text.includes('already applied') || text.includes('have already applied')) {
-                    return 'ALREADY_APPLIED';
-                }
-                if (text.includes('link is invalid') || text.includes('invalid link') || text.includes('job not found')) {
-                    return 'INVALID_LINK';
-                }
-                return 'NORMAL';
-            """
-            status = self.chrome_driver.driver.execute_script(script)
-            if status in ["ALREADY_APPLIED", "INVALID_LINK"]:
-                return status
-
-            # Fallback to element check if JavaScript check didn't find anything
-            error_container = None
-            try:
-                error_container = self.chrome_driver.driver.find_elements(
-                    By.CSS_SELECTOR, ".container-fluid.job-error"
-                )
-            except Exception:
-                pass
-
-            if error_container:
-                # Get the page source once for all checks
-                page_source = self.chrome_driver.driver.page_source.lower()
-
-                # Check for already applied message
-                if "already applied" in page_source:
-                    return "ALREADY_APPLIED"
-
-                # Check for invalid link message
-                if "link is invalid" in page_source:
-                    return "INVALID_LINK"
-
-            # No special status detected
-            return "NORMAL"
-
-        except Exception as e:
-            logging.debug(f"Error checking page status: {str(e)}")
-            return "NORMAL"  # Default to normal in case of error
-
     def apply_to_job(
         self, job_id: str, job_title: str = "", company_name: str = ""
     ) -> str:
-        """Apply to a specific job on Workforce Australia with zero-delay approach"""
+        """Apply to a specific job on Workforce Australia with blazing speed."""
         try:
             # Initialize chrome driver if not already initialized
             self.chrome_driver.initialize()
@@ -615,71 +748,16 @@ class CentrelinkApplier:
             if job_id in self.applied_jobs:
                 return "ALREADY_APPLIED"
 
-            # Navigate to the job application page - zero delay
+            # Navigate to the job application page
             self._navigate_to_job(job_id)
 
-            # IMMEDIATELY check for quick conditions that don't require waiting
-            if "success" in self.chrome_driver.current_url:
-                self.applied_jobs.add(job_id)
-                return "APPLIED"
+            # Minimal wait for page load - just enough to be reliable
+            time.sleep(1)
 
-            # Quick JavaScript check to detect page type without waiting
-            page_type_script = """
-                if (document.readyState !== 'loading') {
-                    // Page already loaded
-                    var text = document.documentElement.textContent.toLowerCase();
-                    if (text.includes('already applied') || text.includes('have already applied')) {
-                        return 'ALREADY_APPLIED';
-                    }
-                    if (text.includes('link is invalid') || text.includes('invalid link') || text.includes('job not found')) {
-                        return 'INVALID_LINK';
-                    }
-                    if (text.includes('success') || document.title.toLowerCase().includes('success')) {
-                        return 'SUCCESS';
-                    }
-                    
-                    // Check for application form indicators (fast)
-                    if (document.querySelector('.mint-button.primary.mobileBlock, button.primary, .mint-button')) {
-                        return 'READY_TO_APPLY';
-                    }
-                }
-                return 'LOADING';
-            """
-
-            # Execute immediate check
-            initial_status = self.chrome_driver.driver.execute_script(page_type_script)
-
-            # Handle immediate status results
-            if initial_status == "ALREADY_APPLIED":
-                self.applied_jobs.add(job_id)
-                return "ALREADY_APPLIED"
-
-            if initial_status == "INVALID_LINK":
-                return "INVALID_LINK"
-
-            if initial_status == "SUCCESS":
-                self.applied_jobs.add(job_id)
-                return "APPLIED"
-
-            if initial_status == "READY_TO_APPLY":
-                # We detected the apply form is ready, go directly to applying without status check
-                self._complete_application_steps()
-
-                # Quick check after applying
-                if (
-                    "success" in self.chrome_driver.current_url
-                    or self._is_success_page()
-                ):
-                    self.applied_jobs.add(job_id)
-                    return "APPLIED"
-                return "UNCERTAIN"
-
-            # If we couldn't determine page state immediately, do a minimal wait and check again
-            time.sleep(0.05)  # Ultra-minimal wait - just 50ms
-
-            # Standard checks after minimal wait
+            # Quick check page status
             page_status = self._check_page_status()
 
+            # Handle pre-application status
             if page_status == "ALREADY_APPLIED":
                 self.applied_jobs.add(job_id)
                 return "ALREADY_APPLIED"
@@ -691,26 +769,28 @@ class CentrelinkApplier:
                 self.applied_jobs.add(job_id)
                 return "APPLIED"
 
-            # Complete all the application steps - with fast success checking
-            self._complete_application_steps()
+            # Turbo-complete the application process
+            application_result = self._complete_application_steps()
 
-            # Final success check after completing steps
-            if self._is_success_page() or "success" in self.chrome_driver.current_url:
+            # Final validation
+            if application_result:
+                logging.info(f"Successfully applied to job {job_id}")
                 self.applied_jobs.add(job_id)
                 return "APPLIED"
             else:
-                # One more check for success indicators in page content
-                if self._check_page_status() == "SUCCESS":
+                # Quick re-check
+                final_status = self._check_page_status()
+                if final_status == "SUCCESS":
                     self.applied_jobs.add(job_id)
                     return "APPLIED"
-                return "UNCERTAIN"
+                elif final_status == "ALREADY_APPLIED":
+                    self.applied_jobs.add(job_id)
+                    return "ALREADY_APPLIED"
+                else:
+                    return "UNCERTAIN"
 
         except Exception as e:
             logging.error(f"Exception during application for job {job_id}: {str(e)}")
-            # Quick check if we somehow ended up on the success page despite errors
-            if self._is_success_page():
-                self.applied_jobs.add(job_id)
-                return "APPLIED"
             return "APP_ERROR"
 
     def cleanup(self):

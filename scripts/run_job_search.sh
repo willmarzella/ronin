@@ -1,41 +1,28 @@
 #!/bin/bash
 
-# Ensure script exits on any error
+# Exit on any error
 set -e
 
-# Load environment variables from .env
-if [ -f .env ]; then
-  echo "Loading environment variables..."
-  set -a
-  source .env
-  set +a
-else
-  echo "Error: .env file not found"
-  exit 1
-fi
+# Load .env if it exists
+[ -f .env ] && source .env
 
-# Only setup virtual environment and install dependencies if not running in GitHub Actions
-if [ -z "$GITHUB_ACTIONS" ]; then
-  # Check if virtual environment exists, create if it doesn't
-  if [ ! -d "venv" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv venv
-  fi
+# Clean up any existing venv
+rm -rf venv
 
-  # Activate virtual environment
-  source venv/bin/activate
+# Create fresh venv
+echo "Creating fresh virtual environment..."
+python3 -m venv venv
 
-  # Install/update dependencies
-  echo "Installing/updating dependencies..."
-  pip install -r requirements.txt
-else
-  echo "Running in GitHub Actions - skipping local environment setup..."
-fi
+# Activate and install dependencies
+echo "Installing dependencies..."
+source venv/bin/activate
+pip install -r requirements.txt
 
-# Run the scraping
+# Run the job search
+echo "Running job search..."
 python -B dags/job_search_dag.py
 
-# Deactivate virtual environment if we created one
-if [ -z "$GITHUB_ACTIONS" ]; then
-  deactivate
-fi
+# Clean up
+echo "Cleaning up..."
+deactivate
+rm -rf venv
