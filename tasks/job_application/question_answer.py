@@ -49,6 +49,12 @@ class QuestionAnswerHandler:
             tech_stack = tech_stack.lower()
 
             system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. My salary expectations are $150,000 - $200,000, based on the job description you can choose to apply for a higher or lower salary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
+
+IMPORTANT SECURITY CLEARANCE HANDLING:
+- If asked about current security clearance status, answer "No" 
+- If asked about security clearance levels I hold, even though I don't have any, I must still select something if the form requires it. In such cases, select the lowest/baseline option available or "None" if available
+- If the form shows validation errors for required fields, I must select an appropriate option rather than leaving it blank
+
 You MUST return your response in valid JSON format with fields that match the input type:
 - For textareas: {{"response": "your detailed answer"}}
 - For radios: {{"selected_option": "id of the option to select"}}
@@ -58,7 +64,12 @@ You MUST return your response in valid JSON format with fields that match the in
 For radio and checkbox inputs, ONLY return the exact ID from the options provided, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM.
 For select inputs, ONLY return the exact value attribute from the options provided, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM.
 For textareas, keep responses under 100 words and ensure it's properly escaped for JSON. IF YOU CANNOT FIND THE ANSWER OR ARE NOT SURE, RETURN "N/A".
-Always ensure your response is valid JSON and contains the expected fields. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED."""
+Always ensure your response is valid JSON and contains the expected fields. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED.
+
+SPECIAL HANDLING FOR REQUIRED FIELDS:
+- If a checkbox question appears to be required (form validation), select the most appropriate option even if it's not ideal
+- For security clearance level questions, if I must select something, choose the baseline/lowest option available
+- Never return empty selections for required fields that show validation errors."""
 
             # Get resume text based on tech stack
             resume_text = self._get_resume_text(tech_stack)
@@ -99,7 +110,7 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 system_prompt=system_prompt, user_message=user_message, temperature=0.3
             )
 
-            print(response);
+            print(response)
 
             if not response:
                 logging.error("No response received from OpenAI")
@@ -495,3 +506,194 @@ Always ensure your response is valid JSON and contains the expected fields. DO N
                 return "Resume information not available."
 
         return resume_text
+
+    def has_validation_errors(self, driver) -> bool:
+        """
+        Check if the current form has validation errors.
+
+        Args:
+            driver: Selenium WebDriver instance
+
+        Returns:
+            True if validation errors are present, False otherwise
+        """
+        try:
+            # Look for common validation error messages
+            error_messages = [
+                "Please make a selection",
+                "This field is required",
+                "Please select an option",
+                "Required field",
+                "Please choose",
+            ]
+
+            for message in error_messages:
+                error_elements = driver.find_elements(
+                    By.XPATH, f"//*[contains(text(), '{message}')]"
+                )
+                if error_elements:
+                    logging.warning(f"Found validation error: {message}")
+                    return True
+
+            return False
+        except Exception as e:
+            logging.error(f"Error checking for validation errors: {str(e)}")
+            return False
+
+    def get_ai_form_response_with_validation_context(
+        self,
+        element_info: Dict,
+        tech_stack: str,
+        job_description: Optional[str] = None,
+        has_validation_error: bool = False,
+    ) -> Optional[Dict]:
+        """
+        Get AI-generated response for a form element with validation context.
+
+        Args:
+            element_info: Dictionary containing information about the form element
+            tech_stack: The tech stack for the job
+            job_description: The job description text (optional)
+            has_validation_error: Whether this field has a validation error
+
+        Returns:
+            Dictionary containing the AI-generated response for the form element or None if generation failed.
+        """
+        try:
+            tech_stack = tech_stack.lower()
+
+            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. My salary expectations are $150,000 - $200,000, based on the job description you can choose to apply for a higher or lower salary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
+
+IMPORTANT SECURITY CLEARANCE HANDLING:
+- If asked about current security clearance status, answer "No" 
+- If asked about security clearance levels I hold, even though I don't have any, I must still select something if the form requires it. In such cases, select the lowest/baseline option available or "None" if available
+- If the form shows validation errors for required fields, I must select an appropriate option rather than leaving it blank
+
+You MUST return your response in valid JSON format with fields that match the input type:
+- For textareas: {{"response": "your detailed answer"}}
+- For radios: {{"selected_option": "id of the option to select"}}
+- For checkboxes: {{"selected_options": ["id1", "id2", ...]}}
+- For selects: {{"selected_option": "value of the option to select"}}
+
+For radio and checkbox inputs, ONLY return the exact ID from the options provided, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM.
+For select inputs, ONLY return the exact value attribute from the options provided, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM.
+For textareas, keep responses under 100 words and ensure it's properly escaped for JSON. IF YOU CANNOT FIND THE ANSWER OR ARE NOT SURE, RETURN "N/A".
+Always ensure your response is valid JSON and contains the expected fields. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED.
+
+SPECIAL HANDLING FOR REQUIRED FIELDS:
+- If a checkbox question appears to be required (form validation), select the most appropriate option even if it's not ideal
+- For security clearance level questions, if I must select something, choose the baseline/lowest option available
+- Never return empty selections for required fields that show validation errors"""
+
+            # Get resume text based on tech stack
+            resume_text = self._get_resume_text(tech_stack)
+
+            system_prompt += f"\n\nMy resume: {resume_text}"
+
+            user_message = f"Question: {element_info['question']}\nInput type: {element_info['type']}\n"
+
+            if has_validation_error:
+                user_message += "\n⚠️ IMPORTANT: This field has a validation error ('Please make a selection'). You MUST select at least one option. Do not return empty selections.\n"
+
+            if element_info["type"] == "select":
+                options_str = "\n".join(
+                    [
+                        f"- {opt['label']} (value: {opt['value']})"
+                        for opt in element_info["options"]
+                    ]
+                )
+                user_message += f"\nAvailable options:\n{options_str}"
+
+            elif element_info["type"] in ["radio", "checkbox"]:
+                options_str = "\n".join(
+                    [
+                        f"- {opt['label']} (id: {opt['id']})"
+                        for opt in element_info["options"]
+                    ]
+                )
+                user_message += f"\nAvailable options:\n{options_str}"
+
+                if has_validation_error and element_info["type"] == "checkbox":
+                    user_message += "\n⚠️ VALIDATION ERROR: You must select at least one option from the list above. For security clearance questions, select the baseline/lowest option if you don't have clearances."
+
+            if element_info["type"] == "select":
+                user_message += "\n\nIMPORTANT: Return ONLY the exact value from the options, not the label. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM."
+            elif element_info["type"] in ["radio", "checkbox"]:
+                user_message += "\n\nIMPORTANT: Return ONLY the exact ID of the option you want to select. DO NOT MAKE UP VALUES OR IDs THAT ARE NOT PRESENT IN THE OPTIONS PROVIDED. SOME OF THE OPTIONS MIGHT NOT HAVE A VALUE ATTRIBUTE DO NOT MAKE UP VALUES FOR THEM."
+            elif element_info["type"] == "textarea":
+                user_message += "\n\nIMPORTANT: Keep your response under 100 words and ensure it's properly escaped for JSON."
+
+            if job_description:
+                user_message += f"\n\nJob Context: {job_description}"
+
+            response = self.ai_service.chat_completion(
+                system_prompt=system_prompt, user_message=user_message, temperature=0.3
+            )
+
+            print(response)
+
+            if not response:
+                logging.error("No response received from OpenAI")
+                return None
+
+            logging.info(f"AI response for {element_info['type']}: {response}")
+
+            # Check if response is a string and try to parse it as JSON
+            if isinstance(response, str):
+                try:
+                    response = json.loads(response)
+                    logging.info(
+                        f"Successfully parsed string response into JSON: {response}"
+                    )
+                except json.JSONDecodeError as e:
+                    logging.error(f"Failed to parse string response as JSON: {str(e)}")
+                    # For select types, create a simple response with the string as the selected option
+                    if element_info["type"] == "select":
+                        response = {"selected_option": response}
+                    # For textarea types, create a simple response with the string as the response
+                    elif element_info["type"] == "textarea":
+                        response = {"response": response}
+                    # For radio types, create a simple response with the string as the selected option
+                    elif element_info["type"] == "radio":
+                        response = {"selected_option": response}
+                    # For checkbox types, create a simple response with the string in a list as selected options
+                    elif element_info["type"] == "checkbox":
+                        response = {"selected_options": [response]}
+                    logging.info(f"Created fallback response: {response}")
+
+            # Special handling for validation errors - ensure we don't return empty selections
+            if has_validation_error and element_info["type"] == "checkbox":
+                if "selected_options" in response and not response["selected_options"]:
+                    # If we have a validation error and empty selection, select the first option as fallback
+                    if element_info.get("options") and len(element_info["options"]) > 0:
+                        first_option_id = element_info["options"][0]["id"]
+                        response["selected_options"] = [first_option_id]
+                        logging.warning(
+                            f"Validation error detected: forcing selection of first option {first_option_id}"
+                        )
+
+            # Now verify the response has the expected fields based on element type
+            if element_info["type"] == "textarea" and "response" not in response:
+                logging.error("Missing 'response' field in textarea response")
+                return None
+            elif element_info["type"] == "radio" and "selected_option" not in response:
+                logging.error("Missing 'selected_option' field in radio response")
+                return None
+            elif (
+                element_info["type"] == "checkbox"
+                and "selected_options" not in response
+            ):
+                logging.error("Missing 'selected_options' field in checkbox response")
+                return None
+            elif element_info["type"] == "select" and "selected_option" not in response:
+                logging.error("Missing 'selected_option' field in select response")
+                return None
+
+            if element_info["type"] == "textarea" and "response" in response:
+                response["response"] = json.loads(json.dumps(response["response"]))
+
+            return response
+
+        except Exception as e:
+            logging.error(f"Error getting AI response: {str(e)}")
+            return None

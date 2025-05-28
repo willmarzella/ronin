@@ -283,6 +283,15 @@ class SeekApplier:
                 )
                 return True
 
+            # Check for validation errors first
+            has_validation_errors = self.question_handler.has_validation_errors(
+                self.chrome_driver.driver
+            )
+            if has_validation_errors:
+                logging.warning(
+                    "Validation errors detected on form, will retry with validation context"
+                )
+
             elements = self.question_handler.get_form_elements(
                 self.chrome_driver.driver
             )
@@ -293,11 +302,20 @@ class SeekApplier:
             for element_info in elements:
                 print(f"Processing question: {element_info}")
                 try:
-                    ai_response = self.question_handler.get_ai_form_response(
-                        element_info,
-                        self.current_tech_stack,
-                        self.current_job_description,
-                    )
+                    # Use validation-aware method if we detected errors
+                    if has_validation_errors:
+                        ai_response = self.question_handler.get_ai_form_response_with_validation_context(
+                            element_info,
+                            self.current_tech_stack,
+                            self.current_job_description,
+                            has_validation_error=True,
+                        )
+                    else:
+                        ai_response = self.question_handler.get_ai_form_response(
+                            element_info,
+                            self.current_tech_stack,
+                            self.current_job_description,
+                        )
 
                     print(f"AI response: {ai_response}")
 
@@ -317,6 +335,9 @@ class SeekApplier:
                         f"Failed to handle question {element_info['question']}: {str(e)}"
                     )
                     continue
+
+            # Wait a moment for form updates
+            time.sleep(1)
 
             try:
                 continue_button = WebDriverWait(self.chrome_driver.driver, 3).until(
