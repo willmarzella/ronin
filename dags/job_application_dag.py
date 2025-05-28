@@ -72,6 +72,15 @@ class JobApplicationPipeline:
                 processed_jobs.append(job)
                 self.logger.info(f"Application result for {job['title']}: {result}")
             except Exception as e:
+                # Check if this is an OpenAI API error
+                error_str = str(e)
+                if "OpenAI API error" in error_str or "insufficient_quota" in error_str:
+                    self.logger.error(f"OpenAI API error detected: {error_str}")
+                    # Propagate the error to stop the entire workflow
+                    raise Exception(
+                        f"Stopping workflow due to OpenAI API error: {error_str}"
+                    )
+
                 self.logger.error(f"Error applying to job {job['title']}: {str(e)}")
                 job["application_status"] = "ERROR"
                 job["error_message"] = str(e)

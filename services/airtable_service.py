@@ -387,7 +387,7 @@ class AirtableManager:
         """Get jobs from Airtable that are ready to apply to."""
         try:
             # Get all records where Status is 'DISCOVERED' and Quick Apply is True
-            formula = "AND({Status} = 'DISCOVERED', {Quick Apply} = TRUE())"
+            formula = "AND(OR({Status} = 'DISCOVERED', {Status} = 'APP_ERROR'), {Quick Apply} = TRUE())"
             records = self.table.all(formula=formula)
 
             jobs = []
