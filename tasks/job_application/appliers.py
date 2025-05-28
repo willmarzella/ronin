@@ -119,9 +119,10 @@ class SeekApplier:
     ):
         """Handle cover letter requirements for Seek applications."""
         try:
-            WebDriverWait(self.chrome_driver.driver, 3).until(
+            # Wait for cover letter options to be present - use more flexible selector
+            WebDriverWait(self.chrome_driver.driver, 10).until(
                 EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_2']")
+                    (By.CSS_SELECTOR, "input[name*='coverLetter-method']")
                 )
             )
 
@@ -129,10 +130,24 @@ class SeekApplier:
             logging.info(f"Generating cover letter for company: {company_name}")
 
             if score and score > 60:
-                add_cover_letter = self.chrome_driver.driver.find_element(
-                    By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_1']"
-                )
-                add_cover_letter.click()
+                # Find the "Add cover letter" radio button - look for the one with value indicating "yes"
+                try:
+                    add_cover_letter_input = self.chrome_driver.driver.find_element(
+                        By.CSS_SELECTOR, "input[name*='coverLetter-method'][value*='1']"
+                    )
+                    # Click the label associated with this input
+                    add_cover_letter_label = self.chrome_driver.driver.find_element(
+                        By.CSS_SELECTOR,
+                        f"label[for='{add_cover_letter_input.get_attribute('id')}']",
+                    )
+                    add_cover_letter_label.click()
+                except:
+                    # Fallback: try to find by text content
+                    add_cover_letter = self.chrome_driver.driver.find_element(
+                        By.XPATH,
+                        "//label[contains(text(), 'Add a cover letter') or contains(text(), 'Yes')]",
+                    )
+                    add_cover_letter.click()
 
                 # Generate cover letter using the CoverLetterGenerator
                 cover_letter = self.cover_letter_generator.generate_cover_letter(
@@ -143,18 +158,38 @@ class SeekApplier:
                 )
 
                 if cover_letter:
+                    # Wait for and find the cover letter textarea - use more flexible selector
                     cover_letter_input = WebDriverWait(
-                        self.chrome_driver.driver, 3
+                        self.chrome_driver.driver, 10
                     ).until(
-                        EC.presence_of_element_located((By.ID, "coverLetter-text-:r6:"))
+                        EC.presence_of_element_located(
+                            (By.CSS_SELECTOR, "textarea[id*='coverLetter-text']")
+                        )
                     )
                     cover_letter_input.clear()
                     cover_letter_input.send_keys(cover_letter["response"])
             else:
-                no_cover_select = self.chrome_driver.driver.find_element(
-                    By.CSS_SELECTOR, "[for='coverLetter-method-:r4:_2']"
-                )
-                no_cover_select.click()
+                # Find the "No cover letter" radio button
+                try:
+                    no_cover_input = self.chrome_driver.driver.find_element(
+                        By.CSS_SELECTOR, "input[name*='coverLetter-method'][value*='2']"
+                    )
+                    # Click the label associated with this input
+                    no_cover_label = self.chrome_driver.driver.find_element(
+                        By.CSS_SELECTOR,
+                        f"label[for='{no_cover_input.get_attribute('id')}']",
+                    )
+                    no_cover_label.click()
+                except:
+                    # Fallback: try to find by text content
+                    no_cover_select = self.chrome_driver.driver.find_element(
+                        By.XPATH,
+                        "//label[contains(text(), 'No cover letter') or contains(text(), 'No')]",
+                    )
+                    no_cover_select.click()
+
+            # Wait a moment for the form to update
+            time.sleep(1)
 
             continue_button = self.chrome_driver.driver.find_element(
                 By.CSS_SELECTOR, "[data-testid='continue-button']"
@@ -277,11 +312,11 @@ class SeekApplier:
             continue_button = self.chrome_driver.driver.find_element(
                 By.CSS_SELECTOR, "[data-testid='continue-button']"
             )
-            
+
             continue_button.click()
 
             print("Clicked continue button")
-            
+
             time.sleep(2)
 
             return True
