@@ -119,10 +119,10 @@ class SeekApplier:
     ):
         """Handle cover letter requirements for Seek applications."""
         try:
-            # Wait for cover letter options to be present - use more flexible selector
+            # Wait for cover letter options to be present - use the actual name attribute
             WebDriverWait(self.chrome_driver.driver, 10).until(
                 EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "input[name*='coverLetter-method']")
+                    (By.CSS_SELECTOR, "input[name='coverLetter-method']")
                 )
             )
 
@@ -130,24 +130,41 @@ class SeekApplier:
             logging.info(f"Generating cover letter for company: {company_name}")
 
             if score and score > 60:
-                # Find the "Add cover letter" radio button - look for the one with value indicating "yes"
+                # Find the "Write a cover letter" radio button using data-testid
                 try:
-                    add_cover_letter_input = self.chrome_driver.driver.find_element(
-                        By.CSS_SELECTOR, "input[name*='coverLetter-method'][value*='1']"
+                    write_cover_letter_input = self.chrome_driver.driver.find_element(
+                        By.CSS_SELECTOR,
+                        "input[data-testid='coverLetter-method-change']",
                     )
                     # Click the label associated with this input
-                    add_cover_letter_label = self.chrome_driver.driver.find_element(
+                    write_cover_letter_label = self.chrome_driver.driver.find_element(
                         By.CSS_SELECTOR,
-                        f"label[for='{add_cover_letter_input.get_attribute('id')}']",
+                        f"label[for='{write_cover_letter_input.get_attribute('id')}']",
                     )
-                    add_cover_letter_label.click()
-                except:
+                    write_cover_letter_label.click()
+                except Exception as e:
+                    logging.warning(
+                        f"Failed to find 'Write a cover letter' option using data-testid: {e}"
+                    )
                     # Fallback: try to find by text content
-                    add_cover_letter = self.chrome_driver.driver.find_element(
-                        By.XPATH,
-                        "//label[contains(text(), 'Add a cover letter') or contains(text(), 'Yes')]",
-                    )
-                    add_cover_letter.click()
+                    try:
+                        write_cover_letter = self.chrome_driver.driver.find_element(
+                            By.XPATH,
+                            "//label[contains(text(), 'Write a cover letter')]",
+                        )
+                        write_cover_letter.click()
+                    except Exception as e2:
+                        logging.warning(f"Fallback also failed: {e2}")
+                        # Last resort: try to find by value
+                        change_input = self.chrome_driver.driver.find_element(
+                            By.CSS_SELECTOR,
+                            "input[name='coverLetter-method'][value='change']",
+                        )
+                        change_label = self.chrome_driver.driver.find_element(
+                            By.CSS_SELECTOR,
+                            f"label[for='{change_input.get_attribute('id')}']",
+                        )
+                        change_label.click()
 
                 # Generate cover letter using the CoverLetterGenerator
                 cover_letter = self.cover_letter_generator.generate_cover_letter(
@@ -163,16 +180,19 @@ class SeekApplier:
                         self.chrome_driver.driver, 10
                     ).until(
                         EC.presence_of_element_located(
-                            (By.CSS_SELECTOR, "textarea[id*='coverLetter-text']")
+                            (
+                                By.CSS_SELECTOR,
+                                "textarea[data-testid='coverLetterTextInput']",
+                            )
                         )
                     )
                     cover_letter_input.clear()
                     cover_letter_input.send_keys(cover_letter["response"])
             else:
-                # Find the "No cover letter" radio button
+                # Find the "Don't include a cover letter" radio button
                 try:
                     no_cover_input = self.chrome_driver.driver.find_element(
-                        By.CSS_SELECTOR, "input[name*='coverLetter-method'][value*='2']"
+                        By.CSS_SELECTOR, "input[data-testid='coverLetter-method-none']"
                     )
                     # Click the label associated with this input
                     no_cover_label = self.chrome_driver.driver.find_element(
@@ -180,13 +200,29 @@ class SeekApplier:
                         f"label[for='{no_cover_input.get_attribute('id')}']",
                     )
                     no_cover_label.click()
-                except:
-                    # Fallback: try to find by text content
-                    no_cover_select = self.chrome_driver.driver.find_element(
-                        By.XPATH,
-                        "//label[contains(text(), 'No cover letter') or contains(text(), 'No')]",
+                except Exception as e:
+                    logging.warning(
+                        f"Failed to find 'Don't include a cover letter' option using data-testid: {e}"
                     )
-                    no_cover_select.click()
+                    # Fallback: try to find by text content
+                    try:
+                        no_cover_select = self.chrome_driver.driver.find_element(
+                            By.XPATH,
+                            '//label[contains(text(), "Don\'t include a cover letter")]',
+                        )
+                        no_cover_select.click()
+                    except Exception as e2:
+                        logging.warning(f"Fallback also failed: {e2}")
+                        # Last resort: try to find by value
+                        none_input = self.chrome_driver.driver.find_element(
+                            By.CSS_SELECTOR,
+                            "input[name='coverLetter-method'][value='none']",
+                        )
+                        none_label = self.chrome_driver.driver.find_element(
+                            By.CSS_SELECTOR,
+                            f"label[for='{none_input.get_attribute('id')}']",
+                        )
+                        none_label.click()
 
             # Wait a moment for the form to update
             time.sleep(1)
