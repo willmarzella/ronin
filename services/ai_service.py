@@ -18,7 +18,7 @@ class AIService:
             raise ValueError("OPENAI_API_KEY environment variable is required")
 
         self.client = OpenAI(api_key=self.api_key)
-        self.model = "gpt-4-turbo-preview"  # Using GPT-4 Turbo model
+        self.model = "gpt-4o"  # Using GPT-4o model
 
     def chat_completion(
         self,
@@ -39,6 +39,17 @@ class AIService:
         Returns:
             The complete response object or None if the request fails
         """
+        assert (
+            isinstance(system_prompt, str) and system_prompt.strip()
+        ), "System prompt must be non-empty string"
+        assert (
+            isinstance(user_message, str) and user_message.strip()
+        ), "User message must be non-empty string"
+        assert (
+            isinstance(temperature, (int, float)) and 0.0 <= temperature <= 2.0
+        ), "Temperature must be between 0.0 and 2.0"
+        assert model is None or isinstance(model, str), "Model must be string or None"
+
         try:
             # Add explicit instructions about JSON format
             system_prompt = (
@@ -144,6 +155,17 @@ class AIService:
         Returns:
             The blog post content as a dictionary or None if the request fails
         """
+        assert (
+            isinstance(system_prompt, str) and system_prompt.strip()
+        ), "System prompt must be non-empty string"
+        assert (
+            isinstance(user_message, str) and user_message.strip()
+        ), "User message must be non-empty string"
+        assert (
+            isinstance(temperature, (int, float)) and 0.0 <= temperature <= 2.0
+        ), "Temperature must be between 0.0 and 2.0"
+        assert model is None or isinstance(model, str), "Model must be string or None"
+
         try:
             # Add explicit instructions about content formatting
             system_prompt = (

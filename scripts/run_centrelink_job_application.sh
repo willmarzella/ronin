@@ -5,13 +5,31 @@
 # Move to project root directory
 cd "$(dirname "$0")/.." || exit
 
-# Ensure virtual environment is active
+# Ensure virtual environment exists and is active
 if [[ "$VIRTUAL_ENV" == "" ]]; then
+  if [[ ! -d "venv" ]]; then
+    echo "Virtual environment not found. Creating one..."
+    python3 -m venv venv || {
+      echo "Failed to create virtual environment."
+      exit 1
+    }
+    echo "Virtual environment created successfully."
+  fi
+
   echo "Activating virtual environment..."
   source venv/bin/activate || {
-    echo "Failed to activate virtual environment. Make sure it exists."
+    echo "Failed to activate virtual environment."
     exit 1
   }
+
+  # Install requirements if requirements.txt exists
+  if [[ -f "requirements.txt" ]]; then
+    echo "Installing requirements..."
+    pip install -r requirements.txt || {
+      echo "Failed to install requirements."
+      exit 1
+    }
+  fi
 else
   echo "Already in virtual environment: $VIRTUAL_ENV"
 fi

@@ -324,11 +324,17 @@ class SeekScraper(BaseScraper):
 
     def _get_jobs_for_current_keyword(self) -> List[Dict[str, Any]]:
         """Get job previews for the current keyword group."""
+        assert hasattr(self, "max_jobs"), "max_jobs must be set"
+        assert isinstance(
+            self.max_jobs, (int, type(None))
+        ), "max_jobs must be integer or None"
+
         jobs_data = []
         page = 1
         jobs_per_page = 22  # Seek typically shows 22 jobs per page
+        max_pages = 50  # Fixed upper bound for pages to prevent infinite loops
 
-        while True:
+        while page <= max_pages:  # Fixed upper bound
             if self.max_jobs and len(jobs_data) >= self.max_jobs:
                 break
 

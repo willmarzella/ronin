@@ -141,6 +141,18 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
                         response = {"selected_options": [response]}
                     logging.info(f"Created fallback response: {response}")
 
+            # Fix case where AI returns 'selected_option' for checkbox types instead of 'selected_options'
+            if (
+                element_info["type"] == "checkbox"
+                and "selected_option" in response
+                and "selected_options" not in response
+            ):
+                response["selected_options"] = [response["selected_option"]]
+                del response["selected_option"]
+                logging.info(
+                    f"Converted selected_option to selected_options for checkbox: {response}"
+                )
+
             # Now verify the response has the expected fields based on element type
             if element_info["type"] == "textarea" and "response" not in response:
                 logging.error("Missing 'response' field in textarea response")
@@ -660,6 +672,18 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
                     elif element_info["type"] == "checkbox":
                         response = {"selected_options": [response]}
                     logging.info(f"Created fallback response: {response}")
+
+            # Fix case where AI returns 'selected_option' for checkbox types instead of 'selected_options'
+            if (
+                element_info["type"] == "checkbox"
+                and "selected_option" in response
+                and "selected_options" not in response
+            ):
+                response["selected_options"] = [response["selected_option"]]
+                del response["selected_option"]
+                logging.info(
+                    f"Converted selected_option to selected_options for checkbox: {response}"
+                )
 
             # Special handling for validation errors - ensure we don't return empty selections
             if has_validation_error and element_info["type"] == "checkbox":

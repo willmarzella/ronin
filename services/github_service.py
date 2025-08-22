@@ -93,98 +93,113 @@ class GitHubService:
             List[Dict[str, Union[str, datetime]]]: List of file information
         """
 
-        def _get_files_recursive(path: str, files_found: List[Dict]) -> None:
-            # If we've reached the limit, stop processing
-            if len(files_found) >= max_files:
-                return
+        def _get_files_iterative(files_found: List[Dict]) -> None:
+            """Process files iteratively to avoid recursion."""
+            assert isinstance(files_found, list), "files_found must be a list"
+            assert (
+                isinstance(max_files, int) and max_files > 0
+            ), "max_files must be positive integer"
 
-            try:
-                contents = self._repo.get_contents(path)
-                if not isinstance(contents, list):
-                    contents = [contents]
+            # Use a queue for iterative directory traversal with bounded depth
+            max_depth = 10  # Fixed maximum directory depth
+            dirs_to_process = [(directory, 0)]  # (path, depth) tuples
 
-                for item in contents:
-                    # If we've reached the limit, stop processing
-                    if len(files_found) >= max_files:
-                        return
+            while dirs_to_process and len(files_found) < max_files:
+                current_path, current_depth = dirs_to_process.pop(0)
 
-                    try:
-                        if item.type == "dir":
-                            # Recursively search subdirectories
-                            _get_files_recursive(item.path, files_found)
-                        elif item.type == "file" and item.name.endswith(extension):
-                            try:
-                                # Get file content first
-                                content = base64.b64decode(item.content).decode("utf-8")
+                # Enforce depth limit to prevent infinite traversal
+                if current_depth >= max_depth:
+                    continue
 
-                                # Then get commit info - use list slicing to get first commit
-                                commits = list(self._repo.get_commits(path=item.path))[
-                                    :1
-                                ]
-                                if commits:
-                                    commit = commits[0]
-                                    files_found.append(
-                                        {
-                                            "name": item.name,
-                                            "path": item.path,
-                                            "sha": item.sha,
-                                            "content": content,
-                                            "last_modified": commit.commit.author.date,
-                                            "last_commit_message": commit.commit.message,
-                                        }
+                try:
+                    contents = self._repo.get_contents(current_path)
+                    if not isinstance(contents, list):
+                        contents = [contents]
+
+                    for item in contents:
+                        # If we've reached the limit, stop processing
+                        if len(files_found) >= max_files:
+                            return
+
+                        try:
+                            if item.type == "dir":
+                                # Add directory to processing queue with incremented depth
+                                dirs_to_process.append((item.path, current_depth + 1))
+                            elif item.type == "file" and item.name.endswith(extension):
+                                try:
+                                    # Get file content first
+                                    content = base64.b64decode(item.content).decode(
+                                        "utf-8"
                                     )
-                                    logger.info(
-                                        f"Successfully processed file: {item.path} ({len(files_found)}/{max_files})"
+
+                                    # Then get commit info - use list slicing to get first commit
+                                    commits = list(
+                                        self._repo.get_commits(path=item.path)
+                                    )[:1]
+                                    if commits:
+                                        commit = commits[0]
+                                        files_found.append(
+                                            {
+                                                "name": item.name,
+                                                "path": item.path,
+                                                "sha": item.sha,
+                                                "content": content,
+                                                "last_modified": commit.commit.author.date,
+                                                "last_commit_message": commit.commit.message,
+                                            }
+                                        )
+                                        logger.info(
+                                            f"Successfully processed file: {item.path} ({len(files_found)}/{max_files})"
+                                        )
+                                    else:
+                                        logger.warning(
+                                            f"No commit history found for file: {item.path}"
+                                        )
+                                        # Use timezone-aware datetime for fallback
+                                        current_time = datetime.now(
+                                            datetime.now().astimezone().tzinfo
+                                        )
+                                        files_found.append(
+                                            {
+                                                "name": item.name,
+                                                "path": item.path,
+                                                "sha": item.sha,
+                                                "content": content,
+                                                "last_modified": current_time,  # timezone-aware fallback
+                                                "last_commit_message": "No commit history available",
+                                            }
+                                        )
+                                except Exception as e:
+                                    logger.error(
+                                        f"Error processing file {item.path}: {str(e)}"
                                     )
-                                else:
-                                    logger.warning(
-                                        f"No commit history found for file: {item.path}"
-                                    )
-                                    # Use timezone-aware datetime for fallback
-                                    current_time = datetime.now(
-                                        datetime.now().astimezone().tzinfo
-                                    )
-                                    files_found.append(
-                                        {
-                                            "name": item.name,
-                                            "path": item.path,
-                                            "sha": item.sha,
-                                            "content": content,
-                                            "last_modified": current_time,  # timezone-aware fallback
-                                            "last_commit_message": "No commit history available",
-                                        }
-                                    )
-                            except Exception as e:
-                                logger.error(
-                                    f"Error processing file {item.path}: {str(e)}"
-                                )
-                                # If we hit rate limit, raise to outer exception handler
-                                if "rate limit" in str(e).lower():
-                                    raise
-                                continue
-                    except Exception as e:
+                                    # If we hit rate limit, raise to outer exception handler
+                                    if "rate limit" in str(e).lower():
+                                        raise
+                                    continue
+                        except Exception as e:
+                            logger.error(
+                                f"Error processing item {item.path if hasattr(item, 'path') else 'unknown'}: {str(e)}"
+                            )
+                            if "rate limit" in str(e).lower():
+                                raise
+                            continue
+
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if "rate limit" in error_msg:
                         logger.error(
-                            f"Error processing item {item.path if hasattr(item, 'path') else 'unknown'}: {str(e)}"
+                            "GitHub API rate limit exceeded. Please wait before trying again."
                         )
-                        if "rate limit" in str(e).lower():
-                            raise
-                        continue
-
-            except Exception as e:
-                error_msg = str(e).lower()
-                if "rate limit" in error_msg:
-                    logger.error(
-                        "GitHub API rate limit exceeded. Please wait before trying again."
-                    )
-                    raise
-                logger.error(f"Error accessing directory {path}: {str(e)}")
+                        raise
+                    logger.error(f"Error accessing directory {current_path}: {str(e)}")
 
         try:
             logger.info(
                 f"Starting file search in directory: {directory} (limit: {max_files} files)"
             )
             files = []
-            _get_files_recursive(directory, files)
+            _get_files_iterative(files)
             if len(files) >= max_files:
                 logger.info(f"Reached file limit of {max_files} files")
             return files

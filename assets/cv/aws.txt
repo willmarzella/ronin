@@ -6,13 +6,13 @@ Mont Albert North, VIC | 0413414869 | [williampmarzella@gmail.com](mailto:willia
 
 ## Career Summary
 
-Data Engineer with six (6) years of hands-on experience with Amazon Web Services (AWS) cloud platform including AWS S3, AWS EC2, AWS Lambda, AWS Redshift, AWS Glue, and AWS RDS. Extensive expertise in developing and optimizing data warehousing solutions using Snowflake on AWS. Proficient in implementing cost-effective ETL/ELT workflows with industry-standard tools (dbt, Apache Airflow, AWS Step Functions) deployed on AWS infrastructure. Expert-level knowledge in configuring AWS IAM roles with least-privilege security model ensuring regulatory compliance. Tech stack agnostic approach using Terraform IaC for consistent deployment of AWS resources, Snowflake schemas, and RBAC configurations. Successfully executed large-scale AWS cloud migrations for enterprise clients reducing operational costs while improving system performance.
+Senior Contract Data Engineer & Cloud Infrastructure Specialist with six (6)+ years experience delivering platform builds, migrations, and cost optimisation for enterprise clients. Expert in AWS, Snowflake, dbt, Airflow, PySpark, Terraform, and Kafka, with proven results cutting cloud costs 30–50% and leading architecture for modern data platforms in finance, manufacturing, and SaaS. Expert in data warehouse migrations, ETL/ELT pipeline orchestration, and infrastructure-as-code automation with consistent delivery of enterprise-scale projects through short-term contract engagements.
 
 ## Highlight of Capabilities
 
-- Eight (8) years expert experience with AWS data infrastructure (S3, EC2, Lambda, Redshift, Glue, RDS) and database technologies (PostgreSQL, SQL Server, Snowflake). Implemented enterprise-grade data lake solutions using Snowflake and AWS S3, processing 50GB+ monthly data while ensuring optimal query performance through clustering keys, materialized views, and metadata-driven design patterns.
-- Seven (7) years implementing enterprise-grade data processing solutions utilizing Python-based orchestration frameworks (Apache Airflow, AWS Step Functions) for workflow automation. Developed production-grade ETL/ELT workflows with dbt, Snowpipes, Streams, and Tasks for data transformations, alongside PySpark for distributed computing on AWS EMR, delivering robust business reporting solutions with optimized SQL queries.
-- Six (6) years designing scalable data architectures using infrastructure-as-code (Terraform) with Git version control and CI/CD pipelines (GitHub Actions, AWS CodePipeline). Implemented DevOps best practices including automated testing, continuous deployment, and comprehensive monitoring (Grafana, CloudWatch) for AWS and Snowflake environments, enabling cost-optimized, reliable data platforms capable of handling terabyte-scale workloads.
+- Six (6) years architecting enterprise data platforms on AWS with Snowflake, dbt, Airflow, and PySpark. Expert in data warehouse migrations, cost optimization achieving 30-50% infrastructure savings, and platform builds for Fortune 500 clients. Specialized in contract delivery for cloud infrastructure modernization with Terraform automation and comprehensive monitoring (Prometheus, Grafana, CloudWatch).
+- Seven (7) years building ETL/ELT pipeline orchestration using Airflow DAGs, Spark processing, and Kafka streaming. Expert in data quality frameworks, fault-tolerant architectures, and real-time analytics platforms. Proven track record delivering data engineering solutions for finance, manufacturing, and SaaS environments through contract engagements.
+- Six (6) years designing cloud-native architectures with infrastructure-as-code using Terraform and containerized deployments on Kubernetes. Expert in DevOps automation, CI/CD pipeline optimization, and platform scalability. Specialized in short-term contract delivery for enterprise cloud migration and infrastructure optimization projects.
 
 ## Education
 
@@ -20,88 +20,75 @@ Data Engineer with six (6) years of hands-on experience with Amazon Web Services
 
 *BS, Mechanical Engineering* | 2016 -- 2020
 
-- Developed data acquisition system with Python deployed on AWS EC2 processing 1000+ sensor readings/minute
-- Implemented MySQL databases on AWS RDS for equipment tracking with automated data pipelines using Python ETL scripts
-- Created automated analysis workflows using AWS Lambda with pandas and SQL queries reducing processing time by 65%
+- Built data acquisition system (Python, Docker, AWS EC2) processing 1000+ sensor readings/minute
+- Implemented MySQL databases on AWS RDS with automated Python ETL pipelines for equipment tracking
+- Created automated analysis workflows (AWS Lambda, pandas, SQL) reducing processing time by 65%
 
 ## Certifications
 
+- AWS Certified Solutions Architect Associate -- *Amazon Web Services* | 2023
 - AWS Data Engineer Associate -- *Amazon Web Services* | 2025
 - Terraform Certified Associate -- *HashiCorp* | 2025
 - SnowPro® Core Certification -- *Snowflake* | 2025
-- AWS Solutions Architect Associate -- *Amazon Web Services* | 2023
 - dbt Fundamentals Certification -- *dbt Labs* | 2024
 
 ## Experience (Full Time)
 
 ### **REST Industry Super** | Melbourne, VIC
 
-Australia's leading industry superannuation fund managing over $70 billion in retirement assets for 1.7 million members across diverse sectors with award-winning digital services.
+Industry superannuation fund managing $70B+ assets for 1.7M members.
 
 *Data Engineer* | March 2025 -- Present
 
-Working on a cross functional team of data engineers, data scientists, and business analysts to migrate legacy Redshift data warehouse to Snowflake while implementing a modern data platform. Developed data pipelines and tools to support analytics and reporting requirements, including machine learning solutions for predictive member analytics.
+Cross-functional team migrating legacy Redshift to Snowflake while implementing modern data platform with containerized microservices. GitOps methodologies and agile practices supporting analytics and ML workloads.
 
-- Implemented AWS Glue, Step Functions, and Lambda data pipelines to process superannuation transaction data, reducing ETL processing time while maintaining complete data lineage for regulatory compliance
-- Developed reusable Terraform modules for standardized AWS infrastructure deployment (EC2, S3, ELB) and Snowflake schema provisioning with RBAC, increasing environment consistency and reducing setup time by 70%
-- Architected secure API integration framework using AWS Lambda, API Gateway, and Python for partner superannuation fund data exchange
-- Enhanced data governance framework implementing column-level access controls in Snowflake with row-level security patterns meeting financial data privacy requirements
-- Established DevOps CI/CD pipelines for automated testing and deployment of data workflows across development, staging and production environments with zero-downtime implementations
-- Implemented comprehensive data quality framework using dbt tests and Snowflake constraints for member contribution and investment data validation, improving data quality by 35%
-- Built member churn prediction solution using AWS SageMaker with XGBoost models, automating model training pipelines and deploying model endpoints that improved member retention by 12% through targeted engagement initiatives
-- Developed automated ETL processes using dbt and Amazon Managed Apache Airflow (AMAA) with Terraform-deployed AWS Glue workflows, preparing financial time-series data that enabled investment recommendation models achieving 18% better accuracy than previous rule-based systems
-- Optimized Snowflake query performance through materialized views, clustering keys, and dbt incremental models for financial reporting workloads, reducing compute costs by 40% while maintaining sub-second performance for critical dashboards
-- Developed automated data pipelines using dbt, Snowpipe, Streams, and Tasks with Python UDFs, orchestrated via AMAA, enabling near real-time data processing while minimizing compute resource consumption
+- Architected Redshift to Snowflake migration using AWS Glue, Step Functions, and dbt transformations, enabling modern analytics platform for 1.7M members
+- Built comprehensive data quality framework with dbt testing, Snowflake constraints, and Great Expectations, ensuring 99%+ data accuracy for regulatory compliance
+- Deployed fault-tolerant pipeline infrastructure using Airflow on ECS with custom Snowflake operators, dynamic DAG generation, and SLA monitoring via Terraform automation
+- Optimized warehouse performance 60% through star schema modeling, materialized views, and dbt incremental strategies for enterprise-scale query acceleration
 
 ### **Alfab Pty Ltd** | Melbourne, VIC
 
-Australia's premier manufacturing enterprise specializing in precision glass and aluminum fabrication with $10M annual revenue, operating state-of-the-art production facilities serving automotive and marine industries across Asia-Pacific.
+Precision manufacturing enterprise, $10M revenue, automotive/marine industries.
 
 *Senior Data Engineer* | October 2023 -- March 2025
 
-Working as part of the data engineering team modernizing manufacturing data infrastructure. Collaborate closely with manufacturing operations and IT teams to enhance data platform capabilities while maintaining data governance requirements. Work alongside an offshore team of 2 developers to implement data pipelines and tools.
+Led data engineering team modernizing manufacturing infrastructure through cloud-native architectures and cloud platform migration. Agile methodologies with offshore development team implementing data pipelines, data workflows, ETL processes, and data governance frameworks.
 
-- Implemented AWS and Snowflake data warehouse architecture processing 800GB manufacturing data resulting in 35% AWS infrastructure cost reduction ($150K annually) through Terraform-managed infrastructure and optimized Snowflake virtual warehouses
-- Led migration of legacy on-premise Oracle Data Warehouse to Snowflake on AWS, architecting scalable data models and implementing dbt transformations that reduced monthly maintenance costs by 60% while improving query performance by 75% and enabling cloud-native analytics capabilities
-- Developed AWS Lambda functions and Snowflake stored procedures with Python UDFs ensuring data integrity and reducing downstream errors by 45%
-- Designed real-time data streaming solution using Snowpipe and Streams for Change Data Capture enabling predictive maintenance algorithms to reduce production line downtime by 22%
-- Implemented CI/CD pipelines with AWS CodePipeline and orchestrated workflows using Apache Airflow on AWS ECS, reducing deployment cycles and improving pipeline reliability
-- Developed monitoring solution using Amazon CloudWatch and Grafana tracking 15 key pipeline metrics, reducing mean time to resolution from 4 hours to 45 minutes
-- Created comprehensive AWS architecture documentation and SQL-based data dictionary in AWS-hosted Confluence, decreasing onboarding time for new team members by 50%
-- Built feature engineering pipeline using dbt transformations in Snowflake for quality control models that reduced defect rates by 18%
-- Implemented DevOps best practices with infrastructure-as-code (Terraform) for both AWS resources and Snowflake objects, enabling consistent cross-environment deployments and reducing configuration drift
+- Cut infrastructure costs 35% ($150K annually) through Snowflake workload redesign and automated scaling with Terraform, processing 800GB manufacturing data for $10M precision manufacturing enterprise
+- Led Oracle to Snowflake migration achieving 60% maintenance cost reduction and 75% query performance improvement using Kimball modeling, dbt frameworks, and ETL optimization
+- Reduced production downtime 22% through real-time CDC streaming with Kafka on MSK, implementing exactly-once processing and predictive maintenance analytics
+- Built containerized microservices on ECS with Airflow orchestration, custom sensors, and comprehensive pipeline automation, enabling consistent deployment across environments
+- Improved incident response time from 4 hours to 45 minutes using Prometheus, Grafana, and CloudWatch monitoring for 15 KPIs with automated alerting
+- Achieved 18% defect rate reduction through ML quality control pipeline using Spark, PySpark, and dbt transformations in Snowflake for predictive analytics
 
 ### **Tray.io** | San Diego, CA
 
-Leading enterprise iPaaS (integration Platform as a Service) powering mission-critical data workflows for 200+ Fortune 500 companies processing over 1B monthly events, with specialized solutions for healthcare and fintech sectors requiring high-security, compliance-focused data integration.
+Enterprise iPaaS serving 200+ Fortune 500 companies, 1B+ monthly events, healthcare/fintech focus.
 
 *Platform Engineer* | April 2021 -- October 2023
 
-Member of the platform engineering team developing customer analytics capabilities for healthcare and fintech clients. Focused on processing customer interaction data while adhering to compliance requirements. Contributed to solutions enabling customer behavior analysis. Supported data platform serving 200+ enterprise clients processing over 1B monthly events.
+Platform engineering team developing customer analytics for healthcare/fintech clients. Cloud-native architectures processing customer interaction data with compliance requirements.
 
-- Engineered data pipelines using PySpark on AWS EMR with Delta Lake tables processing 10M+ daily customer events with optimized partitioning strategies, enabling real-time customer segmentation
-- Implemented AWS-based customer journey analytics using Databricks SQL and PySpark improving marketing retention metrics ($2M+ in preserved ARR)
-- Designed fault-tolerant ETL workflows using Apache Spark Structured Streaming for real-time applications with exactly-once processing guarantees, reducing data-related support tickets by 35%
-- Developed data quality framework using AWS Glue Data Quality and Great Expectations ensuring 95% accuracy across 8 data sources
-- Implemented Amazon CloudWatch and Prometheus monitoring reducing MTTR from 30 minutes to 15 minutes and minimizing system downtime
-- Created machine learning feature pipelines using AWS Glue and Databricks MLflow for customer churn prediction models that improved retention through targeted interventions
-- Deployed recommendation engine infrastructure using Apache Spark ML with A/B testing framework, increasing user engagement metrics by 28%
+- Processed 10M+ daily customer events achieving 99.8% data completeness using Spark PySpark pipelines on EMR with Delta Lake storage and optimized partitioning strategies
+- Preserved $2M+ ARR through customer journey analytics platform using Databricks SQL and Spark frameworks, improving marketing retention metrics for Fortune 500 iPaaS clients
+- Reduced support tickets 35% via Lambda architecture with Spark Structured Streaming orchestrated through Airflow DAGs, implementing exactly-once processing and failure notifications
+- Deployed production EKS clusters for containerized data applications, enabling consistent auto-scaling deployment across healthcare/fintech compliance environments
+- Ensured 95%+ accuracy for regulatory datasets using enterprise data quality framework with AWS Glue and Great Expectations across 8 heterogeneous sources
+- Cut incident resolution time from 30 to 15 minutes using comprehensive observability with Prometheus, Grafana, ELK stack, and CloudWatch monitoring
 
 ### **Chilton's Artisan Foods** | Melbourne, VIC
 
-Award-winning specialty food manufacturer producing premium artisanal bakery products with $10M annual revenue, supplying Australia's top restaurants and gourmet retailers while maintaining farm-to-table supply chain with 100% locally-sourced Australian ingredients and sustainable manufacturing practices.
+Specialty food manufacturer, $10M revenue, premium artisanal bakery products, farm-to-table supply chain.
 
 *Data Engineer* | July 2019 -- April 2021
 
-First data hire supporting 12-person manufacturing operation with $10M annual revenue. Worked directly with production managers and finance team to understand requirements and implement initial data solutions
+First data hire supporting 12-person manufacturing operation with $10M annual revenue. Direct collaboration with production managers and finance team implementing data solutions.
 
-- Migrated legacy data warehouse to Snowflake on AWS with automated ETL processes using Python-based AWS Glue jobs, saving 25 hours weekly while enabling real-time visibility into $2M monthly inventory
-- Designed ETL/ELT processes using dbt for Snowflake transformations with comprehensive tests, reducing manual data entry by 80% and enabling real-time inventory tracking
-- Implemented data validation logic in Snowflake using constraints and stored procedures, preventing $50K in monthly inventory waste
-- Established Git-based version control with AWS CodeCommit and comprehensive CI/CD pipelines, reducing deployment rollbacks and ensuring consistent database change management
-- Developed business intelligence dashboards with Snowflake-connected Tableau, reducing monthly reporting time from 3 days to 4 hours while implementing version-controlled dbt models as single source of truth
-- Created monitoring solution with AWS CloudWatch and Snowflake query monitoring tracking 8 critical production KPIs, enabling 15% improvement in manufacturing efficiency
-- Implemented Terraform IaC for AWS resource provisioning and Snowflake object creation, enabling consistent deployment across environments and reducing configuration errors by 60%
+- Saved 25 hours weekly operational time migrating on-premise warehouse to Snowflake using AWS Glue ETL and S3 intelligent tiering, enabling real-time visibility for $2M monthly inventory
+- Reduced manual data entry 80% through dbt transformation workflows with automated testing, implementing real-time inventory tracking for $10M specialty food manufacturer
+- Prevented $50K monthly inventory waste via automated anomaly detection using Snowflake data validation and quality assurance logic
+- Reduced monthly reporting time from 3 days to 4 hours using Tableau dashboards with dbt integration and Airflow automation for scheduled report distribution
 
 ## Experience (Freelance)
 
@@ -109,15 +96,13 @@ First data hire supporting 12-person manufacturing operation with $10M annual re
 
 Independent technology consultancy offering specialized cloud and automation solutions (Part-time)
 
-*Founder & Principal Engineer* | June 2022 -- Present
+*Founder & Principal Infrastructure Engineer* | June 2022 -- Present
 
-Provide strategic data consulting to e-commerce and retail clients with $5M-50M annual revenue
+Strategic data infrastructure consulting and contract delivery to e-commerce and retail clients ($5M-50M revenue), focusing on cloud cost optimization, performance optimization, resource optimization, and scalable architecture design. Freelance contractor specializing in short-term cloud migration engagements and data platform modernization projects.
 
-- Implemented modern data architecture using Snowflake on AWS for e-commerce clients processing 50GB+ monthly data, reducing storage costs by 45% while improving query performance
-- Developed ETL pipelines using dbt, Snowpipe, and Python UDFs, automating 12 daily inventory processes with 99.9% reliability
-- Architected AWS IAM roles with least-privilege permissions and Snowflake RBAC ensuring GDPR compliance for sensitive customer data
-- Optimized cloud resource utilization implementing Snowflake resource monitors, AWS S3 intelligent tiering, and EC2 right-sizing through Terraform, identifying monthly savings of $2K-5K per client
-- Created infrastructure-as-code using Terraform with modular design patterns for both AWS resources and Snowflake objects, reducing environment setup time from 2 days to 2 hours while ensuring consistent deployments
-- Migrated retail client from on-premise SQL Server to Snowflake on AWS with dbt transformations, reducing infrastructure costs by $2,000 monthly while improving report generation time from 30 minutes to 5 minutes
-- Designed ML model deployment architecture using Snowflake Python UDFs and AWS SageMaker for retail demand forecasting, improving inventory planning accuracy by 25%
-- Built automated data orchestration solutions using Apache Airflow on AWS ECS with dbt Core for transformation workflows, enabling fully automated data pipelines with comprehensive monitoring and alerting
+- Cut storage costs 45% for e-commerce clients processing 50GB+ monthly data through AWS S3 lifecycle optimization and Snowflake warehouse right-sizing, delivering $2K-5K monthly savings per contract engagement
+- Automated 12 daily inventory processes with 99.9% reliability using containerized ETL pipelines, dbt transformations, Kafka streaming, and Snowflake Snowpipe, reducing operational overhead for enterprise consulting clients
+- Led SQL Server to Snowflake migration reducing infrastructure costs $2K monthly while improving report generation from 30 minutes to 5 minutes through dimensional modeling and pipeline optimization for retail client contract
+- Built MLOps deployment architecture using Kubernetes, Snowflake Python UDFs, and SageMaker for demand forecasting, improving inventory planning accuracy 25% through contract-based data science consulting
+- Designed automated orchestration platform using Airflow on ECS with dbt workflows and comprehensive observability (Prometheus, Grafana, ELK), enabling fully automated data pipelines for contractor infrastructure consulting
+

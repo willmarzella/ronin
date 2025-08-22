@@ -69,6 +69,10 @@ class JobApplicationPipeline:
                     title=job["title"],
                 )
                 job["application_status"] = result
+
+                # Update job status in Airtable immediately after processing
+                self._update_job_status_immediately(job)
+
                 processed_jobs.append(job)
                 self.logger.info(f"Application result for {job['title']}: {result}")
             except Exception as e:
@@ -84,19 +88,57 @@ class JobApplicationPipeline:
                 self.logger.error(f"Error applying to job {job['title']}: {str(e)}")
                 job["application_status"] = "ERROR"
                 job["error_message"] = str(e)
+
+                # Update job status in Airtable immediately after error
+                self._update_job_status_immediately(job)
+
                 processed_jobs.append(job)
 
         self.context["processed_jobs"] = processed_jobs
         return processed_jobs
 
+    def _update_job_status_immediately(self, job: Dict) -> None:
+        """Update a single job's status in Airtable immediately after processing."""
+        try:
+            record_id = job.get("record_id")
+            status = job.get("application_status")
+
+            if not record_id or not status:
+                self.logger.warning(
+                    f"Missing record_id or status for job: {job.get('title', 'Unknown')}"
+                )
+                return
+
+            self.logger.info(
+                f"Updating status for job {job.get('title', 'Unknown')} to {status}"
+            )
+
+            fields = {"Status": status}
+
+            # Add error message if available
+            if status == "ERROR" and "error_message" in job:
+                fields["APP_ERROR"] = job["error_message"]
+
+            self.airtable.update_record(record_id, fields)
+            self.logger.info(
+                f"Successfully updated status for job {job.get('title', 'Unknown')} to {status}"
+            )
+
+        except Exception as e:
+            self.logger.error(
+                f"Failed to update status for job {job.get('title', 'Unknown')}: {str(e)}"
+            )
+            # Don't re-raise the exception - we don't want to stop the pipeline
+            # just because of a status update failure
+
     def update_job_statuses(self) -> bool:
-        """Update job statuses in Airtable"""
+        """Update job statuses in Airtable (now handled immediately per job)"""
         processed_jobs = self.context.get("processed_jobs", [])
         if processed_jobs:
             self.logger.info(
-                f"Updating status for {len(processed_jobs)} jobs in Airtable"
+                f"Job status updates already completed for {len(processed_jobs)} jobs "
+                "(updated immediately after each application)"
             )
-            self.airtable.update_job_statuses(processed_jobs)
             return True
         return False
 

@@ -383,12 +383,12 @@ class AirtableManager:
             logging.error(f"Error updating record {record_id}: {str(e)}")
             raise
 
-    def get_pending_jobs(self) -> List[Dict]:
-        """Get jobs from Airtable that are ready to apply to."""
+    def get_jobs_from_view(self, view_id: str) -> List[Dict]:
+        """Get jobs from a specific Airtable view."""
         try:
-            # Get all records where Status is 'DISCOVERED' and Quick Apply is True
-            formula = "AND(OR({Status} = 'DISCOVERED', {Status} = 'APP_ERROR'), {Quick Apply} = TRUE())"
-            records = self.table.all(formula=formula)
+            logging.info(f"Fetching jobs from Airtable view: {view_id}")
+            records = self.table.all(view=view_id)
+            logging.info(f"Retrieved {len(records)} records from view {view_id}")
 
             jobs = []
             if records:
@@ -445,12 +445,17 @@ class AirtableManager:
 
                 return jobs
             else:
-                logging.info("No pending jobs found")
+                logging.info(f"No jobs found in view {view_id}")
                 return []
 
         except Exception as e:
-            logging.error(f"Error getting pending jobs: {str(e)}")
+            logging.error(f"Error getting jobs from view {view_id}: {str(e)}")
             return []
+
+    def get_pending_jobs(self) -> List[Dict]:
+        """Get jobs from Airtable that are ready to apply to."""
+        # Use the specific view that has necessary filtering for new jobs
+        return self.get_jobs_from_view("viwlfrTkkE2krqpRy")
 
     def update_job_statuses(self, processed_jobs: List[Dict]):
         """Update job statuses in Airtable based on application results."""
