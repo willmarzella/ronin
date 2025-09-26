@@ -16,17 +16,18 @@ help:
 # Install Python dependencies
 install:
 	@echo "Installing dependencies..."
-	pip install -r requirements.txt
+	@if [ ! -d "venv" ]; then python3 -m venv venv; fi
+	@source venv/bin/activate && pip install -r requirements.txt
 
 # Job search automation
 search:
 	@echo "Running job search..."
-	python -B dags/job_search_dag.py
+	@source venv/bin/activate && python -B dags/job_search_dag.py
 
 # Blog post generation
 blog:
 	@echo "Generating blog posts..."
-	python -B dags/blog_generator_dag.py
+	@source venv/bin/activate && python -B dags/blog_generator_dag.py
 
 # Job application automation
 apply:
@@ -51,7 +52,7 @@ clean:
 # Generate recruiter outreach content
 generate-outreach:
 	@echo "Generating recruiter outreach content..."
-	python -c "from services.outreach_generator import OutreachGenerator; from services.airtable_service import AirtableManager; from services.ai_service import AIService; generator = OutreachGenerator(AirtableManager(), AIService()); print('Generated:', generator.process_jobs_for_outreach())"
+	@source venv/bin/activate && python -c "from services.outreach_generator import OutreachGenerator; from services.airtable_service import AirtableManager; from services.ai_service import AIService; generator = OutreachGenerator(AirtableManager(), AIService()); print('Generated:', generator.process_jobs_for_outreach())"
 
 # Initial project setup
 setup:
