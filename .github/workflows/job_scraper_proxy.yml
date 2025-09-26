@@ -1,0 +1,57 @@
+name: Scrape jobs (with Proxy)
+
+on:
+  schedule:
+    - cron: '0 */2 * * *' # Run every 2 hours
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up VPN/Proxy
+        run: |
+          # Install OpenVPN or configure proxy
+          sudo apt-get update
+          sudo apt-get install -y openvpn
+          
+          # Configure proxy if using HTTP proxy
+          if [ -n "${{ secrets.PROXY_URL }}" ]; then
+            echo "http_proxy=${{ secrets.PROXY_URL }}" >> $GITHUB_ENV
+            echo "https_proxy=${{ secrets.PROXY_URL }}" >> $GITHUB_ENV
+            echo "HTTP_PROXY=${{ secrets.PROXY_URL }}" >> $GITHUB_ENV
+            echo "HTTPS_PROXY=${{ secrets.PROXY_URL }}" >> $GITHUB_ENV
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create .env file
+        run: |
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "AIRTABLE_API_KEY=${{ secrets.AIRTABLE_API_KEY }}" >> .env
+          # Add proxy configuration to environment
+          if [ -n "${{ secrets.PROXY_URL }}" ]; then
+            echo "HTTP_PROXY=${{ secrets.PROXY_URL }}" >> .env
+            echo "HTTPS_PROXY=${{ secrets.PROXY_URL }}" >> .env
+          fi
+
+      - name: Run automation script
+        run: scripts/run_job_search.sh
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          AIRTABLE_API_KEY: ${{ secrets.AIRTABLE_API_KEY }}
+          HTTP_PROXY: ${{ secrets.PROXY_URL }}
+          HTTPS_PROXY: ${{ secrets.PROXY_URL }}

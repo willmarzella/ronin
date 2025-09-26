@@ -1,4 +1,4 @@
-name: Scrape jobs
+name: Scrape jobs (Self-Hosted)
 
 on:
   schedule:
@@ -7,6 +7,7 @@ on:
 
 jobs:
   run-automation:
+    # Use self-hosted runner instead of ubuntu-latest
     runs-on: self-hosted
 
     steps:
