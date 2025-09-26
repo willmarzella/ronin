@@ -21,6 +21,8 @@ from tasks.job_scraping.job_analyzer import JobAnalyzerService
 from tasks.job_scraping.tech_keywords import TechKeywordsService
 from services.airtable_service import AirtableManager
 from services.notification_service import NotificationService
+from services.recruiter_service import RecruiterDetectionService
+from services.ai_service import AIService
 from core.logging import setup_logger
 
 
@@ -72,10 +74,12 @@ class JobSearchPipeline:
         # Initialize services
         self.openai_client = self._setup_openai()
         self.airtable = AirtableManager()
+        self.ai_service = AIService()
         self.analyzer = JobAnalyzerService(self.config, self.openai_client)
         self.tech_keywords_service = TechKeywordsService(
             self.config, self.openai_client
         )
+        self.recruiter_service = RecruiterDetectionService(self.ai_service, self.airtable)
         self.notification_service = NotificationService(self.config)
 
         # Initialize state
@@ -317,6 +321,18 @@ class JobSearchPipeline:
                     else:
                         # Ensure we have an empty tech_keywords field
                         enriched_job["analysis"]["tech_keywords"] = []
+
+                    # Detect and link recruiters
+                    try:
+                        recruiter_id = self.recruiter_service.process_job_for_recruiters(enriched_job)
+                        if recruiter_id:
+                            enriched_job["recruiter_id"] = recruiter_id
+                            self.logger.info(f"Linked recruiter to job: {job['title']}")
+                        else:
+                            enriched_job["recruiter_id"] = None
+                    except Exception as e:
+                        self.logger.error(f"Error detecting recruiters for job '{job.get('title', 'Unknown')}': {str(e)}")
+                        enriched_job["recruiter_id"] = None
 
                     processed_jobs.append(enriched_job)
                     score = enriched_job["analysis"].get("score", "N/A")

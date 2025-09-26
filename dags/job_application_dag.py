@@ -10,6 +10,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 from tasks.job_application.appliers import SeekApplier
 from services.airtable_service import AirtableManager
+from services.ai_service import AIService
+from services.outreach_generator import OutreachGenerator
 from core.config import load_config
 from core.logging import setup_logger
 
@@ -26,6 +28,8 @@ class JobApplicationPipeline:
         # Initialize services
         self.airtable = AirtableManager()
         self.applier = SeekApplier()
+        self.ai_service = AIService()
+        self.outreach_generator = OutreachGenerator(self.airtable, self.ai_service)
 
         # Pipeline context for sharing data between tasks
         self.context: Dict[str, Any] = {}
@@ -175,6 +179,23 @@ class JobApplicationPipeline:
         for status, count in status_counts.items():
             self.logger.info(f"{status}: {count}")
 
+    def generate_recruiter_outreach(self) -> Optional[str]:
+        """Generate outreach content for jobs with recruiters."""
+        try:
+            self.logger.info("Generating recruiter outreach content...")
+            outreach_file = self.outreach_generator.process_jobs_for_outreach("DISCOVERED")
+            
+            if outreach_file:
+                self.logger.info(f"Generated recruiter outreach file: {outreach_file}")
+                return outreach_file
+            else:
+                self.logger.info("No jobs with recruiters found for outreach")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error generating recruiter outreach: {str(e)}")
+            return None
+
     def run(self) -> Dict[str, Any]:
         """Execute the complete job application pipeline"""
         start_time = datetime.now()
@@ -198,6 +219,9 @@ class JobApplicationPipeline:
                 self.update_job_statuses()
 
             self.print_results()
+            
+            # Generate recruiter outreach content
+            outreach_file = self.generate_recruiter_outreach()
 
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
@@ -206,6 +230,7 @@ class JobApplicationPipeline:
                 "status": "success",
                 "jobs_processed": len(processed_jobs),
                 "duration_seconds": duration,
+                "outreach_file": outreach_file,
             }
 
         except Exception as e:

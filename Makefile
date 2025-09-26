@@ -1,4 +1,4 @@
-.PHONY: help install search blog apply centrelink outreach clean setup
+.PHONY: help install search blog apply centrelink outreach clean setup generate-outreach
 
 # Default target
 help:
@@ -9,6 +9,7 @@ help:
 	@echo "  make apply      - Run job application"
 	@echo "  make centrelink - Run centrelink job application"
 	@echo "  make outreach   - Run job outreach"
+	@echo "  make generate-outreach - Generate recruiter outreach content"
 	@echo "  make clean      - Clean up temporary files"
 	@echo "  make setup      - Initial project setup"
 
@@ -46,6 +47,11 @@ outreach:
 clean:
 	@echo "Cleaning up..."
 	./scripts/clean.sh
+
+# Generate recruiter outreach content
+generate-outreach:
+	@echo "Generating recruiter outreach content..."
+	python -c "from services.outreach_generator import OutreachGenerator; from services.airtable_service import AirtableManager; from services.ai_service import AIService; generator = OutreachGenerator(AirtableManager(), AIService()); print('Generated:', generator.process_jobs_for_outreach())"
 
 # Initial project setup
 setup:
