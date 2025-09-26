@@ -1,0 +1,47 @@
+repos:
+  # Pre-commit hooks for basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: check-json
+        exclude: '\.vscode/.*\.json$'
+
+  # Black code formatting
+  - repo: https://github.com/psf/black
+    rev: 24.2.0
+    hooks:
+      - id: black
+        language_version: python3
+        args: [--line-length=88, --target-version=py311]
+
+  # Flake8 linting (lenient configuration for existing codebase)
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        args: [--config=.flake8]
+        exclude: ^(venv/|\.venv/|build/|dist/|__pycache__/)
+
+  # isort for import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: [--profile=black, --line-length=88]
+
+  # Security checks with bandit (disabled due to dependency issues)
+  # - repo: https://github.com/pycqa/bandit
+  #   rev: 1.7.5
+  #   hooks:
+  #     - id: bandit
+  #       args: [-r, ., -x, venv/,tests/]
+  #       exclude: ^tests/
+
+default_language_version:
+  python: python3

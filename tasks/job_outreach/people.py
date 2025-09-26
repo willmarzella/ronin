@@ -1,17 +1,18 @@
 """Person-related functionality for LinkedIn outreach."""
 
 import logging
-from typing import Dict, Any, Optional, List
-import time
 import random
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+import time
+from typing import Any, Dict
+
 from selenium.common.exceptions import (
-    TimeoutException,
-    NoSuchElementException,
     ElementClickInterceptedException,
+    NoSuchElementException,
+    TimeoutException,
 )
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class LinkedInPeopleHandler:
@@ -93,7 +94,7 @@ class LinkedInPeopleHandler:
                 )
                 profile_info["name"] = name_element.text.strip()
                 self.logger.info(f"Successfully extracted name: {profile_info['name']}")
-            except:
+            except Exception:
                 self.logger.warning("Could not extract profile name")
 
             # Extract headline
@@ -114,7 +115,7 @@ class LinkedInPeopleHandler:
                     profile_info["company"] = parts[1].strip()
                     self.logger.info(f"Extracted title: {profile_info['title']}")
                     self.logger.info(f"Extracted company: {profile_info['company']}")
-            except:
+            except Exception:
                 self.logger.warning("Could not extract profile headline")
 
             # Extract location
@@ -127,7 +128,7 @@ class LinkedInPeopleHandler:
                 self.logger.info(
                     f"Successfully extracted location: {profile_info['location']}"
                 )
-            except:
+            except Exception:
                 self.logger.warning("Could not extract profile location")
 
             # Extract connection degree
@@ -140,7 +141,7 @@ class LinkedInPeopleHandler:
                 self.logger.info(
                     f"Successfully extracted connection degree: {profile_info['connection_degree']}"
                 )
-            except:
+            except Exception:
                 self.logger.warning("Could not extract connection degree")
 
             # Extract about section if available
@@ -151,7 +152,7 @@ class LinkedInPeopleHandler:
                 )
                 profile_info["about"] = about_element.text.strip()
                 self.logger.info("Successfully extracted about section")
-            except:
+            except Exception:
                 # Try to click the "About" section first if not immediately visible
                 try:
                     self.logger.info(
@@ -171,7 +172,7 @@ class LinkedInPeopleHandler:
                     self.logger.info(
                         "Successfully extracted about section after scrolling"
                     )
-                except:
+                except Exception:
                     self.logger.warning("Could not extract about section")
 
             self.logger.info("Profile information extraction completed")
@@ -274,7 +275,7 @@ class LinkedInPeopleHandler:
                     self.logger.info("Found Connect option in More menu, clicking...")
                     connect_option.click()
                     time.sleep(random.uniform(1, 2))
-                except:
+                except Exception:
                     self.logger.warning("Could not find Connect button or More menu")
                     return False
 
@@ -311,7 +312,7 @@ class LinkedInPeopleHandler:
                     )  # LinkedIn has a 300 character limit
                     time.sleep(random.uniform(1, 2))
                     self.logger.info("Successfully entered note")
-                except:
+                except Exception:
                     self.logger.warning("Could not add note to connection request")
 
             # Send the connection request
@@ -327,7 +328,7 @@ class LinkedInPeopleHandler:
                 time.sleep(random.uniform(2, 3))
                 self.logger.info("Connection request sent successfully")
                 return True
-            except:
+            except Exception:
                 self.logger.warning("Could not send connection request")
                 return False
 
@@ -365,7 +366,7 @@ class LinkedInPeopleHandler:
                 )
                 message_button.click()
                 time.sleep(random.uniform(2, 3))
-            except:
+            except Exception:
                 self.logger.warning("Could not click message button")
                 return False
 
@@ -379,7 +380,7 @@ class LinkedInPeopleHandler:
                 message_field.clear()
                 message_field.send_keys(message)
                 time.sleep(random.uniform(1, 2))
-            except:
+            except Exception:
                 self.logger.warning("Could not enter message text")
                 return False
 
@@ -394,7 +395,7 @@ class LinkedInPeopleHandler:
                 time.sleep(random.uniform(2, 3))
                 self.logger.info("Direct message sent successfully")
                 return True
-            except:
+            except Exception:
                 self.logger.warning("Could not send direct message")
                 return False
 
@@ -438,9 +439,9 @@ class LinkedInPeopleHandler:
                 try:
                     img_element = profile_link.find_element(By.TAG_NAME, "img")
                     person_data["image_url"] = img_element.get_attribute("src")
-                except:
+                except Exception:
                     self.logger.debug("Could not extract profile image")
-            except:
+            except Exception:
                 self.logger.debug("Could not extract profile URL or image")
 
             # Get name
@@ -449,14 +450,14 @@ class LinkedInPeopleHandler:
                     By.CSS_SELECTOR, ".artdeco-entity-lockup__title .t-black"
                 )
                 person_data["name"] = name_element.text.strip()
-            except:
+            except Exception:
                 try:
                     # Alternative selector based on the HTML structure
                     name_element = card.find_element(
                         By.CSS_SELECTOR, ".lt-line-clamp--single-line.t-black"
                     )
                     person_data["name"] = name_element.text.strip()
-                except:
+                except Exception:
                     self.logger.debug("Could not extract name")
 
             # Get connection degree
@@ -469,7 +470,7 @@ class LinkedInPeopleHandler:
                 person_data["connection_degree"] = connection_text.replace(
                     "·", ""
                 ).strip()
-            except:
+            except Exception:
                 self.logger.debug("Could not extract connection degree")
 
             # Get title
@@ -479,7 +480,7 @@ class LinkedInPeopleHandler:
                     ".artdeco-entity-lockup__subtitle .lt-line-clamp--multi-line",
                 )
                 person_data["title"] = title_element.text.strip()
-            except:
+            except Exception:
                 self.logger.debug("Could not extract title")
 
             # Get additional info (followers, mutual connections)
@@ -499,7 +500,7 @@ class LinkedInPeopleHandler:
                         person_data["mutual_connection"] = (
                             mutual_parts[0].split("•")[-1].strip()
                         )
-            except:
+            except Exception:
                 self.logger.debug("Could not extract additional info")
 
             # Check if user can be messaged directly
@@ -511,7 +512,7 @@ class LinkedInPeopleHandler:
                 person_data["can_message"] = (
                     message_button.is_displayed() and message_button.is_enabled()
                 )
-            except:
+            except Exception:
                 self.logger.debug("Could not determine message capability")
 
             # Check if user can be connected with
@@ -523,7 +524,7 @@ class LinkedInPeopleHandler:
                 person_data["can_connect"] = (
                     connect_button.is_displayed() and connect_button.is_enabled()
                 )
-            except:
+            except Exception:
                 self.logger.debug("Could not determine connect capability")
 
             return person_data

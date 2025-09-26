@@ -1,22 +1,22 @@
+import logging
 import os
 import sys
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tasks.blog_posts import (
-    NoteParser,
-    ThemeAnalyzer,
-    CategorySelector,
-    CategoryDistribution,
-    PostPublisher,
-    PostGenerator,
-)
-from services.ai_service import AIService
 from models.blog_post import BlogPost
+from services.ai_service import AIService
+from tasks.blog_posts import (
+    CategoryDistribution,
+    CategorySelector,
+    NoteParser,
+    PostGenerator,
+    PostPublisher,
+    ThemeAnalyzer,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -111,7 +111,8 @@ class BlogPostPipeline:
             # Check if post generation was skipped due to no suitable themes
             if generated_content is None:
                 logger.info(
-                    f"No suitable themes found for auto-detected category. Skipping post generation."
+                    "No suitable themes found for auto-detected category. "
+                    "Skipping post generation."
                 )
                 return None
 
@@ -251,18 +252,19 @@ def main():
         if results["status"] == "success":
             print("\nPipeline Summary:")
             print(f"Post Published: {results['url']}")
-            print(f"Duration: {results['duration_seconds']:.2f} seconds")
+            print(f"Duration: {results['duration_seconds']: .2f} seconds")
             print("\nCategory Distribution:")
             for category, ratio in results["distribution"].items():
-                print(f"- {category}: {ratio:.2%}")
+                print(f"- {category}: {ratio: .2%}")
             print("\nExtracted Themes:")
             for theme in results["post"]["themes"]:
                 print(f"- {theme}")
         elif results["status"] == "skipped":
             print(f"\nPost generation skipped: {results['error']}")
-            print(f"Duration: {results['duration_seconds']:.2f} seconds")
+            print(f"Duration: {results['duration_seconds']: .2f} seconds")
             print(
-                "\nConsider trying a different category or adding more content with relevant themes."
+                "\nConsider trying a different category or adding more "
+                "content with relevant themes."
             )
         else:
             print(f"\nPipeline failed: {results['error']}")

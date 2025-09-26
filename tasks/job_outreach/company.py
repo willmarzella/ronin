@@ -1,9 +1,10 @@
 """Company-related functionality for LinkedIn outreach."""
 
 import logging
-from typing import Dict, Any, Optional
-import time
 import random
+import time
+from typing import Any, Dict, Optional
+
 from selenium.webdriver.common.by import By
 
 
@@ -92,7 +93,7 @@ class LinkedInCompanyHandler:
                                     "Successfully extracted company description"
                                 )
                                 break
-                        except:
+                        except Exception:
                             self.logger.debug(
                                 f"Selector {selector} not found, trying next..."
                             )
@@ -133,7 +134,7 @@ class LinkedInCompanyHandler:
                                     f"Found {len(elements)} detail elements"
                                 )
                                 break
-                        except:
+                        except Exception:
                             self.logger.debug(
                                 f"Selector {selector} not found, trying next..."
                             )
@@ -146,7 +147,7 @@ class LinkedInCompanyHandler:
                                 heading = dt.find_element(By.TAG_NAME, "h3")
                                 label = heading.text.strip().lower()
                                 self.logger.info(f"Found detail label: {label}")
-                            except:
+                            except Exception:
                                 label = dt.text.strip().lower()
                                 self.logger.info(f"Using text as label: {label}")
 
@@ -169,7 +170,7 @@ class LinkedInCompanyHandler:
                                         link.get_attribute("href") or link.text.strip()
                                     )
                                     self.logger.info(f"Extracted website URL: {value}")
-                                except:
+                                except Exception:
                                     self.logger.warning("Could not extract website URL")
 
                             # Map to the appropriate field
@@ -191,7 +192,7 @@ class LinkedInCompanyHandler:
                             continue
                 except Exception as e:
                     self.logger.warning(f"Could not extract company details: {str(e)}")
-            except:
+            except Exception:
                 self.logger.warning("Could not navigate to about page")
 
             self.logger.info("Company information extraction completed")
@@ -246,7 +247,7 @@ class LinkedInCompanyHandler:
                 self.logger.info(
                     f"Successfully extracted job title: {job_details['title']}"
                 )
-            except:
+            except Exception:
                 self.logger.warning("Could not extract job title")
 
             # Extract company name
@@ -259,7 +260,7 @@ class LinkedInCompanyHandler:
                 self.logger.info(
                     f"Successfully extracted company name: {job_details['company']}"
                 )
-            except:
+            except Exception:
                 self.logger.warning("Could not extract company name from job")
 
             # Extract location
@@ -272,7 +273,7 @@ class LinkedInCompanyHandler:
                 self.logger.info(
                     f"Successfully extracted location: {job_details['location']}"
                 )
-            except:
+            except Exception:
                 self.logger.warning("Could not extract job location")
 
             # Extract description
@@ -283,7 +284,7 @@ class LinkedInCompanyHandler:
                 )
                 job_details["description"] = description_element.text.strip()
                 self.logger.info("Successfully extracted job description")
-            except:
+            except Exception:
                 self.logger.warning("Could not extract job description")
 
             # Extract posted date
@@ -296,7 +297,7 @@ class LinkedInCompanyHandler:
                 self.logger.info(
                     f"Successfully extracted posted date: {job_details['posted_date']}"
                 )
-            except:
+            except Exception:
                 self.logger.warning("Could not extract job posted date")
 
             self.logger.info("Job details extraction completed")

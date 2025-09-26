@@ -3,10 +3,10 @@ validators.py
 Utility functions for validating data throughout the ronin system.
 """
 
-import re
 import json
-from typing import Dict, Any, List, Union, Optional
+import re
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 def is_valid_email(email: str) -> bool:
@@ -21,7 +21,10 @@ def is_valid_email(email: str) -> bool:
 
 def is_valid_url(url: str) -> bool:
     """Validate URL format."""
-    pattern = r"^(http|https)://[a-zA-Z0-9]+([\-\.]{1}[a-zA-Z0-9]+)*\.[a-zA-Z]{2,}(:[0-9]{1,5})?(\/.*)?$"
+    pattern = (
+        r"^(http|https)://[a-zA-Z0-9]+([\-\.]{1}[a-zA-Z0-9]+)*\."
+        r"[a-zA-Z]{2,}(:[0-9]{1,5})?(\/.*)?$"
+    )
     return bool(re.match(pattern, url))
 
 
@@ -161,14 +164,16 @@ def validate_json_structure(
                                 )
                         elif not isinstance(item, item_type):
                             errors.append(
-                                f"Item {i} in {current_path} should be {item_type.__name__}"
+                                f"Item {i} in {current_path} should be "
+                                f"{item_type.__name__}"
                             )
                 continue
 
             # Handle primitive types
             if not isinstance(value, expected_type):
                 errors.append(
-                    f"Field {current_path} should be {expected_type.__name__}, got {type(value).__name__}"
+                    f"Field {current_path} should be {expected_type.__name__}, "
+                    f"got {type(value).__name__}"
                 )
 
     validate_against_schema(data, schema)

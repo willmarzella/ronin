@@ -102,12 +102,12 @@ resume:
       Designed, developed, and deployed data pipelines for migrating manufacturing production data from separate SQL Server (on-premise) and Oracle databases to Snowflake platform (hosted on AWS), leveraging Matillion for Extraction/Load and dbt for Transformation, with Change Data Capture (CDC or 'delta') from the source data to our cloud deployment
       In collaboration with production managers, process engineers, and quality assurance teams, refactored SQL Server data warehouse and developed an automated pipeline (stored procedures, SSIS, SQL Server Agent) from an existing manual process for delivering monthly reporting to executive stakeholders, which produced new methods for delivering production efficiency metrics using routinely collected data and, in the process, generated an additional $500k cost savings per month for the manufacturing facility.
       Developed and deployed high-fidelity pipeline tests, following SRP (single responsibility principle), to ensure data integrity and accuracy is maintained throughout the lifespan of the pipelines I was responsible for
-      Introduced and developed standard operating procedures for version control (Git), pull requests (Azure DevOps), SQL linting (SLQFluff), and code review and implemented automated CI/CD (Azure Pipelines), building capacity in 5 colleagues in the use of Git, Azure DevOps, and GitOps best practices	
+      Introduced and developed standard operating procedures for version control (Git), pull requests (Azure DevOps), SQL linting (SLQFluff), and code review and implemented automated CI/CD (Azure Pipelines), building capacity in 5 colleagues in the use of Git, Azure DevOps, and GitOps best practices
 
       Tray.io, San Diego, CA	April 2021 - October 2023
       Enterprise integration platform enabling automated workflows across cloud and on-premise systems
 
-      Platform Engineer	
+      Platform Engineer
       This position existed in a dynamic team of software engineers and data experts delivering innovative solutions for enterprise clients across healthcare and fintech sectors. I led the design, development, and execution of end-to-end solutions that enabled improved business processes and data integrity through advanced analytics and machine learning applications.
 
       Led the design, development, and deployment of an end-to-end ELT pipeline to enable high-fidelity, advanced data analytics on the Azure cloud platform, leveraging Databricks, Azure Data Factory, and Azure Data Lake
@@ -195,12 +195,12 @@ resume:
       Designed, developed, and deployed data pipelines for migrating manufacturing production data from separate SQL Server (on-premise) and Oracle databases to the Azure cloud platform, leveraging Azure Data Factory to orchestrate data extraction and load (using Databricks) into ADL and transformation (using PySpark) into Azure Synapse Analytics, with Change Data Capture (CDC or 'delta') from the source data to our cloud deployment
       In collaboration with production managers, process engineers, and quality assurance teams, refactored SQL Server data warehouse and developed an automated pipeline (stored procedures, SSIS, SQL Server Agent) from an existing manual process for delivering monthly reporting to executive stakeholders, which produced new methods for delivering production efficiency metrics using routinely collected data and, in the process, generated an additional $500k cost savings per month for the manufacturing facility.
       Developed and deployed high-fidelity pipeline tests, following SRP (single responsibility principle), to ensure data integrity and accuracy is maintained throughout the lifespan of the pipelines I was responsible for
-      Introduced and developed standard operating procedures for version control (Git), pull requests (Azure DevOps), SQL linting (SLQFluff), and code review and implemented automated CI/CD (Azure Pipelines), building capacity in 5 colleagues in the use of Git, Azure DevOps, and GitOps best practices	
+      Introduced and developed standard operating procedures for version control (Git), pull requests (Azure DevOps), SQL linting (SLQFluff), and code review and implemented automated CI/CD (Azure Pipelines), building capacity in 5 colleagues in the use of Git, Azure DevOps, and GitOps best practices
 
       Tray.io, San Diego, CA	April 2021 - October 2023
       Enterprise integration platform enabling automated workflows across cloud and on-premise systems
 
-      Platform Engineer	
+      Platform Engineer
       This position existed in a dynamic team of software engineers and data experts delivering innovative solutions for enterprise clients across healthcare and fintech sectors. I led the design, development, and execution of end-to-end solutions that enabled improved business processes and data integrity through advanced analytics and machine learning applications.
 
       Led the design, development, and deployment of an end-to-end ELT pipeline to enable high-fidelity, advanced data analytics on the Azure cloud platform, leveraging Databricks, Azure Data Factory, and Azure Data Lake

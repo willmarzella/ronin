@@ -1,14 +1,13 @@
 """Implements the logic to apply to jobs on Workforce Australia (Centrelink)"""
 
-from typing import Dict, Optional, List
 import logging
 import time
+from typing import Dict, List, Optional
 
-
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
 
 from core.config import load_config
 from services.airtable_service import AirtableManager
@@ -246,16 +245,8 @@ class CentrelinkApplier:
                         )
                         if metadata_div and len(metadata_div) > 0:
                             # First item is location, second is position type
-                            location = (
-                                metadata_div[0].text.strip()
-                                if len(metadata_div) > 0
-                                else "Unknown Location"
-                            )
-                            position_type = (
-                                metadata_div[1].text.strip()
-                                if len(metadata_div) > 1
-                                else ""
-                            )
+                            # location and position_type extracted but not used in current logic
+                            pass
 
                             # Look for company logo alt text or use a default
                             img_elem = card.find_elements(

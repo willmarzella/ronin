@@ -3,15 +3,11 @@
 import logging
 import os
 import time
-from typing import Optional
 
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class ChromeDriver:
@@ -85,7 +81,7 @@ class ChromeDriver:
         options.add_argument("--disable-prompt-on-repost")
         options.add_argument("--disable-domain-reliability")
         options.add_argument("--disable-component-extensions-with-background-pages")
-        
+
         # Additional options to fix blank page issues
         options.add_argument("--disable-web-security")
         options.add_argument("--allow-running-insecure-content")
@@ -102,7 +98,7 @@ class ChromeDriver:
         options.add_argument("--disable-logging")
         options.add_argument("--disable-login-animations")
         options.add_argument("--disable-notifications")
-        
+
         # Performance and memory optimizations
         options.add_argument("--memory-pressure-off")
         options.add_argument("--max_old_space_size=4096")
@@ -117,9 +113,10 @@ class ChromeDriver:
         user_data_dir = os.path.expanduser("~/chrome_automation_profile")
         if not os.path.exists(user_data_dir):
             os.makedirs(user_data_dir)
-        
+
         # Clear any corrupted profile data that might cause blank pages
         import shutil
+
         cache_dir = os.path.join(user_data_dir, "Default", "Cache")
         if os.path.exists(cache_dir):
             try:
@@ -127,13 +124,13 @@ class ChromeDriver:
                 logging.info("Cleared Chrome cache to prevent blank page issues")
             except Exception as e:
                 logging.warning(f"Could not clear cache: {e}")
-        
+
         options.add_argument(f"--user-data-dir={user_data_dir}")
-        
+
         # Add window size to prevent rendering issues
         options.add_argument("--window-size=1920,1080")
         options.add_argument("--start-maximized")
-        
+
         # Additional debugging options
         options.add_argument("--enable-logging")
         options.add_argument("--log-level=0")
@@ -148,10 +145,12 @@ class ChromeDriver:
                 self.driver = webdriver.Chrome(options=options)
                 self.driver.implicitly_wait(10)
                 self.driver.set_window_size(1920, 1080)
-                
+
                 # Test basic functionality to ensure browser is working
                 try:
-                    self.driver.get("data:text/html,<html><body><h1>Test</h1></body></html>")
+                    self.driver.get(
+                        "data:text/html,<html><body><h1>Test</h1></body></html>"
+                    )
                     time.sleep(1)  # Give it a moment to render
                     if "Test" not in self.driver.page_source:
                         raise Exception("Browser failed basic rendering test")
@@ -160,7 +159,7 @@ class ChromeDriver:
                     logging.warning(f"Browser test failed: {test_error}")
                     self.driver.quit()
                     raise Exception("Browser failed initialization test")
-                
+
                 logging.info(
                     "Chrome WebDriver initialized successfully with local browser"
                 )
@@ -188,57 +187,81 @@ class ChromeDriver:
         try:
             logging.info(f"Navigating to: {url}")
             self.driver.get(url)
-            
+
             # Wait for page to load and verify it's not blank
             max_wait_time = 45  # Increased wait time for slow loading sites
             wait_time = 0
-            
+
             while wait_time < max_wait_time:
                 try:
                     # Check if page has loaded (not blank/white screen)
-                    ready_state = self.driver.execute_script("return document.readyState")
-                    
+                    ready_state = self.driver.execute_script(
+                        "return document.readyState"
+                    )
+
                     if ready_state == "complete":
                         # Multiple checks to ensure content is actually loaded
-                        body_text = self.driver.execute_script("return document.body.innerText || ''")
-                        page_html = self.driver.execute_script("return document.body.innerHTML || ''")
-                        has_inputs = len(self.driver.find_elements(By.TAG_NAME, "input")) > 0
-                        has_buttons = len(self.driver.find_elements(By.TAG_NAME, "button")) > 0
+                        body_text = self.driver.execute_script(
+                            "return document.body.innerText || ''"
+                        )
+                        page_html = self.driver.execute_script(
+                            "return document.body.innerHTML || ''"
+                        )
+                        has_inputs = (
+                            len(self.driver.find_elements(By.TAG_NAME, "input")) > 0
+                        )
+                        has_buttons = (
+                            len(self.driver.find_elements(By.TAG_NAME, "button")) > 0
+                        )
                         has_links = len(self.driver.find_elements(By.TAG_NAME, "a")) > 0
-                        
+
                         # Check for specific Workforce Australia elements
                         if "workforceaustralia" in url.lower():
-                            has_wa_content = any([
-                                "workforce" in body_text.lower(),
-                                "job" in body_text.lower(),
-                                "search" in body_text.lower(),
-                                len(page_html) > 1000,  # Page has substantial content
-                                has_inputs or has_buttons or has_links
-                            ])
-                            
+                            has_wa_content = any(
+                                [
+                                    "workforce" in body_text.lower(),
+                                    "job" in body_text.lower(),
+                                    "search" in body_text.lower(),
+                                    len(page_html)
+                                    > 1000,  # Page has substantial content
+                                    has_inputs or has_buttons or has_links,
+                                ]
+                            )
+
                             if has_wa_content:
-                                logging.info("Workforce Australia page loaded successfully")
+                                logging.info(
+                                    "Workforce Australia page loaded successfully"
+                                )
                                 break
                         else:
                             # Generic content check
-                            if body_text.strip() or has_inputs or has_buttons or len(page_html) > 100:
+                            if (
+                                body_text.strip()
+                                or has_inputs
+                                or has_buttons
+                                or len(page_html) > 100
+                            ):
                                 logging.info("Page loaded successfully")
                                 break
-                    
+
                     time.sleep(2)  # Increased sleep time for slower loading
                     wait_time += 2
-                    
+
                     # Log progress every 10 seconds
                     if wait_time % 10 == 0:
-                        logging.info(f"Still waiting for page to load... ({wait_time}s)")
-                        
+                        logging.info(
+                            f"Still waiting for page to load... ({wait_time}s)"
+                        )
+
                 except Exception as check_error:
                     logging.warning(f"Error checking page state: {check_error}")
                     time.sleep(2)
                     wait_time += 2
-            
+
             if wait_time >= max_wait_time:
-                logging.warning(f"Page may not have loaded properly after {max_wait_time}s")
+                logging.warning(
+                    f"Page may not have loaded properly after {max_wait_time}s"
+                )
                 # Try a refresh as last resort
                 try:
                     logging.info("Attempting page refresh...")
@@ -246,7 +269,7 @@ class ChromeDriver:
                     time.sleep(5)
                 except Exception:
                     pass
-                
+
         except Exception as e:
             logging.error(f"Error navigating to {url}: {str(e)}")
             raise
@@ -326,12 +349,12 @@ class ChromeDriver:
     def reset_profile(self):
         """Reset Chrome profile to fix persistent issues."""
         import shutil
-        
+
         if self.driver:
             self.driver.quit()
             self.driver = None
             self.is_logged_in = False
-        
+
         user_data_dir = os.path.expanduser("~/chrome_automation_profile")
         if os.path.exists(user_data_dir):
             try:

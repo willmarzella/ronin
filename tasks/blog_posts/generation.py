@@ -1,16 +1,17 @@
 """Post generation using AI service."""
 
-from typing import Dict, List, Optional
 import logging
+from typing import Dict, List, Optional
+
 from services.ai_service import AIService
+from tasks.blog_posts.analysis import ThemeAnalyzer
 from tasks.blog_posts.prompts import (
-    SHITPOSTING_PROMPT,
-    SERMONPOSTING_PROMPT,
+    EXAMPLES,
     NERDPOSTING_PROMPT,
     OVERALL_TONE,
-    EXAMPLES,
+    SERMONPOSTING_PROMPT,
+    SHITPOSTING_PROMPT,
 )
-from tasks.blog_posts.analysis import ThemeAnalyzer
 
 
 class PostGenerator:
@@ -81,7 +82,7 @@ class PostGenerator:
 
         system_prompt = f"""THE EXACT WAY I WANT YOU TO WRITE:
 {EXAMPLES}
-        
+
         CONTEXT:
 Content Categories:
 1. Nerdposting – Deep intellectual explorations challenging accepted wisdom

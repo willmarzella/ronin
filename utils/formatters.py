@@ -3,22 +3,22 @@ formatters.py
 Utility functions for formatting data throughout the ronin system.
 """
 
-import re
 import json
+import re
 from datetime import datetime
-from typing import Dict, Any, List, Union
+from typing import Any, Dict, List, Union
 
 
 def format_currency(amount: float, currency: str = "USD") -> str:
     """Convert float to formatted currency string."""
     if currency == "USD":
-        return f"${amount:,.2f}"
+        return f"${amount: , .2f}"
     elif currency == "EUR":
-        return f"€{amount:,.2f}"
+        return f"€{amount: , .2f}"
     elif currency == "GBP":
-        return f"£{amount:,.2f}"
+        return f"£{amount: , .2f}"
     else:
-        return f"{amount:,.2f} {currency}"
+        return f"{amount: , .2f} {currency}"
 
 
 def format_date(date_obj: Union[datetime, str], output_format: str = "%Y-%m-%d") -> str:
@@ -32,7 +32,7 @@ def format_date(date_obj: Union[datetime, str], output_format: str = "%Y-%m-%d")
     if isinstance(date_obj, str):
         # Try to parse ISO format first
         try:
-            date_obj = datetime.fromisoformat(date_obj.replace("Z", "+00:00"))
+            date_obj = datetime.fromisoformat(date_obj.replace("Z", "+00: 00"))
         except ValueError:
             # Try common formats
             for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%d-%m-%Y", "%Y/%m/%d"):

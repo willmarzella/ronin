@@ -1,8 +1,9 @@
 """Theme analysis using AI service."""
 
-from typing import Dict, List
-from services.ai_service import AIService
 import logging
+from typing import Dict, List
+
+from services.ai_service import AIService
 from tasks.blog_posts.prompts import OVERALL_TONE
 
 

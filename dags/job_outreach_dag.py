@@ -13,11 +13,11 @@ This DAG:
 
 import json
 import os
+import random
 import sys
 import time
-import random
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,24 +25,19 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
-from services.airtable_service import AirtableManager
-from services.ai_service import AIService
-from tasks.job_outreach import (
-    LinkedInLoginHandler,
-    LinkedInSearcher,
-    LinkedInCompanyHandler,
-    LinkedInPeopleHandler,
-    LinkedInMessageGenerator,
-    OutreachTracker,
-)
 from core.config import load_config
 from core.logging import setup_logger
+from services.ai_service import AIService
+from services.airtable_service import AirtableManager
+from tasks.job_outreach import (
+    LinkedInCompanyHandler,
+    LinkedInLoginHandler,
+    LinkedInMessageGenerator,
+    LinkedInPeopleHandler,
+    LinkedInSearcher,
+    OutreachTracker,
+)
 
 
 class LinkedInOutreachPipeline:
@@ -78,7 +73,6 @@ class LinkedInOutreachPipeline:
         try:
             self.logger.info("Setting up Chrome WebDriver")
 
-            from selenium.webdriver.chrome.service import Service
             import os
 
             chrome_options = Options()
@@ -253,7 +247,7 @@ class LinkedInOutreachPipeline:
                     # Navigate to company page
                     if searcher.go_to_company_page(company_name):
                         # Extract company info
-                        company_info = company_handler.extract_company_info()
+                        company_handler.extract_company_info()
 
                         # Search for people with relevant titles
                         search_titles = [
@@ -391,7 +385,7 @@ class LinkedInOutreachPipeline:
                 if self.login_handler:
                     try:
                         self.login_handler.logout()
-                    except:
+                    except Exception:
                         self.logger.warning("Failed to log out from LinkedIn")
 
                 self.driver.quit()

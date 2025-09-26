@@ -4,7 +4,9 @@
 import os
 import sys
 import time
+
 import yaml
+
 from services.notification_service import NotificationService
 
 
@@ -28,7 +30,8 @@ def test_slack_notification():
     if not notification_service.slack_webhook_url:
         print("Slack webhook URL is not configured.")
         print(
-            "Please set SLACK_WEBHOOK_URL environment variable or update the webhook_url in configs/config.yaml"
+            "Please set SLACK_WEBHOOK_URL environment variable or update the "
+            "webhook_url in configs/config.yaml"
         )
         return False
 
@@ -68,7 +71,8 @@ def test_slack_notification():
     # Test warning notification
     if notification_type in ["all", "warning"]:
         result = notification_service.send_warning_notification(
-            warning_message=f"This is a test WARNING notification from the {pipeline_name}",
+            warning_message=f"This is a test WARNING notification from the "
+            f"{pipeline_name}",
             context={
                 "Environment": os.environ.get("ENV", "development"),
                 "Test Time": test_time,
@@ -111,7 +115,8 @@ def test_slack_notification():
     print("  python test_slack_notification.py [pipeline_name] [notification_type]")
     print("    pipeline_name: Name of the pipeline to test notifications for")
     print(
-        "    notification_type: Type of notification to test (success, warning, error, all)"
+        "    notification_type: Type of notification to test "
+        "(success, warning, error, all)"
     )
     print("\nExample:")
     print("  python test_slack_notification.py 'Job Search Pipeline' error")

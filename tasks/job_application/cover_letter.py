@@ -1,8 +1,7 @@
 """Cover letter generation functionality for job applications."""
 
 import logging
-from typing import Dict, Optional, Any
-import os
+from typing import Any, Dict, Optional
 
 from services.ai_service import AIService
 
@@ -69,8 +68,8 @@ Instructions:
 
 Use the example cover letter below to guide tone, brevity, and structure. The goal is credibility, not charm.
 
-My name: William Marzella  
-My resume: {resume_text}  
+My name: William Marzella
+My resume: {resume_text}
 Example cover letter: {cover_letter_example}
 
 -----

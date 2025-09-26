@@ -13,7 +13,7 @@ The note should:
 DO NOT:
 - Use generic language
 - Be overly formal
-- Include URLs 
+- Include URLs
 - Ask for a job directly
 
 Format your response as a JSON with a single field "message" containing the connection note text.
@@ -50,7 +50,7 @@ def get_connection_request_user_prompt(
     return f"""
     I'd like to connect with {person_name} who is a {person_title} at {company_name}.
     I saw that {company_name} has a job opening for a {job_title} position.
-    
+
     Please draft a brief connection request note (maximum 300 characters) that I can send when requesting to connect on LinkedIn.
     """
 
@@ -65,7 +65,7 @@ def get_direct_message_user_prompt(
     return f"""
     I'd like to message {person_name} who is a {person_title} at {company_name}.
     I saw that {company_name} has a job opening for a {job_title} position that I'm interested in.
-    
+
     Please draft a personalized message that I can send directly on LinkedIn to establish a connection
     and express my interest in learning more about the opportunity.
     """

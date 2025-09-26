@@ -1,7 +1,8 @@
 """Core job scraping functionality."""
 
-import requests
 from typing import Dict, Optional
+
+import requests
 from bs4 import BeautifulSoup
 from loguru import logger
 
@@ -13,7 +14,11 @@ class JobScraper:
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36"
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/91.0.4472.114 Safari/537.36"
+                )
             }
         )
 

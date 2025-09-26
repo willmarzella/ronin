@@ -1,4 +1,4 @@
-.PHONY: help install search blog apply centrelink outreach clean setup generate-outreach
+.PHONY: help install search blog apply centrelink outreach clean setup generate-outreach format lint check pre-commit-install pre-commit-run
 
 # Default target
 help:
@@ -10,6 +10,11 @@ help:
 	@echo "  make centrelink - Run centrelink job application"
 	@echo "  make outreach   - Run job outreach"
 	@echo "  make generate-outreach - Generate recruiter outreach content"
+	@echo "  make format     - Format code with Black"
+	@echo "  make lint       - Lint code with Flake8"
+	@echo "  make check      - Run both formatting and linting"
+	@echo "  make pre-commit-install - Install pre-commit hooks"
+	@echo "  make pre-commit-run     - Run pre-commit on all files"
 	@echo "  make clean      - Clean up temporary files"
 	@echo "  make setup      - Initial project setup"
 
@@ -53,6 +58,34 @@ clean:
 generate-outreach:
 	@echo "Generating recruiter outreach content..."
 	@source venv/bin/activate && python -c "from services.outreach_generator import OutreachGenerator; from services.airtable_service import AirtableManager; from services.ai_service import AIService; generator = OutreachGenerator(AirtableManager(), AIService()); print('Generated:', generator.process_jobs_for_outreach())"
+
+# Format code with Black
+format:
+	@echo "Formatting code with Black..."
+	@source venv/bin/activate && black --line-length 88 --target-version py311 .
+
+# Lint code with Flake8
+lint:
+	@echo "Linting code with Flake8..."
+	@source venv/bin/activate && flake8 --max-line-length 88 --extend-ignore E203,W503 .
+
+# Run both formatting and linting
+check:
+	@echo "Running code quality checks..."
+	@$(MAKE) format
+	@$(MAKE) lint
+	@echo "✅ Code quality checks completed!"
+
+# Install pre-commit hooks
+pre-commit-install:
+	@echo "Installing pre-commit hooks..."
+	@source venv/bin/activate && pre-commit install
+	@echo "✅ Pre-commit hooks installed!"
+
+# Run pre-commit on all files
+pre-commit-run:
+	@echo "Running pre-commit on all files..."
+	@source venv/bin/activate && pre-commit run --all-files
 
 # Initial project setup
 setup:

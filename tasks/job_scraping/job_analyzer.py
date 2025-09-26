@@ -1,9 +1,10 @@
 """Service for analyzing job postings using OpenAI."""
 
 import json
+from typing import Dict, Optional
 
-from typing import Dict, List, Optional
 from loguru import logger
+
 from tasks.job_scraping.prompts import JOB_ANALYSIS_PROMPT
 
 

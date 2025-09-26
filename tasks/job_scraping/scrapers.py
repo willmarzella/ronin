@@ -1,14 +1,11 @@
 """Job board scrapers for various platforms."""
 
-from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any, Tuple, Union
-from datetime import datetime, timedelta
+import functools
 import re
 import time
-import functools
-import json
-import logging
-import random
+from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 import requests
 from bs4 import BeautifulSoup

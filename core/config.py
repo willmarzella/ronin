@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Dict
 
 import yaml
-from loguru import logger
 from dotenv import load_dotenv
+from loguru import logger
 
 # Default config paths to check in order
 CONFIG_PATHS = [

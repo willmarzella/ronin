@@ -1,22 +1,20 @@
 """Implements the logic to apply to jobs on Seek.com.au"""
 
-from typing import Dict, Optional
 import logging
 import time
-import os
+from typing import Optional
 
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.ui import Select, WebDriverWait
 
-from services.airtable_service import AirtableManager
-from services.ai_service import AIService
 from core.config import load_config
+from services.ai_service import AIService
+from services.airtable_service import AirtableManager
+from tasks.job_application.chrome import ChromeDriver
 from tasks.job_application.cover_letter import CoverLetterGenerator
 from tasks.job_application.question_answer import QuestionAnswerHandler
-from tasks.job_application.chrome import ChromeDriver
 
 
 class SeekApplier:

@@ -1,7 +1,7 @@
 import random
-from typing import Dict, List, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Dict, List, Tuple
 
 
 @dataclass
@@ -22,7 +22,8 @@ class CategorySelector:
         Initialize the category selector with target distribution ratios
 
         Args:
-            distribution (CategoryDistribution): Target distribution of content categories
+            distribution (CategoryDistribution): Target distribution of content
+                categories
         """
         if not distribution.validate():
             raise ValueError("Category distribution ratios must sum to 1.0")
@@ -108,7 +109,8 @@ class CategorySelector:
 
         Args:
             category (str): Category of the post
-            timestamp (datetime, optional): Timestamp of the post. Defaults to current time.
+            timestamp (datetime, optional): Timestamp of the post. Defaults to
+                current time.
         """
         if timestamp is None:
             timestamp = datetime.now()
@@ -125,9 +127,9 @@ class CategorySelector:
             str: Prompt template for the category
         """
         from tasks.blog_posts.prompts import (
-            SHITPOSTING_PROMPT,
-            SERMONPOSTING_PROMPT,
             NERDPOSTING_PROMPT,
+            SERMONPOSTING_PROMPT,
+            SHITPOSTING_PROMPT,
         )
 
         prompts = {

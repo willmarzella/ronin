@@ -95,7 +95,7 @@ When presented with a job opportunity, evaluate it mercilessly across these dime
 - Is there a significant gap between advertised salary range and actual offered compensation? This reveals dishonesty.
 - Is the company in a high-margin industry (fintech, adtech, enterprise SaaS)? If not, compensation ceiling is likely lower.
 
-### Budget Pain Indicators 
+### Budget Pain Indicators
 - Does the company have actual financial pain points this role would address? No pain, no budget.
 - Are they spending >$100K/month on relevant infrastructure (AWS, Snowflake, Databricks)? If not, they likely won't value technical talent.
 - Have they committed to expensive technology contracts they're struggling to utilize effectively? This creates leverage.

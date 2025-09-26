@@ -1,8 +1,7 @@
 """Message generation and sending functionality for LinkedIn outreach."""
 
 import logging
-import json
-from typing import Dict, Any, Tuple, Optional
+from typing import Any, Dict, Tuple
 
 from services.ai_service import AIService
 from tasks.job_outreach import prompts
@@ -66,7 +65,8 @@ class LinkedInMessageGenerator:
                 # Check if message is within LinkedIn's character limit
                 if len(message) > 300:
                     self.logger.warning(
-                        f"Connection request too long ({len(message)} chars), truncating"
+                        f"Connection request too long ({len(message)} chars), "
+                        "truncating"
                     )
                     message = message[:297] + "..."
 

@@ -1,11 +1,12 @@
 """OpenAI API integration."""
 
-import os
-import logging
-from typing import Optional, Dict, Any
-from openai import OpenAI
 import json
+import logging
+import os
 import re
+from typing import Any, Dict, Optional
+
+from openai import OpenAI
 
 
 class AIService:
@@ -109,7 +110,7 @@ class AIService:
                         except (SyntaxError, ValueError) as e:
                             logging.error(f"All parsing attempts failed: {str(e)}")
                             raise json.JSONDecodeError(
-                                f"Failed to parse response after multiple attempts",
+                                "Failed to parse response after multiple attempts",
                                 cleaned_content,
                                 0,
                             )
@@ -211,7 +212,7 @@ class AIService:
 
                     try:
                         parsed_json = json5.loads(cleaned_content)
-                    except:
+                    except Exception:
                         # Last resort: manual cleaning
                         cleaned_content = re.sub(
                             r"[\x00-\x1F\x7F]", "", cleaned_content

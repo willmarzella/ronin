@@ -1,8 +1,9 @@
-from typing import Dict, List, Optional, Union
-from github import Github, Repository, ContentFile
-import os
 import base64
 from datetime import datetime
+from typing import Dict, List, Optional, Union
+
+from github import Github, Repository
+
 from core.logging import setup_logger
 
 logger = setup_logger()
@@ -46,7 +47,7 @@ class GitHubService:
             if isinstance(content_file, list):
                 return None
             return base64.b64decode(content_file.content).decode("utf-8")
-        except Exception as e:
+        except Exception:
             return None
 
     def get_directory_contents(self, path: str = "/") -> List[Dict[str, str]]:
@@ -75,7 +76,7 @@ class GitHubService:
                 }
                 for item in contents
             ]
-        except Exception as e:
+        except Exception:
             return []
 
     def get_files_by_extension(
@@ -238,7 +239,7 @@ class GitHubService:
                     branch=branch,
                 )
                 return {"status": "updated", "path": path}
-            except:
+            except Exception:
                 # Create new file
                 self._repo.create_file(
                     path=path, message=commit_message, content=content, branch=branch
@@ -276,7 +277,7 @@ class GitHubService:
                 )
 
             return history
-        except Exception as e:
+        except Exception:
             return []
 
     def search_files(
@@ -310,7 +311,7 @@ class GitHubService:
                 }
                 for item in results
             ]
-        except Exception as e:
+        except Exception:
             return []
 
     def close(self):

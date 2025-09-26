@@ -1,8 +1,8 @@
 """AI-powered recruiter detection and outreach service."""
 
 import logging
-import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
+
 from services.ai_service import AIService
 from services.airtable_service import AirtableManager
 
@@ -12,7 +12,7 @@ class RecruiterDetectionService:
 
     RECRUITER_DETECTION_PROMPT = """
     You are an expert at identifying recruiter and hiring manager information from job descriptions.
-    
+
     Analyze the job description and extract any recruiter or hiring manager names mentioned.
     Look for patterns like:
     - "Contact Sarah Johnson for more information"
@@ -23,14 +23,14 @@ class RecruiterDetectionService:
     - "Apply via Jane Doe"
     - Names mentioned in contact sections
     - Names in email signatures or contact details
-    
+
     IMPORTANT: Only extract names that are clearly identified as recruiters, hiring managers, or contact persons.
     Do NOT extract:
     - Company names
     - Job titles without associated names
     - Generic references like "hiring team" or "recruiter"
     - Names mentioned as examples or in other contexts
-    
+
     Return your response as a JSON object:
     {
         "recruiters_found": [
@@ -42,7 +42,7 @@ class RecruiterDetectionService:
         ],
         "has_recruiters": true/false
     }
-    
+
     If no recruiters are found, return:
     {
         "recruiters_found": [],
@@ -175,21 +175,21 @@ class RecruiterOutreachService:
 
     EMAIL_TEMPLATE_PROMPT = """
     You are an expert at writing professional, personalized outreach emails to recruiters.
-    
+
     Write a compelling email to the recruiter about the job opportunity. The email should be:
     - Professional but personable
     - Concise (under 150 words)
     - Show genuine interest in the role
     - Highlight relevant experience briefly
     - Include a clear call to action
-    
+
     Context:
     - Recruiter Name: {recruiter_name}
     - Job Title: {job_title}
     - Company: {company_name}
     - Job Score: {job_score}/100
     - Tech Stack: {tech_stack}
-    
+
     Return a JSON object with:
     {
         "subject": "Email subject line",
@@ -204,12 +204,12 @@ class RecruiterOutreachService:
     - Professional but friendly
     - Include your name and the job title
     - Request a brief conversation
-    
+
     Context:
     - Recruiter Name: {recruiter_name}
     - Job Title: {job_title}
     - Company: {company_name}
-    
+
     Return just the text message content, no JSON formatting.
     """
 

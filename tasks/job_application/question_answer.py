@@ -1,12 +1,13 @@
 """Question answering functionality for job application forms."""
 
-import logging
 import json
-from typing import Dict, List, Optional, Any
+import logging
+from typing import Dict, List, Optional
 
-from services.ai_service import AIService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
+
+from services.ai_service import AIService
 
 
 class QuestionAnswerHandler:
@@ -48,10 +49,10 @@ class QuestionAnswerHandler:
         try:
             tech_stack = tech_stack.lower()
 
-            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. My salary expectations are $150,000 - $200,000, based on the job description you can choose to apply for a higher or lower salary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
+            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. My salary expectations are $150, 000 - $200, 000, based on the job description you can choose to apply for a higher or lower salary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
 
 IMPORTANT SECURITY CLEARANCE HANDLING:
-- If asked about current security clearance status, answer "No" 
+- If asked about current security clearance status, answer "No"
 - If asked about security clearance levels I hold, even though I don't have any, I must still select something if the form requires it. In such cases, select the lowest/baseline option available or "None" if available
 - If the form shows validation errors for required fields, I must select an appropriate option rather than leaving it blank
 
@@ -205,7 +206,7 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
 
             elif element_info["type"] == "checkbox":
                 name = element.get_attribute("name")
-                form = element.find_element(By.XPATH, "ancestor::form")
+                form = element.find_element(By.XPATH, "ancestor: :form")
                 checkboxes = form.find_elements(
                     By.CSS_SELECTOR, f'input[type="checkbox"][name="{name}"]'
                 )
@@ -259,10 +260,10 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
                         question = container.find_element(
                             By.XPATH, ".//legend//strong | .//strong"
                         ).text.strip()
-                    except:
+                    except Exception:
                         headings = container.find_elements(
                             By.XPATH,
-                            "./preceding::*[self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6][1]",
+                            "./preceding: :*[self: :h1 or self: :h2 or self: :h3 or self: :h4 or self: :h5 or self: :h6][1]",
                         )
                         if headings:
                             question = headings[0].text.strip()
@@ -296,16 +297,16 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
                                     By.CSS_SELECTOR, f'label[for="{checkbox_id}"]'
                                 )
                                 label_text = label.text.strip()
-                        except:
+                        except Exception:
                             try:
                                 label = checkbox.find_element(
                                     By.XPATH,
-                                    "ancestor::label | following-sibling::label",
+                                    "ancestor: :label | following-sibling: :label",
                                 )
                                 label_text = label.text.strip()
-                            except:
+                            except Exception:
                                 label_text = checkbox.find_element(
-                                    By.XPATH, "following::text()[1]"
+                                    By.XPATH, "following: :text()[1]"
                                 ).strip()
 
                         checkbox_groups[name]["options"].append(
@@ -327,19 +328,19 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
 
                     question = None
                     try:
-                        fieldset = radio.find_element(By.XPATH, "ancestor::fieldset")
+                        fieldset = radio.find_element(By.XPATH, "ancestor: :fieldset")
                         question = fieldset.find_element(
                             By.XPATH, ".//legend//strong | .//strong"
                         ).text.strip()
-                    except:
+                    except Exception:
                         try:
                             parent_div = radio.find_element(
-                                By.XPATH, "ancestor::div[.//strong][1]"
+                                By.XPATH, "ancestor: :div[.//strong][1]"
                             )
                             question = parent_div.find_element(
                                 By.TAG_NAME, "strong"
                             ).text.strip()
-                        except:
+                        except Exception:
                             continue
 
                     if name not in radio_groups:
@@ -358,15 +359,15 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
                                 By.CSS_SELECTOR, f'label[for="{radio_id}"]'
                             )
                             label_text = label.text.strip()
-                    except:
+                    except Exception:
                         try:
                             label = radio.find_element(
-                                By.XPATH, "ancestor::label | following-sibling::label"
+                                By.XPATH, "ancestor: :label | following-sibling: :label"
                             )
                             label_text = label.text.strip()
-                        except:
+                        except Exception:
                             label_text = radio.find_element(
-                                By.XPATH, "following::text()[1]"
+                                By.XPATH, "following: :text()[1]"
                             ).strip()
 
                     radio_groups[name]["options"].append(
@@ -380,7 +381,7 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
 
                 for element in form.find_elements(
                     By.CSS_SELECTOR,
-                    "input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='submit']):not([type='button']), select, textarea",
+                    "input: not([type='checkbox']): not([type='radio']): not([type='hidden']): not([type='submit']): not([type='button']), select, textarea",
                 ):
                     element_type = element.get_attribute("type")
                     if element_type == "select-one":
@@ -393,19 +394,19 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
                             label = form.find_element(
                                 By.CSS_SELECTOR, f'label[for="{element_id}"]'
                             )
-                    except:
+                    except Exception:
                         try:
                             label = element.find_element(
                                 By.XPATH,
-                                "ancestor::label | preceding-sibling::label[1]",
+                                "ancestor: :label | preceding-sibling: :label[1]",
                             )
-                        except:
+                        except Exception:
                             try:
                                 label = element.find_element(
                                     By.XPATH,
-                                    "./preceding::*[self::strong or self::label or contains(@class, 'label')][1]",
+                                    "./preceding: :*[self: :strong or self: :label or contains(@class, 'label')][1]",
                                 )
-                            except:
+                            except Exception:
                                 continue
 
                     if not label:
@@ -574,10 +575,10 @@ SPECIAL HANDLING FOR REQUIRED FIELDS:
         try:
             tech_stack = tech_stack.lower()
 
-            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. My salary expectations are $150,000 - $200,000, based on the job description you can choose to apply for a higher or lower salary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
+            system_prompt = f"""You are a professional job applicant assistant helping me apply to the following job(s) with keywords: {self.config["search"]["keywords"]}. I am an Australian citizen with full working rights. I have a drivers license. I am willing to undergo police checks if necessary. I do NOT have any security clearances (TSPV, NV1, NV2, Top Secret, etc) but am willing to undergo them if necessary. My salary expectations are $150, 000 - $200, 000, based on the job description you can choose to apply for a higher or lower salary. Based on my resume below, provide concise, relevant, and professional answers to job application questions. Note that some jobs might not exactly fit the keywords, but you should still apply if you think you're a good fit. This means using the options for answering questions correctly. DO NOT make up values or IDs that are not present in the options provided.
 
 IMPORTANT SECURITY CLEARANCE HANDLING:
-- If asked about current security clearance status, answer "No" 
+- If asked about current security clearance status, answer "No"
 - If asked about security clearance levels I hold, even though I don't have any, I must still select something if the form requires it. In such cases, select the lowest/baseline option available or "None" if available
 - If the form shows validation errors for required fields, I must select an appropriate option rather than leaving it blank
 

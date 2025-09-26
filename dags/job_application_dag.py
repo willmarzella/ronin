@@ -1,19 +1,19 @@
-import json
 import os
 import sys
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
-from tasks.job_application.appliers import SeekApplier
-from services.airtable_service import AirtableManager
-from services.ai_service import AIService
-from services.outreach_generator import OutreachGenerator
+
 from core.config import load_config
 from core.logging import setup_logger
+from services.ai_service import AIService
+from services.airtable_service import AirtableManager
+from services.outreach_generator import OutreachGenerator
+from tasks.job_application.appliers import SeekApplier
 
 
 class JobApplicationPipeline:
@@ -109,7 +109,8 @@ class JobApplicationPipeline:
 
             if not record_id or not status:
                 self.logger.warning(
-                    f"Missing record_id or status for job: {job.get('title', 'Unknown')}"
+                    f"Missing record_id or status for job: "
+                    f"{job.get('title', 'Unknown')}"
                 )
                 return
 
@@ -125,12 +126,14 @@ class JobApplicationPipeline:
 
             self.airtable.update_record(record_id, fields)
             self.logger.info(
-                f"Successfully updated status for job {job.get('title', 'Unknown')} to {status}"
+                f"Successfully updated status for job "
+                f"{job.get('title', 'Unknown')} to {status}"
             )
 
         except Exception as e:
             self.logger.error(
-                f"Failed to update status for job {job.get('title', 'Unknown')}: {str(e)}"
+                f"Failed to update status for job "
+                f"{job.get('title', 'Unknown')}: {str(e)}"
             )
             # Don't re-raise the exception - we don't want to stop the pipeline
             # just because of a status update failure
@@ -256,7 +259,7 @@ def main():
         if results["status"] == "success":
             print("\nPipeline Summary:")
             print(f"Jobs Processed: {results['jobs_processed']}")
-            print(f"Duration: {results['duration_seconds']:.2f} seconds")
+            print(f"Duration: {results['duration_seconds']: .2f} seconds")
         else:
             print(f"\nPipeline failed: {results.get('error', 'Unknown error')}")
 

@@ -1,12 +1,13 @@
 """Service for generating recruiter outreach content and markdown files."""
 
-import os
 import logging
+import os
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
+
+from services.ai_service import AIService
 from services.airtable_service import AirtableManager
 from services.recruiter_service import RecruiterOutreachService
-from services.ai_service import AIService
 
 
 class OutreachGenerator:

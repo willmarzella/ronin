@@ -1,7 +1,8 @@
 """
 Centrelink Job Application Pipeline
 
-This pipeline handles the automation of applying to jobs on the Workforce Australia website.
+This pipeline handles the automation of applying to jobs on the Workforce
+Australia website.
 
 Steps:
 1. Wait for login to Workforce Australia website
@@ -13,12 +14,11 @@ Steps:
 4. Move to the next job
 """
 
-import json
 import os
 import sys
-from datetime import datetime
-from typing import List, Dict, Any
 import time
+from datetime import datetime
+from typing import Any, Dict, List
 
 # Add the parent directory to the Python path
 sys.path.append(
@@ -26,10 +26,10 @@ sys.path.append(
 )
 
 from dotenv import load_dotenv
-from tasks.job_application.centrelink import CentrelinkApplier
-from services.airtable_service import AirtableManager
+
 from core.config import load_config
 from core.logging import setup_logger
+from tasks.job_application.centrelink import CentrelinkApplier
 
 
 class CentrelinkJobApplicationPipeline:
@@ -66,19 +66,21 @@ class CentrelinkJobApplicationPipeline:
         try:
             self.logger.info("Fetching jobs from Workforce Australia website")
 
-            # Try each search term or a generic empty search to get whatever jobs are available
+            # Try each search term or a generic empty search to get whatever
+            # jobs are available
             search_terms = self.search_terms if self.search_terms else [""]
             jobs = []  # Declare at smallest scope needed
 
             for search_term in search_terms:
                 self.logger.info(f"Searching for jobs with term: '{search_term}'")
-                # Get a batch of jobs for each search term, adjust limit to avoid getting too many
+                # Get a batch of jobs for each search term, adjust limit to
+                # avoid getting too many
                 term_limit = max(100, self.max_jobs // len(search_terms))
                 term_jobs = self.applier.get_jobs_from_search_page(
                     search_text=search_term, limit=term_limit
                 )
                 self.logger.info(
-                    f"Found {len(term_jobs)} jobs for search term '{search_term}'"
+                    f"Found {len(term_jobs)} jobs for search term " f"'{search_term}'"
                 )
                 jobs.extend(term_jobs)
 
@@ -111,7 +113,8 @@ class CentrelinkJobApplicationPipeline:
         for i, job in enumerate(pending_jobs):
             try:
                 self.logger.info(
-                    f"Processing job {i+1}/{len(pending_jobs)}: {job.get('title', 'Unknown Title')} (ID: {job['job_id']})"
+                    f"Processing job {i+1}/{len(pending_jobs)}: "
+                    f"{job.get('title', 'Unknown Title')} (ID: {job['job_id']})"
                 )
                 # Try to apply to the job with error handling
                 try:
@@ -128,7 +131,8 @@ class CentrelinkJobApplicationPipeline:
                 job["application_status"] = result
                 processed_jobs.append(job)
                 self.logger.info(
-                    f"Application result for {job.get('title', 'Unknown job')}: {result}"
+                    f"Application result for "
+                    f"{job.get('title', 'Unknown job')}: {result}"
                 )
 
                 # Add a small delay between job applications
@@ -166,7 +170,8 @@ class CentrelinkJobApplicationPipeline:
             status_counts[status] = status_counts.get(status, 0) + 1
 
             self.logger.info(
-                f"\nJob: {job.get('title', 'No Title')} at {job.get('company', 'Unknown Company')}"
+                f"\nJob: {job.get('title', 'No Title')} at "
+                f"{job.get('company', 'Unknown Company')}"
                 f"\nStatus: {status}"
                 f"\nID: {job['job_id']}"
             )
@@ -276,7 +281,7 @@ def main():
         if results["status"] == "success":
             print("\nPipeline Summary:")
             print(f"Jobs Processed: {results['jobs_processed']}")
-            print(f"Duration: {results['duration_seconds']:.2f} seconds")
+            print(f"Duration: {results['duration_seconds']: .2f} seconds")
         else:
             print(f"\nPipeline failed: {results.get('error', 'Unknown error')}")
 

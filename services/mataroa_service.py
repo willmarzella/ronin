@@ -1,9 +1,9 @@
 """Mataroa blog API service."""
 
 import os
-import requests
 from typing import Dict, Optional
-from datetime import datetime
+
+import requests
 
 
 class MataroaService:

@@ -2,13 +2,14 @@
 
 import logging
 import os
-import time
 import random
+import time
 from typing import Optional
+
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class LinkedInLoginHandler:
@@ -31,8 +32,10 @@ class LinkedInLoginHandler:
         Log in to LinkedIn using provided credentials or from environment variables.
 
         Args:
-            username: LinkedIn username/email (if None, will use LINKEDIN_USERNAME env var)
-            password: LinkedIn password (if None, will use LINKEDIN_PASSWORD env var)
+            username: LinkedIn username/email (if None, will use LINKEDIN_USERNAME
+                env var)
+            password: LinkedIn password (if None, will use LINKEDIN_PASSWORD
+                env var)
 
         Returns:
             bool: True if login was successful, False otherwise
@@ -44,7 +47,8 @@ class LinkedInLoginHandler:
 
             if not username or not password:
                 self.logger.error(
-                    "LinkedIn credentials not found in parameters or environment variables"
+                    "LinkedIn credentials not found in parameters or "
+                    "environment variables"
                 )
                 return False
 

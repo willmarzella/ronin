@@ -2,8 +2,9 @@ import json
 import logging
 import os
 import time
+from typing import Any, Dict, Optional
+
 import requests
-from typing import Dict, Any, Optional, List
 
 
 class NotificationService:

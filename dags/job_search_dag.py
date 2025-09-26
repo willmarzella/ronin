@@ -1,13 +1,11 @@
-import json
 import os
+import random
 import sys
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Callable
 from functools import wraps
-import logging
+from typing import Any, Dict, List
+
 import yaml
-import random
-import time
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -16,14 +14,14 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from core.config import load_config
-from tasks.job_scraping.scrapers import create_scraper
-from tasks.job_scraping.job_analyzer import JobAnalyzerService
-from tasks.job_scraping.tech_keywords import TechKeywordsService
+from core.logging import setup_logger
+from services.ai_service import AIService
 from services.airtable_service import AirtableManager
 from services.notification_service import NotificationService
 from services.recruiter_service import RecruiterDetectionService
-from services.ai_service import AIService
-from core.logging import setup_logger
+from tasks.job_scraping.job_analyzer import JobAnalyzerService
+from tasks.job_scraping.scrapers import create_scraper
+from tasks.job_scraping.tech_keywords import TechKeywordsService
 
 
 def task_handler(func):
@@ -132,8 +130,8 @@ class JobSearchPipeline:
 
         return {
             "User-Agent": random.choice(user_agents),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html, application/xhtml+xml, application/xml;q=0.9, image/avif, image/webp, image/apng, */*;q=0.8",
+            "Accept-Language": "en-US, en;q=0.9",
             "Accept-Encoding": "gzip, deflate, br",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
@@ -596,7 +594,7 @@ class JobSearchPipeline:
             # Calculate duration
             duration = datetime.now() - start_time
             duration_seconds = duration.total_seconds()
-            duration_readable = str(duration).split(".")[0]  # HH:MM:SS
+            duration_readable = str(duration).split(".")[0]  # HH: MM: SS
 
             self.logger.info(f"Job search pipeline completed in {duration_readable}")
             self.logger.info(f"Total jobs processed: {total_jobs_processed}")

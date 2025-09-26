@@ -1,9 +1,11 @@
 import re
+from datetime import datetime
 from typing import Dict, List, Tuple
-from services.github_service import GitHubService
-from datetime import datetime, timedelta
-from core.logging import setup_logger
+
 import pytz
+
+from core.logging import setup_logger
+from services.github_service import GitHubService
 
 logger = setup_logger()
 
@@ -39,10 +41,10 @@ class NoteParser:
         """
         try:
             # Get timezone for consistency
-            melbourne_tz = pytz.timezone("Australia/Melbourne")
-            today = datetime.now(melbourne_tz)
+            # melbourne_tz = pytz.timezone("Australia/Melbourne")
             logger.info(
-                f"Looking for the {days} most recent daily notes (limit: {max_files} files)"
+                f"Looking for the {days} most recent daily notes "
+                f"(limit: {max_files} files)"
             )
 
             # Get daily notes
@@ -93,7 +95,6 @@ class NoteParser:
         try:
             # Get timezone for consistency
             melbourne_tz = pytz.timezone("Australia/Melbourne")
-            today = datetime.now(melbourne_tz)
 
             # First, get all files in the directory to identify daily notes
             try:
@@ -206,7 +207,6 @@ class NoteParser:
             # - "YYYY-MM-DD-Person Name.md" (no spaces around hyphen)
             convo_pattern = re.compile(r"^(\d{4}-\d{2}-\d{2})\s*-\s*(.+)\.md$")
             melbourne_tz = pytz.timezone("Australia/Melbourne")
-            today = datetime.now(melbourne_tz)
 
             for file_info in directory_contents:
                 # Skip directories
@@ -407,5 +407,5 @@ class NoteParser:
         """Cleanup GitHub connection when object is destroyed"""
         try:
             self.github_service.close()
-        except:
+        except Exception:
             pass

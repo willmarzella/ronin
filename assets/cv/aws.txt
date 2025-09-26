@@ -105,4 +105,3 @@ Strategic data infrastructure consulting and contract delivery to e-commerce and
 - Led SQL Server to Snowflake migration reducing infrastructure costs $2K monthly while improving report generation from 30 minutes to 5 minutes through dimensional modeling and pipeline optimization for retail client contract
 - Built MLOps deployment architecture using Kubernetes, Snowflake Python UDFs, and SageMaker for demand forecasting, improving inventory planning accuracy 25% through contract-based data science consulting
 - Designed automated orchestration platform using Airflow on ECS with dbt workflows and comprehensive observability (Prometheus, Grafana, ELK), enabling fully automated data pipelines for contractor infrastructure consulting
-

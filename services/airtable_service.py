@@ -1,14 +1,12 @@
 """Airtable integration for job management."""
 
-import json
 import logging
 import os
-import time
-from typing import Optional, Set, Dict, List
-from urllib.parse import urlparse
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Set
+from urllib.parse import urlparse
 
-from pyairtable import Api, Base, Table
+from pyairtable import Table
 
 
 class AirtableManager:
@@ -114,7 +112,7 @@ class AirtableManager:
                 if board_domain in domain:
                     return source
             return "unknown"
-        except:
+        except Exception:
             return "unknown"
 
     def _get_job_id_from_url(self, url: str, source: str) -> Optional[str]:
@@ -130,7 +128,7 @@ class AirtableManager:
                 return url.split("/jobs/")[1].split("?")[0]
             elif source == "lever":
                 return url.split("/")[-1].split("?")[0]
-        except:
+        except Exception:
             pass
         return None
 
@@ -178,7 +176,7 @@ class AirtableManager:
                         records_with_url += 1
 
             # Log detailed summary
-            logging.info(f"Airtable records summary:")
+            logging.info("Airtable records summary:")
             logging.info(f"- Total records processed: {records_processed}")
             logging.info(f"- Records with direct Job IDs: {records_with_id}")
             logging.info(f"- Records with extracted URLs: {records_with_url}")
@@ -207,7 +205,7 @@ class AirtableManager:
             # Parse the job's creation date, handling potential time information
             try:
                 # Try parsing with time information
-                job_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                job_date = datetime.fromisoformat(created_at.replace("Z", "+00: 00"))
             except ValueError:
                 # Fallback to just date parsing
                 job_date = datetime.strptime(created_at, "%Y-%m-%d")

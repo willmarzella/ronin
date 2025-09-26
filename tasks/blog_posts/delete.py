@@ -1,6 +1,6 @@
+import json
 import os
 import sys
-import json
 from typing import Dict, List, Optional
 
 # Add project root to Python path
@@ -16,7 +16,8 @@ def delete_blog_post(slug: str, api_key: Optional[str] = None) -> Dict:
 
     Args:
         slug (str): The slug of the post to delete
-        api_key (Optional[str]): Mataroa API key. If not provided, will use environment variable
+        api_key (Optional[str]): Mataroa API key. If not provided, will use
+            environment variable
 
     Returns:
         Dict: Confirmation of deletion
@@ -33,7 +34,8 @@ def delete_all_posts(api_key: Optional[str] = None) -> List[Dict]:
     Delete all posts listed in the publishing_stats.json file as fast as possible.
 
     Args:
-        api_key (Optional[str]): Mataroa API key. If not provided, will use environment variable
+        api_key (Optional[str]): Mataroa API key. If not provided, will use
+            environment variable
 
     Returns:
         List[Dict]: List of results for each deletion attempt

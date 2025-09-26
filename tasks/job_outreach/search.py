@@ -1,15 +1,16 @@
 """LinkedIn search functionality."""
 
 import logging
-from typing import List, Dict, Any, Optional
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
-import time
 import random
 import re
+import time
+from typing import Any, Dict, List
+
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class LinkedInSearcher:
@@ -83,7 +84,7 @@ class LinkedInSearcher:
                         By.CSS_SELECTOR, "span.RWdWnGItSmSKgAQzUIYieSgzrFWSBijM"
                     )
                     company_text = company_element.text
-                except:
+                except Exception:
                     # Fall back to the element's own text if the specific span isn't found
                     self.logger.info(
                         "Using alternative method to extract company name..."

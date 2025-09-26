@@ -1,3 +1,6 @@
 [flake8]
-max-line-length = 150
-exclude = .git,__pycache__,./github,./venv,./__pycache__
+max-line-length = 120
+extend-ignore = E501,E203,W503
+
+exclude = .git,__pycache__,venv,.venv,build,dist,*.egg-info,.pytest_cache,.coverage
+per-file-ignores = __init__.py:F401,**/prompts.py:E501,dags/*:E402,tasks/*:E402,services/*:E402,flows/*:E402
