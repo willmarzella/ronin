@@ -287,78 +287,84 @@ class AirtableManager:
             )
             return None
 
-    def _get_or_create_person(self, name: str, email: str = None, phone: str = None, company_name: str = None) -> Optional[str]:
+    def _get_or_create_person(
+        self, name: str, email: str = None, phone: str = None, company_name: str = None
+    ) -> Optional[str]:
         """
         Get existing person record ID or create a new one if it doesn't exist.
-        
+
         Args:
             name: Full name of the person
             email: Email address (optional)
             phone: Phone number (optional)
             company_name: Company name for linking (optional)
-            
+
         Returns:
             str: Record ID of the person or None if error
         """
         if not name:
             logging.warning("Empty person name provided, cannot create person record")
             return None
-            
+
         # Check if person already exists in cache (case-insensitive)
         name_lower = name.lower()
         if name_lower in self.existing_people:
             logging.debug(f"Person '{name}' found in cache")
             return self.existing_people[name_lower]
-            
+
         try:
             # Look up person in Airtable by name
             formula = f"LOWER({{Name}}) = '{name_lower}'"
             person_records = self.people_table.all(formula=formula)
-            
+
             if person_records:
                 # Person exists, save to cache and return ID
                 person_id = person_records[0]["id"]
                 self.existing_people[name_lower] = person_id
-                logging.info(f"Found existing person record for '{name}' with ID: {person_id}")
+                logging.info(
+                    f"Found existing person record for '{name}' with ID: {person_id}"
+                )
                 return person_id
-                
+
             # Create new person record
             person_data = {
                 "Name": name,
                 "Created At": datetime.now().isoformat(),
             }
-            
+
             # Add optional fields
             if email:
                 person_data["Email"] = email
             if phone:
                 person_data["Phone"] = phone
-                
+
             # Link to company if provided
             if company_name:
                 company_id = self._get_or_create_company(company_name)
                 if company_id:
                     person_data["Company"] = [company_id]
-                    
+
             new_record = self.people_table.create(person_data)
             person_id = new_record["id"]
-            
+
             # Add to cache
             self.existing_people[name_lower] = person_id
             logging.info(f"Created new person record for '{name}' with ID: {person_id}")
-            
+
             return person_id
         except Exception as e:
-            logging.error(f"Error getting/creating person record for '{name}': {str(e)}")
+            logging.error(
+                f"Error getting/creating person record for '{name}': {str(e)}"
+            )
             return None
 
     def get_people_by_name(self, name_query: str) -> List[Dict]:
         """
         Search for people by name (partial match).
-        
+
         Args:
             name_query: Name to search for
-            
+
         Returns:
             List of person records with their details
         """
@@ -366,7 +372,7 @@ class AirtableManager:
             # Search for names that contain the query (case-insensitive)
             formula = f"SEARCH(LOWER('{name_query.lower()}'), LOWER({{Name}}))"
             person_records = self.people_table.all(formula=formula)
-            
+
             people = []
             for record in person_records:
                 fields = record["fields"]
@@ -380,12 +386,14 @@ class AirtableManager:
                     "notes": fields.get("Notes", ""),
                 }
                 people.append(person_data)
-                
+
             logging.info(f"Found {len(people)} people matching '{name_query}'")
             return people
-            
+
         except Exception as e:
-            logging.error(f"Error searching for people with name '{name_query}': {str(e)}")
+            logging.error(
+                f"Error searching for people with name '{name_query}': {str(e)}"
+            )
             return []
 
     def insert_job(self, job_data: Dict) -> bool:

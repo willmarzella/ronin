@@ -79,7 +79,9 @@ class JobSearchPipeline:
         self.tech_keywords_service = TechKeywordsService(
             self.config, self.openai_client
         )
-        self.recruiter_service = RecruiterDetectionService(self.ai_service, self.airtable)
+        self.recruiter_service = RecruiterDetectionService(
+            self.ai_service, self.airtable
+        )
         self.notification_service = NotificationService(self.config)
 
         # Initialize state
@@ -324,14 +326,20 @@ class JobSearchPipeline:
 
                     # Detect and link recruiters
                     try:
-                        recruiter_id = self.recruiter_service.process_job_for_recruiters(enriched_job)
+                        recruiter_id = (
+                            self.recruiter_service.process_job_for_recruiters(
+                                enriched_job
+                            )
+                        )
                         if recruiter_id:
                             enriched_job["recruiter_id"] = recruiter_id
                             self.logger.info(f"Linked recruiter to job: {job['title']}")
                         else:
                             enriched_job["recruiter_id"] = None
                     except Exception as e:
-                        self.logger.error(f"Error detecting recruiters for job '{job.get('title', 'Unknown')}': {str(e)}")
+                        self.logger.error(
+                            f"Error detecting recruiters for job '{job.get('title', 'Unknown')}': {str(e)}"
+                        )
                         enriched_job["recruiter_id"] = None
 
                     processed_jobs.append(enriched_job)
