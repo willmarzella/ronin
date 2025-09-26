@@ -60,12 +60,16 @@ class CentrelinkJobApplicationPipeline:
 
     def get_jobs_from_website(self) -> List[Dict]:
         """Get jobs directly from Workforce Australia website"""
+        assert hasattr(self, "logger"), "Logger must be initialized"
+        assert hasattr(self, "applier"), "Applier must be initialized"
+
         try:
-            jobs = []
             self.logger.info("Fetching jobs from Workforce Australia website")
 
             # Try each search term or a generic empty search to get whatever jobs are available
             search_terms = self.search_terms if self.search_terms else [""]
+            jobs = []  # Declare at smallest scope needed
+
             for search_term in search_terms:
                 self.logger.info(f"Searching for jobs with term: '{search_term}'")
                 # Get a batch of jobs for each search term, adjust limit to avoid getting too many
@@ -82,20 +86,16 @@ class CentrelinkJobApplicationPipeline:
                 if len(jobs) >= self.max_jobs:
                     break
 
-            # Deduplicate jobs by job_id
-            unique_jobs = {}
-            for job in jobs:
-                if job["job_id"] not in unique_jobs:
-                    unique_jobs[job["job_id"]] = job
-
-            jobs = list(unique_jobs.values())
+            # Deduplicate jobs by job_id (declare at point of use)
+            unique_jobs = {job["job_id"]: job for job in jobs if job.get("job_id")}
+            deduplicated_jobs = list(unique_jobs.values())
 
             # Cap at max_jobs
-            jobs = jobs[: self.max_jobs]
+            final_jobs = deduplicated_jobs[: self.max_jobs]
 
-            self.logger.info(f"Found {len(jobs)} unique jobs to process")
-            self.context["pending_jobs"] = jobs
-            return jobs
+            self.logger.info(f"Found {len(final_jobs)} unique jobs to process")
+            self.context["pending_jobs"] = final_jobs
+            return final_jobs
         except Exception as e:
             self.logger.error(f"Error fetching jobs from website: {str(e)}")
             return []

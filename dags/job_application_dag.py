@@ -10,6 +10,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 from tasks.job_application.appliers import SeekApplier
 from services.airtable_service import AirtableManager
+from services.ai_service import AIService
+from services.outreach_generator import OutreachGenerator
 from core.config import load_config
 from core.logging import setup_logger
 
@@ -26,6 +28,8 @@ class JobApplicationPipeline:
         # Initialize services
         self.airtable = AirtableManager()
         self.applier = SeekApplier()
+        self.ai_service = AIService()
+        self.outreach_generator = OutreachGenerator(self.airtable, self.ai_service)
 
         # Pipeline context for sharing data between tasks
         self.context: Dict[str, Any] = {}
@@ -69,6 +73,10 @@ class JobApplicationPipeline:
                     title=job["title"],
                 )
                 job["application_status"] = result
+
+                # Update job status in Airtable immediately after processing
+                self._update_job_status_immediately(job)
+
                 processed_jobs.append(job)
                 self.logger.info(f"Application result for {job['title']}: {result}")
             except Exception as e:
@@ -84,19 +92,57 @@ class JobApplicationPipeline:
                 self.logger.error(f"Error applying to job {job['title']}: {str(e)}")
                 job["application_status"] = "ERROR"
                 job["error_message"] = str(e)
+
+                # Update job status in Airtable immediately after error
+                self._update_job_status_immediately(job)
+
                 processed_jobs.append(job)
 
         self.context["processed_jobs"] = processed_jobs
         return processed_jobs
 
+    def _update_job_status_immediately(self, job: Dict) -> None:
+        """Update a single job's status in Airtable immediately after processing."""
+        try:
+            record_id = job.get("record_id")
+            status = job.get("application_status")
+
+            if not record_id or not status:
+                self.logger.warning(
+                    f"Missing record_id or status for job: {job.get('title', 'Unknown')}"
+                )
+                return
+
+            self.logger.info(
+                f"Updating status for job {job.get('title', 'Unknown')} to {status}"
+            )
+
+            fields = {"Status": status}
+
+            # Add error message if available
+            if status == "ERROR" and "error_message" in job:
+                fields["APP_ERROR"] = job["error_message"]
+
+            self.airtable.update_record(record_id, fields)
+            self.logger.info(
+                f"Successfully updated status for job {job.get('title', 'Unknown')} to {status}"
+            )
+
+        except Exception as e:
+            self.logger.error(
+                f"Failed to update status for job {job.get('title', 'Unknown')}: {str(e)}"
+            )
+            # Don't re-raise the exception - we don't want to stop the pipeline
+            # just because of a status update failure
+
     def update_job_statuses(self) -> bool:
-        """Update job statuses in Airtable"""
+        """Update job statuses in Airtable (now handled immediately per job)"""
         processed_jobs = self.context.get("processed_jobs", [])
         if processed_jobs:
             self.logger.info(
-                f"Updating status for {len(processed_jobs)} jobs in Airtable"
+                f"Job status updates already completed for {len(processed_jobs)} jobs "
+                "(updated immediately after each application)"
             )
-            self.airtable.update_job_statuses(processed_jobs)
             return True
         return False
 
@@ -133,6 +179,25 @@ class JobApplicationPipeline:
         for status, count in status_counts.items():
             self.logger.info(f"{status}: {count}")
 
+    def generate_recruiter_outreach(self) -> Optional[str]:
+        """Generate outreach content for jobs with recruiters."""
+        try:
+            self.logger.info("Generating recruiter outreach content...")
+            outreach_file = self.outreach_generator.process_jobs_for_outreach(
+                "DISCOVERED"
+            )
+
+            if outreach_file:
+                self.logger.info(f"Generated recruiter outreach file: {outreach_file}")
+                return outreach_file
+            else:
+                self.logger.info("No jobs with recruiters found for outreach")
+                return None
+
+        except Exception as e:
+            self.logger.error(f"Error generating recruiter outreach: {str(e)}")
+            return None
+
     def run(self) -> Dict[str, Any]:
         """Execute the complete job application pipeline"""
         start_time = datetime.now()
@@ -157,6 +222,9 @@ class JobApplicationPipeline:
 
             self.print_results()
 
+            # Generate recruiter outreach content
+            outreach_file = self.generate_recruiter_outreach()
+
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
@@ -164,6 +232,7 @@ class JobApplicationPipeline:
                 "status": "success",
                 "jobs_processed": len(processed_jobs),
                 "duration_seconds": duration,
+                "outreach_file": outreach_file,
             }
 
         except Exception as e:

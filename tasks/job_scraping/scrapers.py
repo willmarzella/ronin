@@ -44,12 +44,43 @@ class BaseScraper(ABC):
         self.timeout = config.get("scraping", {}).get("timeout_seconds", 10)
         self.quick_apply_only = config.get("scraping", {}).get("quick_apply_only", True)
 
+        # Configure proxy if available
+        proxy_config = self._get_proxy_config()
+        if proxy_config:
+            self.session.proxies.update(proxy_config)
+
         # Set up common headers
         self.session.headers.update(
             {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             }
         )
+
+    def _get_proxy_config(self) -> Optional[Dict[str, str]]:
+        """Get proxy configuration from environment variables or config."""
+        import os
+
+        # Check environment variables first (for GitHub Actions)
+        http_proxy = os.getenv("HTTP_PROXY") or os.getenv("http_proxy")
+        https_proxy = os.getenv("HTTPS_PROXY") or os.getenv("https_proxy")
+
+        if http_proxy or https_proxy:
+            proxy_config = {}
+            if http_proxy:
+                proxy_config["http"] = http_proxy
+            if https_proxy:
+                proxy_config["https"] = https_proxy
+            return proxy_config
+
+        # Check config file
+        proxy_config = self.config.get("proxy", {})
+        if proxy_config.get("enabled", False):
+            return {
+                "http": proxy_config.get("http_url"),
+                "https": proxy_config.get("https_url"),
+            }
+
+        return None
 
     @rate_limited
     def make_request(self, url: str) -> Optional[BeautifulSoup]:
@@ -324,11 +355,17 @@ class SeekScraper(BaseScraper):
 
     def _get_jobs_for_current_keyword(self) -> List[Dict[str, Any]]:
         """Get job previews for the current keyword group."""
+        assert hasattr(self, "max_jobs"), "max_jobs must be set"
+        assert isinstance(
+            self.max_jobs, (int, type(None))
+        ), "max_jobs must be integer or None"
+
         jobs_data = []
         page = 1
         jobs_per_page = 22  # Seek typically shows 22 jobs per page
+        max_pages = 50  # Fixed upper bound for pages to prevent infinite loops
 
-        while True:
+        while page <= max_pages:  # Fixed upper bound
             if self.max_jobs and len(jobs_data) >= self.max_jobs:
                 break
 

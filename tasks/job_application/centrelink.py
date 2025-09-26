@@ -3,8 +3,7 @@
 from typing import Dict, Optional, List
 import logging
 import time
-import re
-import os
+
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -79,7 +78,7 @@ class CentrelinkApplier:
             while current_page <= max_pages and job_count < limit:
                 # Navigate to the current page
                 logging.info(
-                    f"Navigating to search page {current_page} for '{search_text}'"
+                    "Navigating to search page %s for '%s'", current_page, search_text
                 )
                 self._navigate_to_job_search(search_text, current_page)
 
@@ -90,18 +89,21 @@ class CentrelinkApplier:
                     all_jobs.extend(page_jobs)
                     job_count += len(page_jobs)
                     logging.info(
-                        f"Found {len(page_jobs)} jobs on page {current_page}, total jobs: {job_count}"
+                        "Found %s jobs on page %s, total jobs: %s",
+                        len(page_jobs),
+                        current_page,
+                        job_count,
                     )
                 else:
                     # No jobs found on this page, we've reached the end of results
                     logging.info(
-                        f"No jobs found on page {current_page}, end of results reached"
+                        "No jobs found on page %s, end of results reached", current_page
                     )
                     break
 
                 # Check if we've reached the job limit
                 if job_count >= limit:
-                    logging.info(f"Reached job limit of {limit}, stopping pagination")
+                    logging.info("Reached job limit of %s, stopping pagination", limit)
                     break
 
                 # Move to the next page
@@ -411,13 +413,13 @@ class CentrelinkApplier:
             turbo_script = """
                 // BLAZING FAST button finder and clicker
                 // Try multiple approaches in one go for maximum speed
-                
+
                 // First look for Submit button specifically (final step)
                 var submitButtons = document.querySelectorAll('button');
                 for (var i = 0; i < submitButtons.length; i++) {
                     var btn = submitButtons[i];
                     if (btn.offsetParent === null) continue; // Skip hidden buttons
-                    
+
                     var text = btn.textContent.toLowerCase().trim();
                     if (text === 'submit' || text.includes('submit application') || text.includes('apply now')) {
                         console.log("Found submit button: " + text);
@@ -426,7 +428,7 @@ class CentrelinkApplier:
                         return "CLICKED_SUBMIT";
                     }
                 }
-                
+
                 // Approach 1: Direct attribute targeting (fastest)
                 var btn = document.querySelector('button[data-v-cb7c258b]');
                 if (btn && btn.offsetParent !== null) {
@@ -434,13 +436,13 @@ class CentrelinkApplier:
                     btn.click();
                     return "CLICKED_DIRECT";
                 }
-                
+
                 // Approach 2: Text content targeting (very fast)
                 var allButtons = document.querySelectorAll('button');
                 for (var i = 0; i < allButtons.length; i++) {
                     var button = allButtons[i];
                     if (button.offsetParent === null) continue; // Skip hidden buttons
-                    
+
                     var text = button.textContent.toLowerCase().trim();
                     if (text === 'continue' || text.includes('next step')) {
                         button.scrollIntoView({block: 'center'});
@@ -448,7 +450,7 @@ class CentrelinkApplier:
                         return "CLICKED_TEXT";
                     }
                 }
-                
+
                 // Approach 3: Class-based targeting (fast)
                 var primaryBtn = document.querySelector('.mint-button.primary');
                 if (primaryBtn && primaryBtn.offsetParent !== null) {
@@ -456,7 +458,7 @@ class CentrelinkApplier:
                     primaryBtn.click();
                     return "CLICKED_CLASS";
                 }
-                
+
                 // Approach 4: Any button with primary class (fallback)
                 var anyPrimaryBtn = document.querySelector('button.primary');
                 if (anyPrimaryBtn && anyPrimaryBtn.offsetParent !== null) {
@@ -464,7 +466,7 @@ class CentrelinkApplier:
                     anyPrimaryBtn.click();
                     return "CLICKED_ANY_PRIMARY";
                 }
-                
+
                 // Approach 5: ANY visible button as last resort
                 var allVisibleButtons = Array.from(document.querySelectorAll('button')).filter(b => b.offsetParent !== null);
                 if (allVisibleButtons.length > 0) {
@@ -475,13 +477,13 @@ class CentrelinkApplier:
                         // Sort by size (area) - larger buttons are likely more important
                         return (bRect.width * bRect.height) - (aRect.width * aRect.height);
                     });
-                    
+
                     // Click the largest visible button
                     allVisibleButtons[0].scrollIntoView({block: 'center'});
                     allVisibleButtons[0].click();
                     return "CLICKED_LARGEST_BUTTON";
                 }
-                
+
                 return "NO_BUTTON_FOUND";
             """
 
@@ -533,19 +535,19 @@ class CentrelinkApplier:
             turbo_success_script = """
                 var url = window.location.href.toLowerCase();
                 var urlSuccess = url.includes('success');
-                
+
                 // Only check content if URL looks promising
                 if (urlSuccess) {
                     var pageText = document.body.textContent.toLowerCase();
-                    var hasSuccessText = 
+                    var hasSuccessText =
                         pageText.includes('successfully applied') ||
                         pageText.includes('application successful') ||
                         pageText.includes('application submitted') ||
                         pageText.includes('application complete');
-                    
+
                     return hasSuccessText;
                 }
-                
+
                 return false;
             """
 
@@ -560,26 +562,26 @@ class CentrelinkApplier:
             turbo_status_script = """
                 var url = window.location.href.toLowerCase();
                 var text = document.body.textContent.toLowerCase();
-                
+
                 // Success check
-                if (url.includes('success') && 
-                    (text.includes('successfully applied') || 
+                if (url.includes('success') &&
+                    (text.includes('successfully applied') ||
                      text.includes('application successful') ||
                      text.includes('application submitted') ||
                      text.includes('application complete'))) {
                     return 'SUCCESS';
                 }
-                
+
                 // Already applied check
                 if (text.includes('already applied') || text.includes('have already applied')) {
                     return 'ALREADY_APPLIED';
                 }
-                
+
                 // Invalid link check
                 if (text.includes('link is invalid') || text.includes('invalid link') || text.includes('job not found')) {
                     return 'INVALID_LINK';
                 }
-                
+
                 return 'NORMAL';
             """
 
@@ -591,35 +593,103 @@ class CentrelinkApplier:
         except Exception:
             return "NORMAL"
 
-    def _complete_application_steps(self) -> bool:
-        """Complete all steps in the application process with blazing speed."""
+    def _get_content_hash_script(self) -> str:
+        """Get JavaScript for fast content hash generation."""
+        assert isinstance(
+            self, CentrelinkApplier
+        ), "Must be called on CentrelinkApplier instance"
+        assert hasattr(self, "chrome_driver"), "Chrome driver must be initialized"
+
+        return """
+            // Ultra-fast content hash
+            var hash = '';
+
+            // Get visible buttons (most important for state detection)
+            var buttons = document.querySelectorAll('button');
+            for (var i = 0; i < Math.min(buttons.length, 5); i++) {
+                if (buttons[i].offsetParent !== null) {
+                    hash += buttons[i].textContent.trim().substring(0, 10) + ';';
+                }
+            }
+
+            // Get headings for page identification
+            var h1s = document.querySelectorAll('h1');
+            if (h1s.length > 0) {
+                hash += h1s[0].textContent.trim() + ';';
+            }
+
+            return hash;
+        """
+
+    def _handle_emergency_click(self) -> None:
+        """Handle emergency click when stuck on a page."""
+        assert hasattr(self, "chrome_driver"), "Chrome driver must be initialized"
+        assert self.chrome_driver.driver is not None, "WebDriver must be available"
+
+        # Try clicking any button as a last resort
+        self.chrome_driver.driver.execute_script(
+            """
+            // Look for submit buttons first
+            var submitButtons = Array.from(document.querySelectorAll('button')).filter(b =>
+                b.offsetParent !== null &&
+                (b.textContent.toLowerCase().includes('submit') ||
+                 b.textContent.toLowerCase().includes('apply'))
+            );
+
+            if (submitButtons.length > 0) {
+                submitButtons[0].scrollIntoView({block: 'center'});
+                submitButtons[0].click();
+                return;
+            }
+
+            // Then try any button
+            var buttons = document.querySelectorAll('button');
+            for (var i = 0; i < buttons.length; i++) {
+                if (buttons[i].offsetParent !== null && !buttons[i].disabled) {
+                    buttons[i].click();
+                    break;
+                }
+            }
+        """
+        )
+
+    def _find_and_click_submit_buttons(self) -> bool:
+        """Find and click submit buttons on the page."""
+        assert hasattr(self, "chrome_driver"), "Chrome driver must be initialized"
+        assert self.chrome_driver.driver is not None, "WebDriver must be available"
+
         try:
-            max_steps = 8  # Increased to allow for more steps
+            submit_buttons = self.chrome_driver.driver.find_elements(
+                By.XPATH,
+                '//button[contains(translate(., "SUBMIT", "submit"), "submit") or contains(., "Apply")]',
+            )
+            if not submit_buttons:
+                return False
+
+            for btn in submit_buttons:
+                try:
+                    if btn.is_displayed():
+                        self.chrome_driver.driver.execute_script(
+                            "arguments[0].click();", btn
+                        )
+                        time.sleep(1)
+                        return True
+                except Exception:
+                    continue
+            return False
+        except Exception:
+            return False
+
+    def _complete_application_steps(self) -> bool:
+        """Complete all steps in the application process."""
+        assert hasattr(self, "chrome_driver"), "Chrome driver must be initialized"
+
+        try:
+            max_steps = 8  # Fixed upper bound for loop
             step_count = 0
             last_content_hash = None
             consecutive_stuck_count = 0
-
-            # TURBO: Fast content hash function
-            fast_hash_script = """
-                // Ultra-fast content hash
-                var hash = '';
-                
-                // Get visible buttons (most important for state detection)
-                var buttons = document.querySelectorAll('button');
-                for (var i = 0; i < Math.min(buttons.length, 5); i++) {
-                    if (buttons[i].offsetParent !== null) {
-                        hash += buttons[i].textContent.trim().substring(0, 10) + ';';
-                    }
-                }
-                
-                // Get headings for page identification
-                var h1s = document.querySelectorAll('h1');
-                if (h1s.length > 0) {
-                    hash += h1s[0].textContent.trim() + ';';
-                }
-                
-                return hash;
-            """
+            fast_hash_script = self._get_content_hash_script()
 
             while step_count < max_steps:
                 # Generate quick content hash
@@ -631,93 +701,28 @@ class CentrelinkApplier:
                 if self._is_success_page():
                     return True
 
-                # Check if stuck
+                # Handle stuck state
                 if current_content_hash == last_content_hash and step_count > 0:
                     consecutive_stuck_count += 1
                     if consecutive_stuck_count >= 2:
-                        # Try clicking any button as a last resort
-                        self.chrome_driver.driver.execute_script(
-                            """
-                            // Look for submit buttons first
-                            var submitButtons = Array.from(document.querySelectorAll('button')).filter(b => 
-                                b.offsetParent !== null && 
-                                (b.textContent.toLowerCase().includes('submit') || 
-                                 b.textContent.toLowerCase().includes('apply'))
-                            );
-                            
-                            if (submitButtons.length > 0) {
-                                submitButtons[0].scrollIntoView({block: 'center'});
-                                submitButtons[0].click();
-                                return;
-                            }
-                            
-                            // Then try any button
-                            var buttons = document.querySelectorAll('button');
-                            for (var i = 0; i < buttons.length; i++) {
-                                if (buttons[i].offsetParent !== null && !buttons[i].disabled) {
-                                    buttons[i].click();
-                                    break;
-                                }
-                            }
-                        """
-                        )
-
-                        # Wait a bit longer after this emergency click
-                        time.sleep(1)
+                        self._handle_emergency_click()
+                        time.sleep(1)  # Wait after emergency click
 
                         if consecutive_stuck_count >= 3:
-                            # Final attempt: Look for a submit button specifically
-                            try:
-                                submit_buttons = self.chrome_driver.driver.find_elements(
-                                    By.XPATH,
-                                    '//button[contains(translate(., "SUBMIT", "submit"), "submit") or contains(., "Apply")]',
-                                )
-                                if submit_buttons:
-                                    for btn in submit_buttons:
-                                        try:
-                                            if btn.is_displayed():
-                                                self.chrome_driver.driver.execute_script(
-                                                    "arguments[0].click();", btn
-                                                )
-                                                time.sleep(1)
-                                                break
-                                        except Exception:
-                                            continue
-                            except Exception:
-                                pass
-
-                            break
+                            if self._find_and_click_submit_buttons():
+                                break
+                            else:
+                                break
                 else:
                     consecutive_stuck_count = 0
 
-                # Click next button - turbo version
+                # Try to click next step
                 clicked = self._click_next_step()
                 if not clicked:
-                    # One retry with minimal wait
-                    time.sleep(0.5)
+                    time.sleep(0.5)  # Brief wait before retry
                     clicked = self._click_next_step()
                     if not clicked and step_count > 1:
-                        # Last resort: try to find any submit button
-                        try:
-                            submit_buttons = self.chrome_driver.driver.find_elements(
-                                By.XPATH,
-                                '//button[contains(translate(., "SUBMIT", "submit"), "submit") or contains(., "Apply")]',
-                            )
-                            if submit_buttons:
-                                for btn in submit_buttons:
-                                    try:
-                                        if btn.is_displayed():
-                                            self.chrome_driver.driver.execute_script(
-                                                "arguments[0].click();", btn
-                                            )
-                                            time.sleep(1)
-                                            break
-                                    except Exception:
-                                        continue
-                                # Continue even if we found and clicked a submit button
-                            else:
-                                break
-                        except Exception:
+                        if not self._find_and_click_submit_buttons():
                             break
 
                 # Minimal wait between steps
@@ -732,62 +737,94 @@ class CentrelinkApplier:
             logging.error(f"Error completing application steps: {str(e)}")
             return False
 
+    def _validate_application_preconditions(self, job_id: str) -> Optional[str]:
+        """Validate preconditions for job application."""
+        assert (
+            isinstance(job_id, str) and job_id.strip()
+        ), "Job ID must be non-empty string"
+        assert hasattr(self, "chrome_driver"), "Chrome driver must be initialized"
+
+        # Initialize chrome driver if needed
+        self.chrome_driver.initialize()
+
+        # Ensure logged in
+        if not self.chrome_driver.is_logged_in:
+            self._login_centrelink()
+
+        # Check if already applied (memory check)
+        if job_id in self.applied_jobs:
+            return "ALREADY_APPLIED"
+
+        return None
+
+    def _handle_page_status(self, job_id: str, page_status: str) -> Optional[str]:
+        """Handle initial page status after navigation."""
+        assert isinstance(job_id, str), "Job ID must be string"
+        assert isinstance(page_status, str), "Page status must be string"
+
+        if page_status == "ALREADY_APPLIED":
+            self.applied_jobs.add(job_id)
+            return "ALREADY_APPLIED"
+
+        if page_status == "INVALID_LINK":
+            return "INVALID_LINK"
+
+        if page_status == "SUCCESS":
+            self.applied_jobs.add(job_id)
+            return "APPLIED"
+
+        return None
+
+    def _finalize_application(self, job_id: str, application_result: bool) -> str:
+        """Finalize application and determine result status."""
+        assert isinstance(job_id, str), "Job ID must be string"
+        assert isinstance(
+            application_result, bool
+        ), "Application result must be boolean"
+
+        if application_result:
+            logging.info(f"Successfully applied to job {job_id}")
+            self.applied_jobs.add(job_id)
+            return "APPLIED"
+
+        # Re-check page status
+        final_status = self._check_page_status()
+        if final_status == "SUCCESS":
+            self.applied_jobs.add(job_id)
+            return "APPLIED"
+        elif final_status == "ALREADY_APPLIED":
+            self.applied_jobs.add(job_id)
+            return "ALREADY_APPLIED"
+        else:
+            return "UNCERTAIN"
+
     def apply_to_job(
         self, job_id: str, job_title: str = "", company_name: str = ""
     ) -> str:
-        """Apply to a specific job on Workforce Australia with blazing speed."""
+        """Apply to a specific job on Workforce Australia."""
+        assert (
+            isinstance(job_id, str) and job_id.strip()
+        ), "Job ID must be non-empty string"
+
         try:
-            # Initialize chrome driver if not already initialized
-            self.chrome_driver.initialize()
+            # Validate preconditions
+            precondition_result = self._validate_application_preconditions(job_id)
+            if precondition_result:
+                return precondition_result
 
-            # Make sure we're logged in
-            if not self.chrome_driver.is_logged_in:
-                self._login_centrelink()
-
-            # Check if we've already applied to this job (memory check - fastest)
-            if job_id in self.applied_jobs:
-                return "ALREADY_APPLIED"
-
-            # Navigate to the job application page
+            # Navigate to job page
             self._navigate_to_job(job_id)
+            time.sleep(1)  # Fixed wait time
 
-            # Minimal wait for page load - just enough to be reliable
-            time.sleep(1)
-
-            # Quick check page status
+            # Check initial page status
             page_status = self._check_page_status()
+            status_result = self._handle_page_status(job_id, page_status)
+            if status_result:
+                return status_result
 
-            # Handle pre-application status
-            if page_status == "ALREADY_APPLIED":
-                self.applied_jobs.add(job_id)
-                return "ALREADY_APPLIED"
-
-            if page_status == "INVALID_LINK":
-                return "INVALID_LINK"
-
-            if page_status == "SUCCESS":
-                self.applied_jobs.add(job_id)
-                return "APPLIED"
-
-            # Turbo-complete the application process
+            # Complete application process
             application_result = self._complete_application_steps()
-
-            # Final validation
-            if application_result:
-                logging.info(f"Successfully applied to job {job_id}")
-                self.applied_jobs.add(job_id)
-                return "APPLIED"
-            else:
-                # Quick re-check
-                final_status = self._check_page_status()
-                if final_status == "SUCCESS":
-                    self.applied_jobs.add(job_id)
-                    return "APPLIED"
-                elif final_status == "ALREADY_APPLIED":
-                    self.applied_jobs.add(job_id)
-                    return "ALREADY_APPLIED"
-                else:
-                    return "UNCERTAIN"
+            return self._finalize_application(job_id, application_result)
 
         except Exception as e:
             logging.error(f"Exception during application for job {job_id}: {str(e)}")

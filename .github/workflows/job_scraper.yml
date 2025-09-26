@@ -7,7 +7,7 @@ on:
 
 jobs:
   run-automation:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout repository
@@ -19,18 +19,16 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
       - name: Create .env file
         run: |
           echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
           echo "AIRTABLE_API_KEY=${{ secrets.AIRTABLE_API_KEY }}" >> .env
 
-      - name: Run automation script
-        run: scripts/run_job_search.sh
+      - name: Install dependencies
+        run: make install
+
+      - name: Run job search
+        run: make search
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AIRTABLE_API_KEY: ${{ secrets.AIRTABLE_API_KEY }}

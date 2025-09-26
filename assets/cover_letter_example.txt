@@ -1,10 +1,19 @@
-﻿Dear [Company Name] Recruitment Team,
-I am writing to express my interest in applying for the [Job Title] role with [Company Name or Company referenced in the job description or title].
-I am a Senior Data Engineer with over 5 years of experience developing pipelines to ingest, transform, and organise data in on-premise and cloud relational databases and more than 13 years developing SQL relational databases. I have successfully delivered cloud migrations on the AWS and Azure platforms and I deeply familiar with Snowflake, Databricks, and SQL Server; there is a good chance that I am one of few people you will meet who has read the SQL Server Administrator’s Guide. I have completed professional certifications in AWS cloud computing, Snowflake, and Databricks which has helped consolidate what I have learned throughout my career as well as my own self-learning through personal projects. I have over 13 years of programming experience in Python and MATLAB and I am experienced in developing solutions using Bash and PowerShell across Windows and Linux environments. I have developed many solutions with Dockerised containers when it’s the best tool for the task (for a sample of an end-to-end analytical engineering project that I developed, please visit my GitHub page: https://github.com/automationchad).
-For a recent project with a government healthcare service, I developed the data pipelines to extract, load, and transform highly sensitive data from an on-premise SQL Server and an Oracle database into a cross-platform cloud solution. I wrote ingestion pipelines using Matillion to extract data from the ieMR mirror in our SQL Server and loaded it into a data lake built in an S3 bucket, which is being used as input to machine learning models. I also developed pipelines to port the data from S3 into our Snowflake platform where it is staged prior to curation. I created dbt pipelines to transform data from our curation layer into domain-specific schemas that form an enterprise data warehouse using a DIM-FACT snowflake model. I also designed the Azure DevOps repository to version control (Git) the ELT pipelines and leveraged dbt to generate dependency visualisations for our documentation.
-I established DevOps with automated CI/CD pipelines at the last two places I have worked by building capacity in my colleagues to bring everyone up to speed with descriptive commits that has made documentation much easier. I also have the uncanny ability to remain unphased whenever a merge conflict arises. I am well-practiced in unravelling botched cloud migrations after a poorly planned design has produced a tangled spiderweb before the platform was ever deployed. I possess expert skills in data architecture design and data modelling; specifically, star and snowflake schema designs with data marts that facilitate high-level analytical capabilities that would make both Ralph Kimball and Bill Inmon proud. 
-I have attached my CV detailing the contributions I have made to the places where I have worked. I am an avid learner and thoroughly enjoy optimising data pipelines.
-I look forward to hearing from you.
+﻿Bluefin Recruitment,
 
-Sincerely,
-William Marzella
+I’m a senior data engineer with 6 years of professional experience and 13+ years of deep SQL fluency. I’ve delivered full-stack solutions across Snowflake, Databricks, AWS, and Azure—migrating legacy systems, building warehouse layers, and productionising analytical models.
+
+Key highlights:
+
+- Built secure ingestion and ELT pipelines for a government healthcare platform using SQL Server, Oracle, S3, Snowflake, and dbt.
+
+- Designed end-to-end DAGs in Matillion and dbt for DIM-FACT warehouse layers. Automated CI/CD via Azure DevOps.
+
+- Rebuilt cloud architecture post-botched migrations. Untangled spaghetti infra and led DevOps enablement across teams.
+
+- Proficient in Python, Bash, PowerShell, Docker, Git. Strong on Linux/Windows hybrid ops. Certifications in AWS, Snowflake, and Databricks.
+
+I know how to spot weak pipelines, kill scope bloat, and ship production-ready data systems. If your client needs someone to cut through the mess and deliver—bring me in.
+
+CV attached.
+
+– William Marzella
