@@ -1,0 +1,66 @@
+{
+  "last_updated": "2025-09-30T21:28:34.313575",
+  "total_books": 5,
+  "books": [
+    {
+      "title": "The Power of Now",
+      "author": "Eckhart Tolle",
+      "description": "A guide to spiritual enlightenment",
+      "category": "Spirituality",
+      "url": null,
+      "isbn": null,
+      "rating": null,
+      "read_status": true,
+      "date_added": "2025-09-30T21:28:34.297230",
+      "notes": "Great book!"
+    },
+    {
+      "title": "Thinking, Fast and Slow",
+      "author": "Daniel Kahneman",
+      "description": "A book about decision making",
+      "category": "Psychology",
+      "url": null,
+      "isbn": null,
+      "rating": null,
+      "read_status": false,
+      "date_added": "2025-09-30T21:28:34.297233",
+      "notes": null
+    },
+    {
+      "title": "Consciousness Explained",
+      "author": "Daniel Dennett",
+      "description": "A comprehensive theory of consciousness",
+      "category": "Philosophy",
+      "url": "https://example.com/consciousness-explained",
+      "isbn": null,
+      "rating": null,
+      "read_status": true,
+      "date_added": "2025-09-30T21:28:34.313249",
+      "notes": "Fascinating exploration of consciousness"
+    },
+    {
+      "title": "The Ego and the Id",
+      "author": "Sigmund Freud",
+      "description": "Classic work on psychoanalysis",
+      "category": "Psychology",
+      "url": "https://example.com/ego-and-id",
+      "isbn": null,
+      "rating": null,
+      "read_status": false,
+      "date_added": "2025-09-30T21:28:34.313252",
+      "notes": null
+    },
+    {
+      "title": "Being and Time",
+      "author": "Martin Heidegger",
+      "description": "Fundamental work on existential philosophy",
+      "category": "Philosophy",
+      "url": "https://example.com/being-and-time",
+      "isbn": null,
+      "rating": null,
+      "read_status": false,
+      "date_added": "2025-09-30T21:28:34.313253",
+      "notes": null
+    }
+  ]
+}

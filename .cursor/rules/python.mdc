@@ -1,0 +1,26 @@
+---
+description: This makes sure that Python code is formatted and linted correctly. Use it whenever you are writing Python code.
+globs:
+alwaysApply: false
+---
+
+
+1. Keep control flow simple. Do not use recursion. Avoid exceptions for normal flow. Prefer straight `for` loops and clear `if/elif/else`. Simple flow is easier to reason about and verify.
+
+2. Bound every loop. Iterate over sequences with known maximum length (`range(N)`, finite lists/tuples, capped deques). No `while True`. Bounded iteration prevents runaway execution.
+
+3. No dynamic growth after initialization. Construct all major objects and containers during startup. After init, mutate within fixed caps only; no unbounded `append/extend/add`. Use fixed-size types (`array`, `bytearray`, `memoryview`, `deque(maxlen=...)`, fixed-shape NumPy) to avoid unpredictable behavior. (e.g., avoid appending to lists in loops if size isn't bounded)
+
+4. Keep functions short and shallow. Maximum ~60 lines after formatting. Single responsibility. At most one level of nesting. No nested functions, lambdas, or decorators. Short, flat functions are easier to test and audit.
+
+5. Check invariants aggressively. Minimum two checks per function: validate inputs on entry and critical postconditions before return. Use explicit `if ...: raise ...` so code is correct even under `python -O`. Assertions catch “impossible” states early.
+
+6. Minimize scope. No mutable globals. Constants only at module level. Define all instance attributes in `__init__`. Declare variables as close to use as possible to localize faults.
+
+7. Always validate inputs and consume outputs. Every non-`None` return must be used by callers; never ignore results. Each function validates parameter types, ranges, and shapes. Early validation prevents cascading errors.
+
+8. Ban dynamic tricks. No `eval`, `exec`, monkey-patching, dynamic imports, metaclasses, or reflection beyond `isinstance`/`hasattr`. Avoid hidden control flow; readability and static analysis take priority.
+
+9. Restrict indirection . Do not pass callables as data in safety-critical paths; no callback tables or higher-order helpers. Prefer explicit `if/elif` on enums over dynamic dispatch. Limit attribute chains to a single dot in core logic to keep data flow traceable.
+
+10. Treat tooling as a compiler with pedantic warnings. Code must format cleanly and pass linters, type checkers, security scans, complexity limits, and tests with zero warnings: Black/isort, Ruff/Pylint, mypy or Pyright in strict mode, Bandit and dependency audit, cyclomatic complexity thresholds, pytest with high coverage including branches. Continuous enforcement from day one prevents drift.

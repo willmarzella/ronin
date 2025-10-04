@@ -1,0 +1,15 @@
+---
+description: Writing Javascript
+alwaysApply: false
+---
+
+1. Keep control flow simple. Do not use recursion. Avoid exceptions for normal flow. Prefer straight `for` loops and clear `if/else if/else`. Simple flow is easier to reason about and verify.
+2. Bound every loop. Iterate over arrays with known maximum length or use bounded iterations with `for (let i = 0; i < maxLength; i++)`. No `while (true)`. Bounded iteration prevents runaway execution.
+3. No dynamic growth after initialization. Construct all major objects and arrays during startup. After init, mutate within fixed caps only; no unbounded `push()` operations. Use fixed-size arrays or Set/Map with size limits to avoid unpredictable behavior.
+4. Keep functions short and shallow. Maximum ~60 lines after formatting. Single responsibility. At most one level of nesting. No nested functions or complex arrow function chains. Short, flat functions are easier to test and audit.
+5. Check invariants aggressively. Minimum two checks per function: validate inputs on entry and critical postconditions before return. Use explicit `if (...) { throw new Error(...) }` or assertions. Early validation catches "impossible" states.
+6. Minimize scope. No mutable globals. Use `const` for constants at module level. Declare variables with `const`/`let` as close to use as possible. Use `Object.freeze()` for immutable objects to localize faults.
+7. Always validate inputs and consume outputs. Every non-`undefined` return must be used by callers; never ignore results. Each function validates parameter types, ranges, and shapes using TypeScript or runtime checks. Early validation prevents cascading errors.
+8. Ban dynamic tricks. No `eval()`, dynamic imports in critical paths, monkey-patching prototypes, or excessive reflection beyond basic `typeof`/`instanceof`. Avoid hidden control flow; readability and static analysis take priority.
+9. Restrict indirection. Do not pass functions as data in safety-critical paths; no complex callback tables or higher-order function chains. Prefer explicit `if/else if` on enums over dynamic dispatch. Limit property chains to a single dot in core logic to keep data flow traceable.
+10. Treat tooling as a compiler with pedantic warnings. Code must format cleanly and pass linters, type checkers, security scans, complexity limits, and tests with zero warnings: Prettier, ESLint with strict rules, TypeScript in strict mode, npm audit, complexity thresholds, Jest with high coverage including branches. Continuous enforcement from day one prevents drift.

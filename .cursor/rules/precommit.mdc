@@ -1,0 +1,13 @@
+---
+description: This rule runs pre-commit hooks on every commit.
+globs:
+alwaysApply: true
+---
+
+Whenever you're making code changes to a file, you MUST run the following command to check if your code is formatted correctly:
+
+```bash
+pre-commit run --show-diff-on-failure --color=always --all-files -c .pre-commit-config.yml
+```
+
+Make sure you cd into the right project directory before running the command.

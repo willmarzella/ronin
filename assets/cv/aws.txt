@@ -34,11 +34,26 @@ Senior Contract Data Engineer & Cloud Infrastructure Specialist with six (6)+ ye
 
 ## Experience (Full Time)
 
+### **Wesfarmers** | Melbourne, VIC
+
+Leading Australian conglomerate operating loyalty and rewards programs across retail divisions including Bunnings, Kmart, and Target, processing millions of customer transactions and engagement data.
+
+*Senior Data Engineer* | September 2025 -- December 2025
+
+Data engineering team focused on consumption-side analytics for loyalty and rewards data products (OnePass). Managing data quality across multiple sources (Kafka streams, Snowflake shares, batch files) with established platform patterns and business logic transformation workflows.
+
+- Achieved 99.9% data accuracy for loyalty analytics serving 15M+ customers through comprehensive quality framework across Kafka streams, Snowflake shares, and batch file sources
+- Reduced data quality incidents 60% via automated anomaly detection using Snowflake validation, Great Expectations testing, and real-time monitoring across heterogeneous sources
+- Accelerated analyst workflows 40% through intermediate business logic transformation layer using dbt models, Snowflake views, and automated testing protocols
+- Delivered 99.8% SLA compliance for rewards data products via comprehensive monitoring (Prometheus, Grafana, CloudWatch) and proactive alerting across multi-source pipelines
+- Enabled strategic insights for retail loyalty programs through prescriptive analytics platform processing customer behavior, transaction patterns, and engagement metrics
+- Built fault-tolerant integration patterns connecting consumer systems using Airflow orchestration, custom sensors, and contract-based validation frameworks
+
 ### **REST Industry Super** | Melbourne, VIC
 
 Industry superannuation fund managing $70B+ assets for 1.7M members.
 
-*Data Engineer* | March 2025 -- Present
+*Data Engineer* | March 2025 -- September 2025
 
 Cross-functional team migrating legacy Redshift to Snowflake while implementing modern data platform with containerized microservices. GitOps methodologies and agile practices supporting analytics and ML workloads.
 
@@ -92,7 +107,7 @@ First data hire supporting 12-person manufacturing operation with $10M annual re
 
 ## Experience (Freelance)
 
-### **Motis Group** | Melbourne, VIC
+### **Stygian Consulting** | Melbourne, VIC
 
 Independent technology consultancy offering specialized cloud and automation solutions (Part-time)
 

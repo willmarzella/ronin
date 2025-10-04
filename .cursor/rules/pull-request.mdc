@@ -1,0 +1,35 @@
+---
+description: This is for pull requests
+globs:
+alwaysApply: false
+---
+
+Write PR requests in the following format:
+
+Title: imperative, <50 chars
+e.g. "Add S3 cost optimizer to pipeline"
+
+## Summary
+Concise statement of what this PR does and why.
+- What’s the problem?
+- What’s the solution?
+- Why this approach?
+
+## Changes
+- Bullet list of major changes
+- Mention deleted/renamed files if relevant
+- Note side-effects or scope creep
+
+## Testing
+- How was this tested? (unit/integration/manual)
+- What scenarios are covered?
+- Any gaps or TODOs left?
+
+## Risks
+- What could break?
+- Rollback plan if needed
+- Impact on performance, cost, security
+
+## Notes
+- Links to related issues/PRs/design docs
+- BREAKING CHANGE notice if applicable

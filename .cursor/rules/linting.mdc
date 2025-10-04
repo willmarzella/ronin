@@ -1,0 +1,11 @@
+---
+description: This handles linting issues and files
+globs:
+alwaysApply: true
+---
+
+Whenever you have coded a file in SQL in a dbt project that has a .pre-commit-config.yml file, you can run the following command to lint the file:
+
+```bash
+pre-commit run --show-diff-on-failure --color=always --all-files -c .pre-commit-config.yml
+```
