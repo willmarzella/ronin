@@ -1,0 +1,13 @@
+---
+description: When I ask you to review comments left on my PRs code use this
+alwaysApply: true
+---
+
+
+
+
+# Get all comments on your current PR
+gh pr view <pr_number> --json comments --jq '.comments[] | {author: .author.login, body: .body, path: .path, line: .line, created_at: .created_at}'
+
+# Get review comments (more detailed feedback)
+gh api repos/<repo_name>/pulls/<pr_number>/comments --jq '.[] | {author: .user.login, body: .body, path: .path, line: .line, created_at: .created_at}'

@@ -10,5 +10,8 @@ selenium>=4.15.2
 webdriver-manager>=4.0.1
 black==24.2.0
 flake8==6.0.0
+pre-commit>=3.0.0
+isort>=5.12.0
+bandit>=1.7.0
 pygithub==2.1.1
 pytz>=2024.1

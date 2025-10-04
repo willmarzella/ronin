@@ -88,4 +88,3 @@ Provide strategic data consulting to e-commerce and retail clients with $5M-50M 
 - Architected security configurations (AWS IAM, Azure AD) with least-privilege permissions ensuring GDPR compliance across platforms
 - Optimized cloud resource usage (S3 intelligent tiering, Azure Storage lifecycle management, reserved instances), identifying monthly savings of 15% ($2K-5K per client)
 - Created infrastructure-as-code using Terraform with modular design patterns, reducing environment setup time from 2 days to 2 hours
-

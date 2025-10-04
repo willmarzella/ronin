@@ -1,0 +1,38 @@
+---
+description: This should be used anytime you make a commit to a repo
+alwaysApply: false
+---
+
+WRITE COMMIT MESSAGES IN THE FOLLOWING FORMAT:
+
+# <type>: <short summary>
+# ────────────────────────────────
+# Rules:
+# - 50 chars max in summary
+# - Imperative mood (“Fix bug” not “Fixed bug”)
+# - No fluff, no tickets unless meaningful
+#
+# Types:
+#   feat:      new feature
+#   fix:       bug fix
+#   perf:      performance improvement
+#   refactor:  code restructuring (no behavior change)
+#   style:     formatting, linting, naming only
+#   test:      add/modify tests
+#   chore:     build, tooling, config changes
+#   docs:      documentation only
+#
+# Body (wrap at 72 chars):
+# - Explain the *reason*, not just the *change*
+# - What problem does this solve?
+# - Context that’s invisible in the diff
+#
+# Footer:
+# - BREAKING CHANGE: if API/contract altered
+# - Issue/PR refs if they carry real semantic weight
+
+<type>: <summary>
+
+<body>
+
+<footer>

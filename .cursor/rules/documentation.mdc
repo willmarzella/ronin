@@ -1,0 +1,86 @@
+---
+description: This rule is whenever you're asked to write documentation for data products or anything that I develop
+alwaysApply: false
+---
+
+# Data Product: <PRODUCT_NAME>
+
+## 1. Overview & Purpose
+- **Description**:
+- **Business Goal / Use Cases**:
+- **Consumers / Stakeholders**:
+- **SLAs (Freshness, Latency)**:
+- **Owner(s)**:
+
+---
+
+## 2. Architecture & Flow
+- **Diagram**: (insert image of DAG → Snowflake schemas → dbt layers → outputs)
+- **Narrative**:
+- **Dependencies (upstream / downstream)**:
+- **Interfaces / Contracts**:
+
+---
+
+## 3. Data Contracts & Schema
+- **Source Schemas**:
+- **Target Schemas**:
+- **Field Mappings**:
+- **Data Contract Agreement**:
+- **Change Policy / Versioning**:
+
+---
+
+## 4. Implementation Details
+- **Airflow DAG(s)**: Name, schedule, retry policy
+- **dbt Models**: Key models, materializations, macros used
+- **Snowflake Objects**: Databases, schemas, warehouses, roles
+- **Configuration**: Parameters, env vars
+- **Secrets**: Storage / rotation policy
+
+---
+
+## 5. Quality, Validation & Tests
+- **dbt Tests**: (schema, custom, relationships)
+- **Custom Validation Logic**:
+- **Quality Metrics / Thresholds**:
+- **Known Failure Modes**:
+
+---
+
+## 6. Observability & Monitoring
+- **Datadog Dashboards**: Links, metrics tracked
+- **Alerts**: Triggers, thresholds, recipients
+- **Logging**: Location / retention
+- **Incident Response**: Escalation path
+
+---
+
+## 7. Deployment & CI/CD
+- **Branching / Environment Strategy**: dev, staging, prod
+- **Release / Rollback Steps**:
+- **Migrations (Schema / Data Backfills)**:
+- **Versioning Conventions**:
+
+---
+
+## 8. Operational Runbook
+- **Common Failures & Fixes**:
+- **Re-trigger / Restart Instructions**:
+- **Backfill Procedures**:
+- **Data Recovery Steps**:
+- **Escalation Matrix**: Who to call, when
+
+---
+
+## 9. Change Log & History
+- YYYY-MM-DD — Change description — Author — Rationale
+
+---
+
+## 10. Appendices / References
+- **Glossary**:
+- **Links to Code**: Airflow DAGs, dbt repo
+- **Dashboards**: Datadog, Snowflake monitoring
+- **External Docs**: Source system API docs, SLA notes
+- **Diagrams**: ERD, UML, etc.

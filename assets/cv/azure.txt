@@ -119,4 +119,3 @@ Provide strategic data infrastructure consulting to e-commerce and retail client
 - Designed and implemented ML model deployment architecture using Azure Kubernetes Service, Snowflake Python UDFs, and Azure Machine Learning for retail demand forecasting, improving inventory planning accuracy by 25%
 - Built automated data orchestration solutions using Apache Airflow on Azure Kubernetes Service with optimized DAGs and dbt Core for transformation workflows, enabling fully automated data pipelines with comprehensive monitoring and alerting
 - Developed observability framework leveraging Prometheus, Grafana, and Azure Log Analytics for log aggregation and monitoring across client environments, reducing incident response time by 60%
-

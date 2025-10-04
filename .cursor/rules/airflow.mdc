@@ -1,0 +1,206 @@
+---
+description: This is for Airflow DAGs
+alwaysApply: false
+---
+# Rules
+
+1. **Linear, shallow DAGs**
+   No cycles, no spaghetti fan-outs. Max depth 5. One clear path from extract→transform→load. Branching only for orthogonal concerns.
+
+2. **Bound all expansion**
+   Dynamic task mapping capped (`max_map_length`). No unbounded loops, no data-dependent fanout without a hard upper limit.
+
+3. **Compile-time determinism**
+   No runtime DAG mutation. All tasks/operators defined at parse time. No network calls or env-dependent branching during DAG parse.
+
+4. **Small, single-responsibility DAGs**
+   One business objective per DAG. ≤ \~20 tasks. Split long chains into upstream/downstream DAGs with explicit contracts.
+
+5. **Tight interfaces**
+   Inputs/outputs defined. XCom payloads are typed, small, and schema-stable; never blobs. Handoffs via durable storage with checksums.
+
+6. **No hidden side effects**
+   Operators do exactly one effect. Idempotent by design. External writes are atomic (write-temp → verify → move).
+
+7. **Uniform naming and layout**
+   `dag_id`: `<domain>__<objective>`. `task_id`: verb\_noun. Tags encode domain, SLA, owner. Folder mirrors domain.
+
+8. **Dependency discipline**
+   Explicit `>>` chains only. No implicit timing dependencies. Cross-DAG deps via sensors or events, never via shared tables without checks.
+
+9. **Validate every critical hop**
+   Row counts, freshness, schema drift, and invariants enforced as tasks. Fail fast; no soft-pass on validation.
+
+10. **Dual assurance on critical paths**
+    Gate on two independent signals: (a) upstream completeness (e.g., watermark) and (b) semantic quality (e.g., distribution checks).
+
+---
+
+## Airflow Execution Discipline
+
+* **Scheduling**
+
+  * `start_date` fixed; `timezone` explicit. `catchup` controlled and documented. `max_active_runs` per DAG set.
+  * CRON or timedelta is stable; no `@once` for prod.
+
+* **Retries & Timeouts**
+
+  * `retries` ≥ 2 with exponential backoff. `retry_delay` and `max_retry_delay` bounded.
+  * `execution_timeout` per task; `dagrun_timeout` per DAG.
+
+* **Resources & Isolation**
+
+  * Use `pools` for scarce systems. Set `task_concurrency` where fanout exists. Containers pin CPU/memory; no host pollution.
+
+* **Sensors**
+
+  * Prefer deferrable/reschedule mode. Every sensor has a timeout and a failure policy. No busy-wait.
+
+* **Backfills**
+
+  * Idempotent re-runs. External writes keyed by logical date. Backfill windows limited and documented. No widening predicates ad-hoc.
+
+* **Secrets & Config**
+
+  * Use Airflow Connections/Secrets Backend. No creds in code/XCom/logs. Parameterize via `Variables` sparingly, validated at runtime.
+
+* **Logging & Observability**
+
+  * Structured logs with correlation IDs. Emit metrics (duration, records processed). SLAs defined on critical tasks.
+
+* **Data Contracts**
+
+  * Pre/post conditions as first-class tasks. Schema checks before writes; completeness checks after.
+
+* **XCom Hygiene**
+
+  * Text/JSON only, <50KB. Artifacts go to object storage. Disable push for operators that don’t need it.
+
+* **Deploy Safety**
+
+  * DAG parse must be side-effect free and <2s. Static imports only. CI enforces `airflow dags test|list|show` sanity.
+
+---
+
+## DAG Header Template
+
+```python
+# dag: payments__daily_settlement
+# owner: data-platform
+# objective: Produce reconciled settlements T+0
+# schedule: 0 2 * * *
+# sla: 04:00 AEST
+# invariants:
+#  - input watermark >= ds
+#  - output rowcount == source count within ±0.1%
+# contracts:
+#  - schema: s3://.../contracts/payments_settlement.json
+# resources:
+#  - pool: payments_io (concurrency=5)
+# version: v3
+
+from datetime import datetime, timedelta
+from airflow import DAG
+from airflow.decorators import task
+from airflow.models.baseoperator import chain
+from airflow.utils.timezone import timezone
+
+AEST = timezone("Australia/Melbourne")
+
+default_args = {
+    "owner": "data-platform",
+    "retries": 3,
+    "retry_delay": timedelta(minutes=5),
+    "retry_exponential_backoff": True,
+    "max_retry_delay": timedelta(hours=1),
+    "execution_timeout": timedelta(minutes=30),
+}
+
+with DAG(
+    dag_id="payments__daily_settlement",
+    start_date=datetime(2025, 1, 1, tzinfo=AEST),
+    schedule="0 2 * * *",
+    catchup=True,
+    max_active_runs=1,
+    default_args=default_args,
+    tags=["payments", "sla:04:00", "tier:critical"],
+    dagrun_timeout=timedelta(hours=2),
+) as dag:
+
+    @task
+    def validate_upstream(ds):
+        # assert watermark and file presence
+        ...
+
+    @task
+    def extract(ds):
+        # read bounded partition; no full scans
+        ...
+
+    @task
+    def transform(ds):
+        # pure function; no external writes
+        ...
+
+    @task
+    def load(ds):
+        # atomic write: tmp → verify → promote
+        ...
+
+    @task
+    def quality_checks(ds):
+        # schema + rowcount + distribution checks
+        ...
+
+    chain(
+        validate_upstream(),
+        extract(),
+        transform(),
+        load(),
+        quality_checks(),
+    )
+```
+
+---
+
+## Operator Contract Template (Idempotent Write)
+
+```python
+from airflow.exceptions import AirflowFailException
+
+def atomic_promote(tmp_path: str, final_path: str, fs):
+    if fs.exists(final_path):
+        # Idempotency: verify content hash, else fail
+        if fs.hash(final_path) == fs.hash(tmp_path):
+            return
+        raise AirflowFailException("Final exists with different content")
+    fs.move(tmp_path, final_path)
+```
+
+---
+
+## Validation Task Sketch
+
+```python
+@task
+def assert_contract(source_count: int, target_count: int, max_diff=0.001):
+    diff = abs(source_count - target_count) / max(source_count, 1)
+    if diff > max_diff:
+        raise ValueError(f"Rowcount diff {diff:.4%} exceeds {max_diff:.2%}")
+```
+
+---
+
+## PR Checklist (Airflow-specific)
+
+* [ ] DAG is single-objective, ≤ 20 tasks, depth ≤ 5; no runtime mutations
+* [ ] Dynamic mapping bounded (`max_map_length`); pools and concurrency set
+* [ ] All tasks have `execution_timeout`, `retries` with backoff
+* [ ] Sensors are deferrable/rescheduled with timeouts; no busy-wait
+* [ ] Idempotent external effects; atomic promote pattern used
+* [ ] Secrets via Connections/Backend; no creds in code/logs/XCom
+* [ ] Contracts: pre/post checks implemented; critical paths have dual gates
+* [ ] XCom payloads small and typed; artifacts in object storage
+* [ ] Backfill plan documented; logical-date keyed writes; `max_active_runs=1` if needed
+* [ ] CI passes: dag parse <2s, `airflow dags test` for 1–2 runs, lint/type checks
+* [ ] Observability: SLAs set, metrics emitted, meaningful tags and ownership defined

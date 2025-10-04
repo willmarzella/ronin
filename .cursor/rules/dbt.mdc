@@ -1,0 +1,53 @@
+---
+description: This is for dbt or SQL files
+globs:
+alwaysApply: true
+---
+
+1. **Linear, shallow queries**
+   CTEs over subqueries. Max nesting depth 3. No clever SQL. One purpose per CTE. Names say intent.
+
+2. **Bound all recursion and scans**
+   Recursive CTEs require `MAX_RECURSION`/explicit depth guard. Incrementals require predicates on partition/unique key. No full-table scans in prod paths.
+
+3. **No dynamic SQL at runtime**
+   Prohibit `run_query`, `statement` blocks, or string-built SQL in models. Macros must render to static SQL given inputs. If generation is required, precompute artifacts upstream.
+
+4. **Small, single-responsibility models**
+   ≤ \~150 lines SQL or ≤ 10 CTEs. Split wide transforms into staged layers (`stg_`, `int_`, `fct_`, `dim_`). One business concept per model.
+
+5. **Tight, explicit interfaces**
+   Max 5 inputs per model. Use `ref()`/`source()` only; no raw database references. Define columns, types, and contracts in `schema.yml`.
+
+6. **No hidden side effects**
+   Models are pure transforms: no DDL, no GRANTs, no temp tables that escape scope, no writes outside target model. Macros do not mutate state.
+
+7. **Uniform naming and layout**
+   Folders and prefixes encode layer and grain. Columns use consistent semantics across models. Time columns standardized (`_at`, `_date`, `_ts`).
+
+8. **Pointer discipline = dependency discipline**
+   Only reference upstream via `ref()`/`source()`. No cross-schema, cross-db hardcoding. No `{{ target.name }}` hacks to hop environments.
+
+9. **Check every output**
+   dbt tests mandatory: `unique` + `not_null` on keys, `accepted_values` on enums, range checks on metrics, freshness on sources. Fail hard on violations.
+
+10. **Dual validation for critical data**
+    Redundant checks: declarative tests + statistical/anomaly checks. Example: revenue column has `>= 0` test plus distribution monitoring; dimension counts verified against source totals.
+
+---
+
+
+# dbt Model Header Template (paste atop every model)
+
+```sql
+-- Model: {{ this }}
+-- Layer: stg|int|fct|dim
+-- Grain: <row grain>
+-- Inputs: {{ ref('…') }}, {{ source('…','…') }}
+-- Output SLA: <freshness/latency>
+-- Owner: <team/person>
+-- Invariants:
+--  - <key> is unique and not null
+--  - <date> within [YYYY-MM-DD, today]
+--  - join to <dim_X> is one-to-one on <key>
+```
