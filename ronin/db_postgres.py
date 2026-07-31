@@ -25,6 +25,9 @@ except Exception:  # pragma: no cover
     psycopg = None
     dict_row = None
 
+# Shared with the SQLite backend so both honour scraping.capture_external.
+from ronin.db import _capture_external_enabled
+
 
 class PostgresManager:
     """Manager for a PostgreSQL-backed Ronin database."""
@@ -36,6 +39,24 @@ class PostgresManager:
         "boards.greenhouse.io": "greenhouse",
         "jobs.lever.co": "lever",
     }
+    ARCHETYPE_PROFILES = {"builder", "fixer", "operator", "translator"}
+
+    @classmethod
+    def _normalize_archetype_name(cls, value: object) -> str:
+        name = str(value or "").strip().lower()
+        return name if name in cls.ARCHETYPE_PROFILES else ""
+
+    @classmethod
+    def _canonical_resume_fields(cls, payload: Dict) -> Dict[str, str]:
+        primary = cls._normalize_archetype_name(payload.get("archetype_primary"))
+        resume_arch = cls._normalize_archetype_name(payload.get("resume_archetype"))
+        resume_profile = cls._normalize_archetype_name(payload.get("resume_profile"))
+        canonical = primary or resume_arch or resume_profile or "builder"
+        return {
+            "archetype_primary": canonical,
+            "resume_archetype": canonical,
+            "resume_profile": canonical,
+        }
 
     def __init__(
         self,
@@ -123,9 +144,9 @@ class PostgresManager:
                 open_job INTEGER DEFAULT 0,
                 last_modified TEXT,
                 job_classification TEXT DEFAULT 'SHORT_TERM',
-                resume_profile TEXT DEFAULT 'default',
+                resume_profile TEXT DEFAULT 'builder',
                 matching_keyword TEXT,
-                resume_archetype TEXT DEFAULT 'adaptation',
+                resume_archetype TEXT DEFAULT 'builder',
                 archetype_scores TEXT,
                 archetype_primary TEXT,
                 embedding_vector BYTEA,
@@ -134,6 +155,7 @@ class PostgresManager:
                 seniority_level TEXT DEFAULT 'unknown',
                 tech_stack_tags TEXT,
                 market_intelligence_only INTEGER DEFAULT 0,
+                below_threshold INTEGER DEFAULT 0,
                 selection_needs_review INTEGER DEFAULT 0,
                 application_batch_id BIGINT,
                 resume_commit_hash TEXT
@@ -164,8 +186,8 @@ class PostgresManager:
                 archetype_scores TEXT,
                 archetype_primary TEXT,
                 embedding_vector BYTEA,
-                resume_profile TEXT DEFAULT 'default',
-                resume_archetype TEXT DEFAULT 'adaptation',
+                resume_profile TEXT DEFAULT 'builder',
+                resume_archetype TEXT DEFAULT 'builder',
                 resume_variant_sent TEXT,
                 resume_commit_hash TEXT,
                 profile_state_at_application TEXT,
@@ -185,6 +207,7 @@ class PostgresManager:
                 outcome_date TEXT,
                 outcome_email_id TEXT,
                 market_intelligence_only INTEGER DEFAULT 0,
+                below_threshold INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL,
                 updated_at TEXT,
                 last_modified TEXT
@@ -268,6 +291,66 @@ class PostgresManager:
                 sender_type TEXT DEFAULT 'unknown',
                 first_seen_date TEXT NOT NULL,
                 UNIQUE(email_address)
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS recruiters (
+                id BIGSERIAL PRIMARY KEY,
+                identity_key TEXT UNIQUE NOT NULL,
+                full_name TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                email TEXT,
+                phone TEXT,
+                linkedin_url TEXT,
+                company_name TEXT,
+                domain TEXT,
+                source TEXT,
+                confidence DOUBLE PRECISION DEFAULT 0,
+                jobs_seen INTEGER DEFAULT 0,
+                outreach_state TEXT DEFAULT 'none',
+                last_outreach_at TEXT,
+                notes TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS job_recruiter_links (
+                id BIGSERIAL PRIMARY KEY,
+                job_id TEXT NOT NULL REFERENCES jobs(job_id),
+                recruiter_id BIGINT NOT NULL REFERENCES recruiters(id),
+                relationship TEXT DEFAULT 'recruiter',
+                confidence DOUBLE PRECISION DEFAULT 0,
+                inferred_email TEXT,
+                inference_rule TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(job_id, recruiter_id)
+            )
+        """
+        )
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS outreach_log (
+                id BIGSERIAL PRIMARY KEY,
+                job_id TEXT REFERENCES jobs(job_id),
+                recruiter_id BIGINT REFERENCES recruiters(id),
+                channel TEXT NOT NULL,
+                target TEXT,
+                subject TEXT,
+                body TEXT,
+                status TEXT DEFAULT 'planned',
+                error_message TEXT,
+                created_at TEXT NOT NULL,
+                sent_at TEXT
             )
         """
         )
@@ -385,6 +468,41 @@ class PostgresManager:
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_jobs_market_intel ON jobs(market_intelligence_only)"
         )
+        # Idempotent migration for existing postgres deployments that pre-date
+        # the column split. Backfills threshold-demoted rows into the new
+        # column and clears them from market_intelligence_only.
+        cursor.execute(
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS below_threshold INTEGER DEFAULT 0"
+        )
+        cursor.execute(
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS below_threshold INTEGER DEFAULT 0"
+        )
+        cursor.execute(
+            "UPDATE jobs SET below_threshold = 1, market_intelligence_only = 0 "
+            "WHERE market_intelligence_only = 1 AND quick_apply = 1 "
+            "AND below_threshold = 0"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_jobs_below_threshold ON jobs(below_threshold)"
+        )
+        # Phase 1 (external apply): apply_type distinguishes Seek Quick Apply
+        # from link-out external applies; apply_url holds the external target.
+        cursor.execute(
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_type TEXT DEFAULT 'quick'"
+        )
+        cursor.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS apply_url TEXT")
+        # Outcome-weighted apply ordering; recomputed by recompute_queue.
+        cursor.execute(
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS priority_score DOUBLE PRECISION"
+        )
+        cursor.execute(
+            "UPDATE jobs SET apply_type = "
+            "CASE WHEN quick_apply = 1 THEN 'quick' ELSE 'external' END "
+            "WHERE apply_type IS NULL"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_jobs_apply_type ON jobs(apply_type)"
+        )
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_applications_seek_job_id ON applications(seek_job_id)"
         )
@@ -405,6 +523,27 @@ class PostgresManager:
         )
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_known_senders_domain ON known_senders(domain)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_recruiters_email ON recruiters(email)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_recruiters_linkedin ON recruiters(linkedin_url)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_recruiters_company ON recruiters(company_name)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_job_recruiter_links_job ON job_recruiter_links(job_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_job_recruiter_links_recruiter ON job_recruiter_links(recruiter_id)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_outreach_log_recent ON outreach_log(created_at DESC)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_outreach_log_job_recruiter ON outreach_log(job_id, recruiter_id)"
         )
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_market_centroids_archetype ON market_centroids(archetype, window_start DESC)"
@@ -497,8 +636,40 @@ class PostgresManager:
         except Exception:
             return fallback
 
+    @staticmethod
+    def _split_person_name(full_name: str) -> tuple[str, str]:
+        parts = [p for p in str(full_name or "").strip().split() if p]
+        if not parts:
+            return "", ""
+        first = parts[0]
+        last = parts[-1] if len(parts) > 1 else ""
+        return first, last
+
+    @staticmethod
+    def _build_recruiter_identity(
+        full_name: str = "",
+        email: str = "",
+        linkedin_url: str = "",
+        company_name: str = "",
+        domain: str = "",
+    ) -> str:
+        email_norm = str(email or "").strip().lower()
+        if email_norm:
+            return f"email:{email_norm}"
+        linkedin_norm = str(linkedin_url or "").strip().lower()
+        if linkedin_norm:
+            return f"linkedin:{linkedin_norm}"
+        name_norm = str(full_name or "").strip().lower()
+        if name_norm:
+            scope = str(company_name or domain or "").strip().lower()
+            return f"name:{name_norm}|{scope}"
+        return ""
+
     def job_exists(self, job_id: str) -> bool:
         """Check if a job ID already exists in the database."""
+        job_id = str(job_id or "").strip()
+        if not job_id:
+            return False
         cursor = self.conn.cursor()
         cursor.execute("SELECT 1 FROM jobs WHERE job_id = %s LIMIT 1", (job_id,))
         return cursor.fetchone() is not None
@@ -546,7 +717,7 @@ class PostgresManager:
 
     def insert_job(self, job_data: Dict) -> bool:
         """Insert a job into database if it doesn't exist."""
-        job_id = job_data.get("job_id")
+        job_id = str(job_data.get("job_id") or "").strip()
         if not job_id:
             logger.error("Missing job_id in job_data")
             return False
@@ -574,15 +745,29 @@ class PostgresManager:
                 or analysis_data.get("tech_keywords")
                 or []
             )
-            market_intel = 1 if analysis_data.get("market_intelligence_only") else 0
+            apply_type = job_data.get("apply_type") or (
+                "quick" if job_data.get("quick_apply", False) else "external"
+            )
+            apply_url = job_data.get("apply_url")
+            market_intel = (
+                1
+                if analysis_data.get("market_intelligence_only")
+                or (
+                    not job_data.get("quick_apply", False)
+                    and not _capture_external_enabled()
+                )
+                else 0
+            )
             needs_review = 1 if analysis_data.get("selection_needs_review") else 0
+            canonical_resume = self._canonical_resume_fields(analysis_data)
 
             cursor = self.conn.cursor()
             cursor.execute(
                 """
                 INSERT INTO jobs (
                     job_id, title, description, score, key_tools, recommendation,
-                    overview, url, source, quick_apply, created_at, pay, type,
+                    overview, url, source, quick_apply, apply_type, apply_url,
+                    created_at, pay, type,
                     location, status, keywords, company_id, job_classification,
                     resume_profile, matching_keyword, resume_archetype,
                     archetype_scores, archetype_primary, embedding_vector, job_type,
@@ -591,7 +776,8 @@ class PostgresManager:
                     application_batch_id, resume_commit_hash
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s,
                     %s, %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s, %s, %s, %s,
@@ -612,6 +798,8 @@ class PostgresManager:
                     url,
                     source,
                     1 if job_data.get("quick_apply", False) else 0,
+                    apply_type,
+                    apply_url,
                     job_data.get("created_at"),
                     job_data.get("pay_rate", ""),
                     job_data.get("work_type", ""),
@@ -620,11 +808,11 @@ class PostgresManager:
                     ", ".join(analysis_data.get("tech_keywords", [])),
                     company_id,
                     analysis_data.get("job_classification", "SHORT_TERM"),
-                    analysis_data.get("resume_profile", "default"),
+                    canonical_resume["resume_profile"],
                     job_data.get("matching_keyword", ""),
-                    analysis_data.get("resume_archetype", "adaptation"),
+                    canonical_resume["resume_archetype"],
                     archetype_scores,
-                    analysis_data.get("archetype_primary"),
+                    canonical_resume["archetype_primary"],
                     embedding_blob,
                     analysis_data.get("job_type", "unknown"),
                     analysis_data.get("day_rate_or_salary")
@@ -681,7 +869,8 @@ class PostgresManager:
                 WHERE j.status IN ('DISCOVERED', 'APP_ERROR')
                   AND j.quick_apply = 1
                   AND COALESCE(j.market_intelligence_only, 0) = 0
-                ORDER BY j.score DESC, j.created_at DESC
+                  AND COALESCE(j.below_threshold, 0) = 0
+                ORDER BY j.priority_score DESC NULLS LAST, j.score DESC, j.created_at DESC
                 LIMIT %s
             """,
                 (int(limit),),
@@ -701,8 +890,8 @@ class PostgresManager:
                     "Job Classification": job_dict.get(
                         "job_classification", "SHORT_TERM"
                     ),
-                    "Resume Profile": job_dict.get("resume_profile", "default"),
-                    "Resume Archetype": job_dict.get("resume_archetype", "adaptation"),
+                    "Resume Profile": job_dict.get("resume_profile", "builder"),
+                    "Resume Archetype": job_dict.get("resume_archetype", "builder"),
                     "Matching Keyword": job_dict.get("matching_keyword", ""),
                 }
                 jobs.append(job_dict)
@@ -710,6 +899,71 @@ class PostgresManager:
             return jobs
         except Exception as e:
             logger.error(f"Error getting pending jobs: {e}")
+            return []
+
+    def get_pending_external_jobs(
+        self, limit: int = 10, min_score: int = 0
+    ) -> List[Dict]:
+        """Get external (link-out) jobs ready for the agent applier."""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT j.*, c.name as company_name
+                FROM jobs j
+                LEFT JOIN companies c ON j.company_id = c.id
+                WHERE j.status IN ('DISCOVERED', 'APP_ERROR')
+                  AND j.apply_type = 'external'
+                  AND COALESCE(j.market_intelligence_only, 0) = 0
+                  AND COALESCE(j.below_threshold, 0) = 0
+                  AND COALESCE(j.score, 0) >= %s
+                ORDER BY j.priority_score DESC NULLS LAST, j.score DESC, j.created_at DESC
+                LIMIT %s
+            """,
+                (int(min_score), int(limit)),
+            )
+            jobs: List[Dict] = []
+            for row in cursor.fetchall():
+                job_dict = dict(row)
+                job_dict["work_type"] = job_dict.get("type", "")
+                job_dict["fields"] = {
+                    "Title": job_dict.get("title"),
+                    "Company Name": job_dict.get("company_name"),
+                    "URL": job_dict.get("url"),
+                    "Apply URL": job_dict.get("apply_url"),
+                    "Description": job_dict.get("description"),
+                    "Score": job_dict.get("score", 0),
+                    "Key Tools": job_dict.get("key_tools", ""),
+                    "Resume Profile": job_dict.get("resume_profile", "builder"),
+                }
+                jobs.append(job_dict)
+            return jobs
+        except Exception as e:
+            logger.error(f"Error getting pending external jobs: {e}")
+            return []
+
+    def get_external_jobs_report(self) -> List[Dict]:
+        """Summarise captured external jobs grouped by company."""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT
+                    COALESCE(c.name, 'Unknown') AS company_name,
+                    COUNT(*) AS external_count,
+                    SUM(CASE WHEN j.status = 'APPLIED' THEN 1 ELSE 0 END)
+                        AS applied_count,
+                    MAX(j.score) AS top_score
+                FROM jobs j
+                LEFT JOIN companies c ON j.company_id = c.id
+                WHERE j.apply_type = 'external'
+                GROUP BY COALESCE(c.name, 'Unknown')
+                ORDER BY external_count DESC, top_score DESC
+            """
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error building external jobs report: {e}")
             return []
 
     def update_job_status(self, job_id: str, status: str) -> bool:
@@ -762,15 +1016,27 @@ class PostgresManager:
             "seniority_level",
             "tech_stack_tags",
             "market_intelligence_only",
+            "below_threshold",
             "selection_needs_review",
             "application_batch_id",
             "resume_commit_hash",
+            "priority_score",
         }
 
         safe_fields = {k: v for k, v in fields.items() if k in allowed_fields}
         if not safe_fields:
             logger.warning(f"No valid fields to update for record {record_id}")
             return False
+
+        if {
+            "archetype_primary",
+            "resume_archetype",
+            "resume_profile",
+        } & set(safe_fields.keys()):
+            canonical_resume = self._canonical_resume_fields(safe_fields)
+            safe_fields["archetype_primary"] = canonical_resume["archetype_primary"]
+            safe_fields["resume_archetype"] = canonical_resume["resume_archetype"]
+            safe_fields["resume_profile"] = canonical_resume["resume_profile"]
 
         if "embedding_vector" in safe_fields:
             safe_fields["embedding_vector"] = self._serialize_vector(
@@ -904,6 +1170,7 @@ class PostgresManager:
         embedding_blob = self._serialize_vector(job_record.get("embedding_vector"))
         tech_stack_tags = self._to_json_array(job_record.get("tech_stack_tags") or [])
         date_applied = timestamp[:10]
+        canonical_resume = self._canonical_resume_fields(job_record)
 
         try:
             cursor = self.conn.cursor()
@@ -919,8 +1186,8 @@ class PostgresManager:
                     resume_commit_hash, profile_state_at_application,
                     application_batch_id, key_tools, matching_keyword,
                     job_classification, applied_at, outcome_stage,
-                    market_intelligence_only, created_at, updated_at,
-                    last_modified
+                    market_intelligence_only, below_threshold,
+                    created_at, updated_at, last_modified
                 ) VALUES (
                     %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
@@ -932,7 +1199,7 @@ class PostgresManager:
                     %s, %s, %s,
                     %s, %s, %s,
                     %s, %s, %s,
-                    %s
+                    %s, %s
                 )
                 ON CONFLICT(job_id) DO UPDATE SET
                     seek_job_id = excluded.seek_job_id,
@@ -965,6 +1232,7 @@ class PostgresManager:
                     applied_at = excluded.applied_at,
                     outcome_stage = excluded.outcome_stage,
                     market_intelligence_only = excluded.market_intelligence_only,
+                    below_threshold = excluded.below_threshold,
                     updated_at = excluded.updated_at,
                     last_modified = excluded.last_modified
             """,
@@ -990,15 +1258,15 @@ class PostgresManager:
                     tech_stack_tags,
                     job_record.get("matching_keyword", ""),
                     archetype_scores,
-                    job_record.get("archetype_primary"),
+                    canonical_resume["archetype_primary"],
                     embedding_blob,
-                    job_record.get("resume_profile", "default"),
-                    job_record.get("resume_archetype", "adaptation"),
+                    canonical_resume["resume_profile"],
+                    canonical_resume["resume_archetype"],
                     job_record.get("resume_variant_sent")
-                    or job_record.get("archetype_primary"),
+                    or canonical_resume["archetype_primary"],
                     job_record.get("resume_commit_hash"),
                     job_record.get("profile_state_at_application")
-                    or job_record.get("archetype_primary"),
+                    or canonical_resume["archetype_primary"],
                     job_record.get("application_batch_id"),
                     job_record.get("key_tools", ""),
                     job_record.get("matching_keyword", ""),
@@ -1006,6 +1274,7 @@ class PostgresManager:
                     timestamp,
                     "applied",
                     int(bool(job_record.get("market_intelligence_only", 0))),
+                    int(bool(job_record.get("below_threshold", 0))),
                     timestamp,
                     timestamp,
                     timestamp,
@@ -1111,6 +1380,7 @@ class PostgresManager:
                 "applied_at",
                 "outcome_stage",
                 "market_intelligence_only",
+                "below_threshold",
                 "created_at",
                 "updated_at",
                 "last_modified",
@@ -1128,6 +1398,7 @@ class PostgresManager:
 
             for row in rows:
                 job = dict(row)
+                canonical_resume = self._canonical_resume_fields(job)
                 applied_at = job.get("last_modified") or job.get("created_at") or now
                 date_scraped = (
                     job.get("created_at")[:10]
@@ -1159,13 +1430,13 @@ class PostgresManager:
                         job.get("tech_stack_tags"),
                         job.get("matching_keyword") or "",
                         job.get("archetype_scores"),
-                        job.get("archetype_primary"),
+                        canonical_resume["archetype_primary"],
                         job.get("embedding_vector"),
-                        job.get("resume_profile") or "default",
-                        job.get("resume_archetype") or "adaptation",
+                        canonical_resume["resume_profile"],
+                        canonical_resume["resume_archetype"],
                         None,
                         job.get("resume_commit_hash"),
-                        job.get("resume_archetype") or "adaptation",
+                        canonical_resume["resume_archetype"],
                         job.get("application_batch_id"),
                         job.get("key_tools"),
                         job.get("matching_keyword"),
@@ -1173,6 +1444,7 @@ class PostgresManager:
                         applied_at,
                         "applied",
                         int(bool(job.get("market_intelligence_only") or 0)),
+                        int(bool(job.get("below_threshold") or 0)),
                         applied_at,
                         now,
                         now,
@@ -1507,6 +1779,7 @@ class PostgresManager:
                 SELECT *
                 FROM applications
                 WHERE market_intelligence_only = 0
+                  AND below_threshold = 0
                   AND outcome_stage = 'applied'
                   AND date_applied IS NOT NULL
                   AND date_applied < %s
@@ -1624,7 +1897,8 @@ class PostgresManager:
             cursor = self.conn.cursor()
             cursor.execute(
                 """
-                SELECT archetype_primary, archetype_scores, score, market_intelligence_only
+                SELECT archetype_primary, archetype_scores, score,
+                       market_intelligence_only, below_threshold
                 FROM jobs
                 WHERE status IN ('DISCOVERED', 'APP_ERROR')
                   AND quick_apply = 1
@@ -1634,8 +1908,13 @@ class PostgresManager:
             for row in rows:
                 archetype = (row.get("archetype_primary") or "unknown").strip().lower()
                 scores = self._safe_json_load(row.get("archetype_scores"), {})
-                market_intel = bool(row.get("market_intelligence_only"))
-                bucket = "market_intel" if market_intel else archetype
+                # Aggregate both "can't apply" buckets into market_intel for
+                # the dashboard. Splitting adds noise without changing user
+                # action (neither is applyable via auto-apply).
+                excluded = bool(row.get("market_intelligence_only")) or bool(
+                    row.get("below_threshold")
+                )
+                bucket = "market_intel" if excluded else archetype
                 if bucket not in summary:
                     summary[bucket] = {"count": 0.0, "score_sum": 0.0}
 
@@ -1672,7 +1951,7 @@ class PostgresManager:
                 "LEFT JOIN companies c ON j.company_id = c.id "
                 "WHERE j.status IN ('DISCOVERED', 'APP_ERROR') "
                 "AND j.quick_apply = 1 "
-                "ORDER BY j.score DESC, j.created_at DESC"
+                "ORDER BY j.priority_score DESC NULLS LAST, j.score DESC, j.created_at DESC"
             )
             params: List = []
             if limit > 0:
@@ -1694,13 +1973,14 @@ class PostgresManager:
                 "SELECT j.*, c.name AS company_name FROM jobs j "
                 "LEFT JOIN companies c ON j.company_id = c.id "
                 "WHERE j.status IN ('DISCOVERED', 'APP_ERROR') "
-                "AND j.quick_apply = 1 AND COALESCE(j.market_intelligence_only, 0) = 0"
+                "AND j.quick_apply = 1 AND COALESCE(j.market_intelligence_only, 0) = 0 "
+                "AND COALESCE(j.below_threshold, 0) = 0"
             )
             params: List = []
             if archetype:
                 query += " AND LOWER(COALESCE(j.archetype_primary, '')) = %s"
                 params.append(archetype.strip().lower())
-            query += " ORDER BY j.score DESC, j.created_at DESC"
+            query += " ORDER BY j.priority_score DESC NULLS LAST, j.score DESC, j.created_at DESC"
             if limit > 0:
                 query += " LIMIT %s"
                 params.append(int(limit))
@@ -1723,8 +2003,9 @@ class PostgresManager:
                 WHERE j.status IN ('DISCOVERED', 'APP_ERROR')
                   AND j.quick_apply = 1
                   AND COALESCE(j.market_intelligence_only, 0) = 0
+                  AND COALESCE(j.below_threshold, 0) = 0
                   AND COALESCE(j.selection_needs_review, 0) = 1
-                ORDER BY j.score DESC, j.created_at DESC
+                ORDER BY j.priority_score DESC NULLS LAST, j.score DESC, j.created_at DESC
                 LIMIT %s
             """,
                 (max(1, int(limit)),),
@@ -2024,6 +2305,457 @@ class PostgresManager:
             logger.error(f"Error looking up known sender {email_address}: {e}")
             return None
 
+    def get_known_sender_domains(
+        self, company_name: str = "", limit: int = 20
+    ) -> List[Dict]:
+        """Return known sender domains ranked by sample count."""
+        try:
+            cursor = self.conn.cursor()
+            if company_name:
+                cursor.execute(
+                    """
+                    SELECT domain, COUNT(*) AS sample_count
+                    FROM known_senders
+                    WHERE domain IS NOT NULL
+                      AND btrim(domain) <> ''
+                      AND LOWER(COALESCE(company_name, '')) = LOWER(%s)
+                    GROUP BY domain
+                    ORDER BY sample_count DESC, domain ASC
+                    LIMIT %s
+                """,
+                    (company_name, max(1, int(limit))),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT domain, COUNT(*) AS sample_count
+                    FROM known_senders
+                    WHERE domain IS NOT NULL
+                      AND btrim(domain) <> ''
+                    GROUP BY domain
+                    ORDER BY sample_count DESC, domain ASC
+                    LIMIT %s
+                """,
+                    (max(1, int(limit)),),
+                )
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error reading known sender domains: {e}")
+            return []
+
+    def get_sender_locals_for_domain(self, domain: str, limit: int = 200) -> List[Dict]:
+        """Return local-parts from known sender emails for one domain."""
+        if not domain:
+            return []
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT DISTINCT LOWER(split_part(email_address, '@', 1)) AS local_part
+                FROM known_senders
+                WHERE LOWER(domain) = LOWER(%s)
+                  AND email_address LIKE %s
+                LIMIT %s
+            """,
+                (domain, "%@%", max(1, int(limit))),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error reading sender locals for domain {domain}: {e}")
+            return []
+
+    def upsert_recruiter_contact(
+        self,
+        full_name: str = "",
+        email: str = "",
+        phone: str = "",
+        linkedin_url: str = "",
+        company_name: str = "",
+        domain: str = "",
+        source: str = "unknown",
+        confidence: float = 0.0,
+        notes: str = "",
+    ) -> Optional[int]:
+        """Upsert a recruiter contact and return recruiter id."""
+        email_norm = str(email or "").strip().lower()
+        linkedin_norm = str(linkedin_url or "").strip()
+        domain_norm = str(domain or "").strip().lower()
+        if not domain_norm and "@" in email_norm:
+            domain_norm = email_norm.split("@", 1)[1]
+        identity_key = self._build_recruiter_identity(
+            full_name=full_name,
+            email=email_norm,
+            linkedin_url=linkedin_norm,
+            company_name=company_name,
+            domain=domain_norm,
+        )
+        if not identity_key:
+            return None
+
+        first_name, last_name = self._split_person_name(full_name)
+        now = datetime.now().isoformat()
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                "SELECT * FROM recruiters WHERE identity_key = %s",
+                (identity_key,),
+            )
+            existing = cursor.fetchone()
+            if existing:
+                row = dict(existing)
+                merged_name = full_name or row.get("full_name") or ""
+                merged_first, merged_last = self._split_person_name(merged_name)
+                merged_email = email_norm or row.get("email") or ""
+                merged_phone = phone or row.get("phone") or ""
+                merged_linkedin = linkedin_norm or row.get("linkedin_url") or ""
+                merged_company = company_name or row.get("company_name") or ""
+                merged_domain = domain_norm or row.get("domain") or ""
+                merged_conf = max(
+                    float(row.get("confidence") or 0.0),
+                    float(confidence or 0.0),
+                )
+                cursor.execute(
+                    """
+                    UPDATE recruiters
+                    SET full_name = %s,
+                        first_name = %s,
+                        last_name = %s,
+                        email = %s,
+                        phone = %s,
+                        linkedin_url = %s,
+                        company_name = %s,
+                        domain = %s,
+                        source = COALESCE(NULLIF(%s, ''), source),
+                        confidence = %s,
+                        notes = COALESCE(NULLIF(%s, ''), notes),
+                        updated_at = %s
+                    WHERE id = %s
+                """,
+                    (
+                        merged_name,
+                        merged_first,
+                        merged_last,
+                        merged_email,
+                        merged_phone,
+                        merged_linkedin,
+                        merged_company,
+                        merged_domain,
+                        source,
+                        merged_conf,
+                        notes,
+                        now,
+                        int(row.get("id")),
+                    ),
+                )
+                self.conn.commit()
+                return int(row.get("id"))
+
+            cursor.execute(
+                """
+                INSERT INTO recruiters (
+                    identity_key, full_name, first_name, last_name, email, phone,
+                    linkedin_url, company_name, domain, source, confidence, notes,
+                    created_at, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """,
+                (
+                    identity_key,
+                    full_name or "",
+                    first_name,
+                    last_name,
+                    email_norm,
+                    phone or "",
+                    linkedin_norm,
+                    company_name or "",
+                    domain_norm,
+                    source or "unknown",
+                    float(confidence or 0.0),
+                    notes or "",
+                    now,
+                    now,
+                ),
+            )
+            recruiter_id = int(cursor.fetchone()["id"])
+            self.conn.commit()
+            return recruiter_id
+        except Exception as e:
+            logger.error(f"Error upserting recruiter contact {identity_key}: {e}")
+            self.conn.rollback()
+            return None
+
+    def link_job_to_recruiter(
+        self,
+        job_id: str,
+        recruiter_id: int,
+        relationship: str = "recruiter",
+        confidence: float = 0.0,
+        inferred_email: str = "",
+        inference_rule: str = "",
+    ) -> bool:
+        """Link a job to recruiter contact with optional inferred email metadata."""
+        if not job_id or not recruiter_id:
+            return False
+        now = datetime.now().isoformat()
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO job_recruiter_links (
+                    job_id, recruiter_id, relationship, confidence,
+                    inferred_email, inference_rule, created_at, updated_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT(job_id, recruiter_id) DO UPDATE SET
+                    relationship = excluded.relationship,
+                    confidence = GREATEST(job_recruiter_links.confidence, excluded.confidence),
+                    inferred_email = CASE
+                        WHEN COALESCE(excluded.inferred_email, '') <> '' THEN excluded.inferred_email
+                        ELSE job_recruiter_links.inferred_email
+                    END,
+                    inference_rule = CASE
+                        WHEN COALESCE(excluded.inference_rule, '') <> '' THEN excluded.inference_rule
+                        ELSE job_recruiter_links.inference_rule
+                    END,
+                    updated_at = excluded.updated_at
+            """,
+                (
+                    job_id,
+                    int(recruiter_id),
+                    relationship or "recruiter",
+                    float(confidence or 0.0),
+                    inferred_email or "",
+                    inference_rule or "",
+                    now,
+                    now,
+                ),
+            )
+            cursor.execute(
+                """
+                UPDATE recruiters
+                SET jobs_seen = (
+                        SELECT COUNT(*) FROM job_recruiter_links WHERE recruiter_id = %s
+                    ),
+                    updated_at = %s
+                WHERE id = %s
+            """,
+                (int(recruiter_id), now, int(recruiter_id)),
+            )
+            self.conn.commit()
+            return True
+        except Exception as e:
+            logger.error(
+                f"Error linking job {job_id} to recruiter {recruiter_id}: {e}"
+            )
+            self.conn.rollback()
+            return False
+
+    def get_jobs_for_contact_intel(
+        self, limit: int = 150, source: str = "", only_missing: bool = True
+    ) -> List[Dict]:
+        """Return recent jobs for contact extraction."""
+        try:
+            params: List = []
+            query = (
+                "SELECT j.job_id, j.title, j.description, j.source, j.url, "
+                "j.created_at, j.score, c.name AS company_name "
+                "FROM jobs j "
+                "LEFT JOIN companies c ON j.company_id = c.id "
+                "WHERE j.description IS NOT NULL AND btrim(j.description) <> '' "
+            )
+            if source:
+                query += "AND LOWER(COALESCE(j.source, '')) = %s "
+                params.append(str(source).strip().lower())
+            if only_missing:
+                query += (
+                    "AND NOT EXISTS ("
+                    "SELECT 1 FROM job_recruiter_links l WHERE l.job_id = j.job_id"
+                    ") "
+                )
+            query += "ORDER BY j.created_at DESC "
+            query += "LIMIT %s"
+            params.append(max(1, int(limit)))
+
+            cursor = self.conn.cursor()
+            cursor.execute(query, tuple(params))
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error loading jobs for contact intel: {e}")
+            return []
+
+    def find_recruiters_by_company(
+        self, company_name: str, limit: int = 10
+    ) -> List[Dict]:
+        """Return known recruiters likely associated with a company/agency name."""
+        needle = str(company_name or "").strip().lower()
+        if not needle:
+            return []
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                SELECT *
+                FROM recruiters
+                WHERE LOWER(COALESCE(company_name, '')) = LOWER(%s)
+                   OR LOWER(COALESCE(company_name, '')) LIKE %s
+                ORDER BY jobs_seen DESC, confidence DESC, updated_at DESC
+                LIMIT %s
+            """,
+                (company_name, f"%{needle}%", max(1, int(limit))),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error finding recruiters by company {company_name}: {e}")
+            return []
+
+    def get_recruiter_outreach_candidates(
+        self, limit: int = 50, source: str = ""
+    ) -> List[Dict]:
+        """Return ranked recruiter outreach candidates (email > inferred > LinkedIn)."""
+        try:
+            params: List = []
+            query = """
+                SELECT
+                    j.job_id,
+                    j.title,
+                    j.source,
+                    j.url,
+                    j.score,
+                    j.key_tools,
+                    j.matching_keyword,
+                    c.name AS company_name,
+                    r.id AS recruiter_id,
+                    r.full_name,
+                    r.email,
+                    r.phone,
+                    r.linkedin_url,
+                    r.domain,
+                    r.company_name AS recruiter_company_name,
+                    l.relationship,
+                    l.confidence,
+                    l.inferred_email,
+                    l.inference_rule,
+                    (
+                        SELECT ol.status
+                        FROM outreach_log ol
+                        WHERE ol.job_id = j.job_id
+                          AND ol.recruiter_id = r.id
+                        ORDER BY ol.created_at DESC
+                        LIMIT 1
+                    ) AS last_outreach_status,
+                    (
+                        SELECT ol.created_at
+                        FROM outreach_log ol
+                        WHERE ol.job_id = j.job_id
+                          AND ol.recruiter_id = r.id
+                        ORDER BY ol.created_at DESC
+                        LIMIT 1
+                    ) AS last_outreach_at,
+                    CASE
+                        WHEN COALESCE(btrim(r.email), '') <> '' THEN 1
+                        WHEN COALESCE(btrim(l.inferred_email), '') <> '' THEN 2
+                        WHEN COALESCE(btrim(r.linkedin_url), '') <> '' THEN 3
+                        WHEN COALESCE(btrim(r.full_name), '') <> '' THEN 4
+                        ELSE 5
+                    END AS contact_priority,
+                    CASE
+                        WHEN LOWER(COALESCE(c.name, '')) LIKE '%%recruit%%'
+                          OR LOWER(COALESCE(c.name, '')) LIKE '%%staff%%'
+                          OR LOWER(COALESCE(c.name, '')) LIKE '%%talent%%'
+                          OR LOWER(COALESCE(c.name, '')) LIKE '%%agency%%'
+                        THEN 1 ELSE 0
+                    END AS job_company_is_agency
+                FROM job_recruiter_links l
+                JOIN recruiters r ON r.id = l.recruiter_id
+                JOIN jobs j ON j.job_id = l.job_id
+                LEFT JOIN companies c ON c.id = j.company_id
+                WHERE 1 = 1
+            """
+            if source:
+                query += " AND LOWER(COALESCE(j.source, '')) = %s "
+                params.append(str(source).strip().lower())
+            query += """
+                ORDER BY
+                    job_company_is_agency DESC,
+                    contact_priority ASC,
+                    COALESCE(j.score, 0) DESC,
+                    COALESCE(l.confidence, 0) DESC,
+                    COALESCE(j.created_at, '') DESC
+                LIMIT %s
+            """
+            params.append(max(1, int(limit)))
+
+            cursor = self.conn.cursor()
+            cursor.execute(query, tuple(params))
+            return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error loading recruiter outreach candidates: {e}")
+            return []
+
+    def log_outreach_event(
+        self,
+        *,
+        job_id: str,
+        recruiter_id: int,
+        channel: str,
+        target: str,
+        subject: str = "",
+        body: str = "",
+        status: str = "planned",
+        error_message: str = "",
+        sent_at: Optional[str] = None,
+    ) -> Optional[int]:
+        """Log a recruiter outreach attempt/event."""
+        now = datetime.now().isoformat()
+        sent_value = sent_at or (now if status == "sent" else None)
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO outreach_log (
+                    job_id, recruiter_id, channel, target, subject, body,
+                    status, error_message, created_at, sent_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """,
+                (
+                    job_id or None,
+                    int(recruiter_id) if recruiter_id else None,
+                    channel,
+                    target,
+                    subject,
+                    body,
+                    status,
+                    error_message,
+                    now,
+                    sent_value,
+                ),
+            )
+            row = cursor.fetchone()
+            if recruiter_id:
+                cursor.execute(
+                    """
+                    UPDATE recruiters
+                    SET outreach_state = %s,
+                        last_outreach_at = %s,
+                        updated_at = %s
+                    WHERE id = %s
+                """,
+                    (
+                        status if status else "planned",
+                        sent_value or now,
+                        now,
+                        int(recruiter_id),
+                    ),
+                )
+            self.conn.commit()
+            return int(row["id"]) if row else None
+        except Exception as e:
+            logger.error(
+                f"Error logging outreach event job={job_id} recruiter={recruiter_id}: {e}"
+            )
+            self.conn.rollback()
+            return None
+
     def insert_parsed_email(self, parsed: Dict) -> Optional[int]:
         """Insert one parsed Gmail record into email_parsed."""
         try:
@@ -2314,6 +3046,7 @@ class PostgresManager:
                     ) AS ghost
                 FROM applications
                 WHERE market_intelligence_only = 0
+                  AND below_threshold = 0
             """,
                 (ghost_cutoff,),
             )
@@ -2329,6 +3062,7 @@ class PostgresManager:
                     ROUND(100.0 * SUM(CASE WHEN outcome_stage = 'interview_request' THEN 1 ELSE 0 END) / COUNT(*), 1) AS interview_rate
                 FROM applications
                 WHERE market_intelligence_only = 0
+                  AND below_threshold = 0
                   AND date_applied IS NOT NULL
                 GROUP BY month
                 ORDER BY month DESC
@@ -2344,6 +3078,7 @@ class PostgresManager:
                     ROUND(100.0 * SUM(CASE WHEN outcome_stage = 'interview_request' THEN 1 ELSE 0 END) / COUNT(*), 1) AS interview_rate
                 FROM applications
                 WHERE market_intelligence_only = 0
+                  AND below_threshold = 0
                 GROUP BY archetype_primary
             """
             )
@@ -2360,6 +3095,7 @@ class PostgresManager:
                     ROUND(100.0 * SUM(CASE WHEN outcome_stage = 'rejected' THEN 1 ELSE 0 END) / COUNT(*), 1) AS rejection_rate
                 FROM applications
                 WHERE market_intelligence_only = 0
+                  AND below_threshold = 0
                   AND date_applied IS NOT NULL
                 GROUP BY resume_variant_sent, resume_commit_hash
                 HAVING COUNT(*) >= 1

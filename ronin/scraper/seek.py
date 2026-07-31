@@ -246,11 +246,24 @@ class SeekScraper(BaseScraper):
                 return None
 
             apply_button = soup.find("a", attrs={"data-automation": "job-detail-apply"})
-            quick_apply = apply_button and "Quick apply" in apply_button.get_text()
-
-            if self.quick_apply_only and not quick_apply:
-                logger.debug(f"Skipping job {job_id} - Quick apply not available")
-                return None
+            quick_apply = bool(
+                apply_button and "Quick apply" in apply_button.get_text()
+            )
+            apply_type = "quick" if quick_apply else "external"
+            # For external (link-out) applies, the apply destination is always
+            # Seek's own /job/{id}/apply redirect, which only resolves to the
+            # employer ATS after a click; the agent applier follows it at apply
+            # time. Build it from the job id rather than reading the button
+            # href: the href is absent on a chunk of detail pages (25 of 105
+            # captured rows had none), and every href that WAS present matched
+            # this pattern exactly.
+            apply_url = None
+            if not quick_apply:
+                apply_url = f"https://www.seek.com.au/job/{job_id}/apply"
+            if self.quick_apply_only and not quick_apply and not self.capture_external:
+                logger.debug(
+                    f"Job {job_id} is not quick apply; retaining for market-intel tagging"
+                )
 
             description_element = soup.find(
                 "div", attrs={"data-automation": "jobAdDetails"}
@@ -297,6 +310,8 @@ class SeekScraper(BaseScraper):
             job_details = {
                 "description": description_text,
                 "quick_apply": quick_apply,
+                "apply_type": apply_type,
+                "apply_url": apply_url,
                 "created_at": created_at_iso,
                 "location": location,
                 "work_type": work_type,

@@ -26,13 +26,18 @@ Set it up once. Run one command. Wake up to a full pipeline of applications.
                                       +-----------------+    +--------------+
 ```
 
-1. **Search** -- Ronin scrapes Seek.com.au for jobs matching your keywords.
+1. **Search** -- Ronin scrapes Seek.com.au and LinkedIn (guest job search)
+   for jobs matching your keywords. LinkedIn also powers people-search
+   outreach.
 2. **Score** -- Each job description is sent to an AI model (Claude or GPT)
    which scores it 0-100 based on your skills, preferences, and red flags.
 3. **Select** -- The AI picks the best resume profile for each job and
    classifies it (contract vs. long-term), with archetype-aware matching.
-4. **Apply** -- Ronin opens Chrome, navigates to each job, writes a cover
-   letter, answers screening questions, and submits the application.
+4. **Apply** -- Seek Quick Apply jobs go through the deterministic Chrome
+   applier (`make apply`). Everything else — LinkedIn Easy Apply and
+   external ATSes (Workday, PageUp, Greenhouse, ...) — goes through the
+   agent applier (`make apply-external`), which fills forms, uploads the
+   matching resume PDF, and navigates to submit.
 5. **Learn** -- Ronin can parse Gmail outcomes (rejection, callback,
    interview, offer) and feed conversion signals back into future scoring.
 
@@ -283,17 +288,65 @@ ronin search
 
 This command:
 
-1. Scrapes Seek.com.au for jobs matching your configured keywords
+1. Scrapes enabled job boards (Seek by default) for jobs matching your configured keywords
 2. Fetches full details for each listing
 3. Filters out jobs you have already seen (tracked in a local database)
 4. Sends each new job description to the AI for scoring
-5. Saves everything to a local SQLite database
+5. Saves everything to a local SQLite/Postgres database
+6. Optionally extracts recruiter contacts (email/LinkedIn/name) for outreach
 
 You will see a progress bar as it works through each phase. At the end, it
 reports how many new jobs were found, scored, and saved.
 
+LinkedIn job scraping is controlled by `boards.linkedin.jobs_search_enabled`
+and uses LinkedIn's guest search endpoints (no login). Tune
+`boards.linkedin.filters` (easy apply, job type, experience level, workplace
+type, distance, sort order) rather than relying only on keyword text. All
+LinkedIn jobs are stored as `apply_type: external` and applied via
+`ronin apply external`, which needs a LinkedIn login in the persisted Chrome
+profile (sign in once when prompted; the session is reused after that).
+
 **How often to run it:** Every few hours, or set up automatic scheduling (see
 below). New listings appear on Seek throughout the day.
+
+### Recruiter Outreach Queue
+
+```
+ronin apply contacts --refresh --limit 50
+```
+
+This command runs a two-stage contact strategy:
+
+1. If the role appears to be from a staffing agency, prioritize known agency
+   recruiters and direct email.
+2. Otherwise, use JD-extracted email first, then LinkedIn + inferred email
+   suggestions when no explicit email exists.
+
+If `contact_intel.use_llm` is enabled, Ronin adds an LLM extraction pass for
+recruiter details that regex misses.
+
+To send outreach emails directly (explicit opt-in):
+
+```
+ronin apply contacts --refresh --send-email --yes
+```
+
+To auto-generate LinkedIn DM drafts for non-agency roles and open top search tabs:
+
+```
+ronin apply contacts --refresh --open-linkedin --open-linkedin-limit 5
+```
+
+To manually seed a known recruiter (so agency matches can reuse them):
+
+```
+ronin apply contacts --seed-recruiter-email jonny.church@pra.com.au --seed-recruiter-name "Jonny Church" --seed-recruiter-company "PRA"
+```
+
+Optional call CTA in message template:
+
+- Set `contact_intel.outreach.cta_phone` in `~/.ronin/config.yaml`, or
+- Pass `--cta-phone "0413414869"` at runtime
 
 ### Applying to Jobs
 
@@ -319,6 +372,84 @@ change this in `config.yaml` under `application.batch_limit`.
 
 **What "stale" means:** If a job has been taken down since you last searched,
 Ronin marks it as STALE and moves on.
+
+### Applying to External / LinkedIn Jobs
+
+```
+ronin apply external --report    # see what's captured, by company
+ronin apply external             # dry-run: fill + traverse, never submit
+ronin apply external --live      # actually submit (asks for confirmation)
+```
+
+Jobs without Seek Quick Apply — LinkedIn listings and link-outs to employer
+ATSes (Workday, PageUp, Greenhouse, Lever, ...) — are stored as
+`apply_type: external` when `scraping.capture_external` is on. The agent
+applier drives them with an observe-decide-act loop: it detects the ATS,
+fills each form page, uploads the archetype-matched resume PDF from
+`agent_apply.resume_pdf_dir`, and walks continue/review steps to the final
+submit.
+
+Safety defaults: `agent_apply.dry_run: true` means it stops right before the
+submit button and reports what it would have sent; captchas and login walls
+stop the run rather than fight it. LinkedIn requires a signed-in session in
+the persisted Chrome profile — the first run pauses and waits while you log
+in, then reuses that session.
+
+### Keeping Your Resume + Seek Profile Fresh (Automated)
+
+One master fact base drives the tuned resume variants and your Seek profile.
+
+**Capture wins as they happen:**
+
+```
+ronin log "cut Snowflake spend 30% at <client> via warehouse right-sizing"
+```
+
+(or the `rlog` shell alias). Notes land in `resume/yaml/data_engineer/source_log.md`.
+
+**Two hand-owned poles** bracket the same career, both in
+`resume/yaml/data_engineer/`:
+
+- `source.yml` — the **truth pole**. Real companies, dates, and titles stated
+  plainly. Each role may set an optional `de_title` (the data-engineering-framed
+  title to present when the real title, e.g. "Solutions Engineer", undersells the
+  data work).
+- `c.yml` — the **recruiter pole**. The same truth at its most keyword-dense and
+  achievement-forward. Edit it by hand; `ronin resume regen` refuses to write it.
+
+**Weekly regeneration** (`ronin resume regen`, scheduled Monday) runs two AI
+agents: an *ingest* agent folds your log notes into `source.yml`, then a *tuning*
+agent rewrites `builder.yml`, `fixer.yml`, `operator.yml`, and `translator.yml`.
+Each lands at the midpoint between the poles — it reads `c.yml` as its register
+ceiling and differs from its siblings by which facts lead (greenfield /
+migration / reliability / stakeholders). Guardrails make unattended regen safe:
+
+- Companies, dates, and titles are copied verbatim — the AI only rewrites prose
+  (headline, career summary, responsibilities, achievements).
+- Every dollar/percentage/count in the output must trace to the source facts;
+  invented numbers are rejected and that variant's old file is kept. The
+  recruiter pole is a style exemplar, so its numbers are not a licence either.
+- Unchanged source + pole + log ⇒ no AI call, no commit (idempotent). Editing
+  `c.yml` moves the ceiling for all four archetypes and so triggers a rerun.
+- One variant failing validation does not block the rest of the run.
+
+Regenerated variants commit to the resume repo and push to the remote named in
+`resume_variants.regen_push_remote` (leave empty to commit locally only).
+
+**Weekly Seek refresh** (`ronin profile refresh`, scheduled Mon + Thu) publishes
+`c.yml` to your Seek profile. A fresh *last-updated* timestamp is the strongest
+"I'm on the market" signal to recruiters, so when nothing changed it re-saves
+the summary with an invisible character toggle — the timestamp still bumps.
+
+```
+ronin resume regen            # regenerate all four archetypes now
+ronin resume regen --variant operator   # just one (repeatable; poles refused)
+ronin profile refresh --dry-run   # preview the Seek update plan
+ronin profile refresh         # publish / recency-touch now
+```
+
+Schedule (macOS launchd): `com.ronin.resume` (Mon 06:30) and `com.ronin.seek`
+(Mon + Thu 07:30).
 
 ### Checking Status
 
@@ -415,8 +546,10 @@ Seek profile batching note:
 - By default, `ronin apply batch <archetype>` assumes you manually switched your Seek profile copy to match the archetype.
 - To automate the profile switch, configure `seek_profile` in `~/.ronin/config.yaml`, then run:
   - `ronin profile set builder` (one-off), or
+  - `ronin profile sync` (detect dominant archetype drift and switch automatically), or
   - `ronin apply batch builder --auto-profile`
   - If Seek UI changes, use `ronin profile debug` to open Playwright Inspector and capture selectors.
+- To auto-run drift sync in autopilot, enable `seek_profile.drift.enabled: true`; then `ronin run` will check tracked profile state and switch when dominant archetype changes.
 
 Offline buffer:
 

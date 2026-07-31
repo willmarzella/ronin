@@ -1,5 +1,6 @@
 """Service for analyzing job postings using Anthropic Claude."""
 
+import threading
 from typing import Dict, Optional
 
 import anthropic
@@ -12,6 +13,8 @@ from ronin.profile import Profile, load_profile
 from ronin.prompts import JOB_ANALYSIS_PROMPT
 from ronin.prompts.generator import generate_job_analysis_prompt
 
+ARCHETYPE_PROFILES = {"builder", "fixer", "operator", "translator"}
+
 
 class JobAnalyzerService:
     """Service for analyzing job postings using Anthropic Claude."""
@@ -19,9 +22,12 @@ class JobAnalyzerService:
     def __init__(self, config: Dict, client=None):
         self.config = config
         self.client = client or anthropic.Anthropic()
-        self.model = "claude-sonnet-4-20250514"
+        self.model = "claude-sonnet-4-6"
         self.profile: Optional[Profile] = None
         self._feedback_context = ""
+        # analyze_job runs concurrently across threads; the embedding model is a
+        # single shared torch module, so serialize the encode step.
+        self._classifier_lock = threading.Lock()
         self.archetype_classifier = ArchetypeClassifier(
             enable_embeddings=bool(
                 self.config.get("analysis", {}).get("enable_embeddings", True)
@@ -83,48 +89,56 @@ class JobAnalyzerService:
             logger.debug(f"Rule-based resume hint unavailable: {e}")
             return None
 
-    def _resolve_resume_profile(self, job_data: Dict, analysis: Dict) -> str:
-        """Ensure resume_profile is valid and attach resume_archetype."""
-        fallback_profile = analysis.get("resume_profile") or "default"
+    def _role_specific_resume_override(self, job_data: Dict) -> Optional[str]:
+        """Return a custom (non-archetype) resume that matches this listing.
+
+        Custom resumes take precedence over the four embedding archetypes, which
+        only describe data-engineering JD *shapes* and would otherwise mis-route
+        a "Sales Engineer" listing to builder/operator, or send the plain
+        archetype copy to a contract that wants the cashflow/FinOps framing.
+
+        Matching is delegated to the profile rule scorer, so title patterns,
+        keyword bias and work type all count — see
+        :meth:`Profile.select_custom_resume`.
+        """
         if not self.profile or not self.profile.resumes:
-            analysis["resume_archetype"] = analysis.get(
-                "resume_archetype", "adaptation"
-            )
-            return fallback_profile
+            return None
+        return self.profile.select_custom_resume(
+            job_title=str(job_data.get("title", "")),
+            job_description=str(job_data.get("description", "")),
+            work_type=str(job_data.get("work_type", "")),
+        )
 
-        valid_profiles = {resume.name for resume in self.profile.resumes}
-        ai_selected = analysis.get("resume_profile")
-
-        if ai_selected not in valid_profiles:
-            suggested = self.profile.recommend_resume_for_listing(
-                job_title=job_data.get("title", ""),
-                job_description=job_data.get("description", ""),
-                work_type=job_data.get("work_type", ""),
+    def _resolve_resume_profile(self, job_data: Dict, analysis: Dict) -> str:
+        """Resolve resume fields to one canonical archetype profile."""
+        candidate = (
+            str(
+                analysis.get("archetype_primary")
+                or analysis.get("resume_archetype")
+                or analysis.get("resume_profile")
+                or ""
             )
-            fallback_profile = suggested.name
-            if ai_selected:
-                logger.debug(
-                    f"AI selected unknown resume profile '{ai_selected}', "
-                    f"falling back to '{fallback_profile}'"
-                )
-        else:
-            fallback_profile = ai_selected
+            .strip()
+            .lower()
+        )
 
-        analysis["resume_profile"] = fallback_profile
-        try:
-            resume = self.profile.get_resume(fallback_profile)
-            archetype = (
-                resume.archetype.value
-                if hasattr(resume.archetype, "value")
-                else str(resume.archetype)
+        if candidate not in ARCHETYPE_PROFILES:
+            suggested = (
+                str(self._rule_based_resume_hint(job_data) or "").strip().lower()
             )
-            analysis["resume_archetype"] = archetype
-        except Exception:
-            analysis["resume_archetype"] = analysis.get(
-                "resume_archetype", "adaptation"
-            )
+            if suggested in ARCHETYPE_PROFILES:
+                candidate = suggested
+            else:
+                if analysis.get("resume_profile"):
+                    logger.debug(
+                        "AI selected non-canonical resume_profile "
+                        f"'{analysis.get('resume_profile')}', falling back to 'builder'"
+                    )
+                candidate = "builder"
 
-        return fallback_profile
+        analysis["resume_profile"] = candidate
+        analysis["resume_archetype"] = candidate
+        return candidate
 
     def _enrich_with_archetype_signals(self, job_data: Dict, analysis: Dict) -> None:
         """Attach deterministic archetype+metadata signals to the AI analysis blob."""
@@ -134,10 +148,11 @@ class JobAnalyzerService:
             return
 
         try:
-            classification = self.archetype_classifier.classify(
-                jd_text=jd_text,
-                job_title=job_title,
-            )
+            with self._classifier_lock:
+                classification = self.archetype_classifier.classify(
+                    jd_text=jd_text,
+                    job_title=job_title,
+                )
             analysis["archetype_scores"] = classification.get("archetype_scores", {})
             analysis["archetype_primary"] = classification.get("archetype_primary")
             analysis["embedding_vector"] = classification.get("embedding_vector")
@@ -224,8 +239,53 @@ class JobAnalyzerService:
             resolved_resume_profile = self._resolve_resume_profile(job_data, analysis)
             self._enrich_with_archetype_signals(job_data, analysis)
 
+            canonical_archetype = (
+                str(
+                    analysis.get("archetype_primary")
+                    or analysis.get("resume_archetype")
+                    or resolved_resume_profile
+                    or ""
+                )
+                .strip()
+                .lower()
+            )
+            if canonical_archetype not in ARCHETYPE_PROFILES:
+                canonical_archetype = "builder"
+
+            analysis["archetype_primary"] = canonical_archetype
+            analysis["resume_archetype"] = canonical_archetype
+            analysis["resume_profile"] = canonical_archetype
+            resolved_resume_profile = canonical_archetype
+
+            # A custom resume (matched on title patterns, keyword bias or work
+            # type) overrides the embedding archetype for resume selection while
+            # leaving the archetype fields intact for analytics/feedback.
+            role_override = self._role_specific_resume_override(job_data)
+            if role_override:
+                logger.info(
+                    f"Job {job_id}: custom resume '{role_override}' "
+                    f"overrides archetype '{canonical_archetype}'"
+                )
+                analysis["resume_profile"] = role_override
+                resolved_resume_profile = role_override
+
             enriched_job = job_data.copy()
             enriched_job["analysis"] = analysis
+
+            # Seek "Strong applicant" recommendations: trust Seek's profile-match
+            # signal over our AI scorer and force a passing score of 80, but only
+            # for quick-apply roles (non-quick-apply stays market-intel only and
+            # is never auto-applied). Done before the min-score gate so a strong
+            # applicant is never dropped for a low AI score.
+            STRONG_APPLICANT_SCORE = 80
+            if job_data.get("strong_applicant") and job_data.get("quick_apply"):
+                logger.info(
+                    f"Job {job_id} ({job_title}): Seek 'Strong applicant' badge — "
+                    f"overriding score {analysis.get('score')} -> "
+                    f"{STRONG_APPLICANT_SCORE} (quick-apply)"
+                )
+                analysis["score"] = STRONG_APPLICANT_SCORE
+
             enriched_job["resume_profile"] = resolved_resume_profile
 
             min_score = self.config.get("analysis", {}).get("min_score", 0)
