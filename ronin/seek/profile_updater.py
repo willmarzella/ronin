@@ -423,22 +423,25 @@ class SeekProfileUpdater:
     ) -> None:
         failures: List[str] = []
 
-        if template.headline:
-            ok = self._update_text_field(
-                page,
-                field_key="headline",
-                value=template.headline,
-                label_candidates=["Headline", "Title", "Professional headline"],
-                dry_run=dry_run,
-            )
-            if not ok:
-                failures.append("headline")
-
-        if template.summary:
+        # Seek has no separate headline field — the headline is presented as
+        # the first line of the personal summary. Combined text must stay
+        # under Seek's 600-character limit for that field.
+        summary_value = "\n\n".join(
+            part
+            for part in (template.headline.strip(), template.summary.strip())
+            if part
+        )
+        if summary_value:
+            if len(summary_value) > 600:
+                logger.warning(
+                    "Combined headline + summary is %d chars (Seek limit 600); "
+                    "the save may be rejected",
+                    len(summary_value),
+                )
             ok = self._update_text_field(
                 page,
                 field_key="summary",
-                value=template.summary,
+                value=summary_value,
                 label_candidates=["Profile summary", "Summary", "About"],
                 multiline=True,
                 dry_run=dry_run,
@@ -592,6 +595,7 @@ class SeekProfileUpdater:
         save_sel = self.selectors.get("skills_save_button")
         clear_sel = self.selectors.get("skills_clear_button")
         remove_sel = self.selectors.get("skills_remove_buttons")
+        add_sel = self.selectors.get("skills_add_button")
 
         if edit_sel:
             try:
@@ -687,14 +691,21 @@ class SeekProfileUpdater:
             except Exception:
                 pass
 
-        # Add skills.
+        # Add skills. Seek's tag input is a combobox with an explicit Add
+        # button; Enter is the fallback when no add selector is configured.
         for skill in skills:
             try:
                 skill_input.click(timeout=1000)
                 skill_input.fill("")
                 skill_input.type(skill, delay=40)
                 self._sleep_jitter(base=0.1)
-                page.keyboard.press("Enter")
+                if add_sel:
+                    try:
+                        page.locator(add_sel).first.click(timeout=1500)
+                    except Exception:
+                        page.keyboard.press("Enter")
+                else:
+                    page.keyboard.press("Enter")
                 self._sleep_jitter(base=0.15)
             except Exception as exc:
                 logger.warning("Failed adding skill %r: %s", skill, str(exc)[:200])
