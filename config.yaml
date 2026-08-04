@@ -381,10 +381,12 @@ seek_profile:
       summary_edit_button: "[data-automation='summary-edit']"
       summary_input: "[data-automation='summary-input']"
       summary_save_button: "[data-automation='summary-save-button']"
+      summary_cancel_button: "[data-automation='summary-cancel-button']"
       skills_edit_button: "[data-automation='skills-edit-link']"
       skills_input: "[data-automation='skills-tags-input']"
       skills_add_button: "[data-automation='add-skill-button']"
       skills_save_button: "[data-automation='skills-save-button']"
+      skills_cancel_button: "[data-automation='skills-cancel-button']"
       skills_remove_buttons: "[data-automation='skills-form-drawer'] button[aria-label^='Remove skill']"
     min_delay_sec: 0.1
     max_delay_sec: 0.5
@@ -405,7 +407,6 @@ seek_profile:
     #
     # Seek application automation (used by `ronin apply`):
     # - apply_resume_select  # CSS selector for the resume dropdown on apply form
-    selectors: {}
 
   # Optional: auto-switch Seek profile to the dominant archetype before apply
   # when running `ronin run` (only if enabled).

@@ -278,8 +278,12 @@ class SeekProfileUpdater:
                         )
                     page.goto(self.profile_url, wait_until="domcontentloaded")
 
-                # Some profiles use a view page + edit CTA.
-                self._best_effort_enter_edit_mode(page)
+                # Some profiles use a view page + edit CTA. Skip the heuristic
+                # when field-level edit selectors are configured — on the
+                # current profile page it matches unrelated "Edit ..." buttons
+                # (visibility, personal details) and opens the wrong drawer.
+                if not any(k.endswith("_edit_button") for k in self.selectors):
+                    self._best_effort_enter_edit_mode(page)
 
                 # Apply template.
                 self._apply_template(page, template, dry_run=dry_run)
@@ -515,6 +519,7 @@ class SeekProfileUpdater:
 
         if dry_run:
             logger.info("[dry-run] Would set %s", field_key)
+            self._close_editor(page, field_key)
             return True
 
         try:
@@ -654,6 +659,7 @@ class SeekProfileUpdater:
 
         if dry_run:
             logger.info("[dry-run] Would set skills (%d entries)", len(skills))
+            self._close_editor(page, "skills")
             return True
 
         # Best-effort clear.
@@ -730,6 +736,26 @@ class SeekProfileUpdater:
                 continue
 
         return True
+
+    def _close_editor(self, page: Any, field_key: str) -> None:
+        """Close an open edit drawer without saving (used by dry runs).
+
+        A drawer left open overlays the page and blocks the next field's edit
+        control, so every dry-run field visit must close what it opened.
+        """
+        cancel_sel = self.selectors.get(f"{field_key}_cancel_button")
+        if cancel_sel:
+            try:
+                page.locator(cancel_sel).first.click(timeout=2000)
+                self._sleep_jitter()
+                return
+            except Exception:
+                pass
+        try:
+            page.keyboard.press("Escape")
+            self._sleep_jitter()
+        except Exception:
+            pass
 
     def _sleep_jitter(self, *, base: float = 0.0) -> None:
         if base <= 0:
