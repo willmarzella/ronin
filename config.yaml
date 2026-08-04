@@ -408,7 +408,7 @@ seek_profile:
     # The four DE archetypes carry the operator-seat positioning (data by
     # title, energy/asset domain).
     builder:
-      headline: "Senior Data Engineer | AWS · Azure · Databricks · Snowflake · dbt · Python · SQL | Energy & Regulated Industries"
+      headline: "Data Engineer | AWS · Azure · Databricks · Snowflake · dbt · Python · SQL | Energy & Regulated Industries"
       # Headline is prefixed into the Seek summary field by the updater;
       # combined headline + summary must stay under Seek's 600-char limit.
       summary: "7+ years building cloud data platforms: ETL/ELT pipelines with dbt, Airflow, Kafka and PySpark; lakehouse and Kimball dimensional modelling; Terraform, Docker and CI/CD. Governed, audit-ready builds at Toyota (SAP asset and warranty data) and Rest Super (APRA-regulated). Mechanical engineering degree. Focused on energy and utilities: OT/SCADA, PI historian, asset, metering and time-series data."
@@ -447,7 +447,7 @@ seek_profile:
       # summary_file: "assets/seek_profile/builder_summary.txt"
       # skills_file: "assets/seek_profile/builder_skills.txt"
     fixer:
-      headline: "Senior Data Engineer | AWS · Azure · Databricks · Snowflake · dbt · Python · SQL | Energy & Regulated Industries"
+      headline: "Data Engineer | AWS · Azure · Databricks · Snowflake · dbt · Python · SQL | Energy & Regulated Industries"
       # Headline is prefixed into the Seek summary field by the updater;
       # combined headline + summary must stay under Seek's 600-char limit.
       summary: "7+ years building cloud data platforms: ETL/ELT pipelines with dbt, Airflow, Kafka and PySpark; lakehouse and Kimball dimensional modelling; Terraform, Docker and CI/CD. Governed, audit-ready builds at Toyota (SAP asset and warranty data) and Rest Super (APRA-regulated). Mechanical engineering degree. Focused on energy and utilities: OT/SCADA, PI historian, asset, metering and time-series data."
@@ -483,7 +483,7 @@ seek_profile:
       - Power BI
       - Tableau
     operator:
-      headline: "Senior Data Engineer | AWS · Azure · Databricks · Snowflake · dbt · Python · SQL | Energy & Regulated Industries"
+      headline: "Data Engineer | AWS · Azure · Databricks · Snowflake · dbt · Python · SQL | Energy & Regulated Industries"
       # Headline is prefixed into the Seek summary field by the updater;
       # combined headline + summary must stay under Seek's 600-char limit.
       summary: "7+ years building cloud data platforms: ETL/ELT pipelines with dbt, Airflow, Kafka and PySpark; lakehouse and Kimball dimensional modelling; Terraform, Docker and CI/CD. Governed, audit-ready builds at Toyota (SAP asset and warranty data) and Rest Super (APRA-regulated). Mechanical engineering degree. Focused on energy and utilities: OT/SCADA, PI historian, asset, metering and time-series data."
@@ -519,7 +519,7 @@ seek_profile:
       - Power BI
       - Tableau
     translator:
-      headline: "Senior Data Engineer | AWS · Azure · Databricks · Snowflake · dbt · Python · SQL | Energy & Regulated Industries"
+      headline: "Data Engineer | AWS · Azure · Databricks · Snowflake · dbt · Python · SQL | Energy & Regulated Industries"
       # Headline is prefixed into the Seek summary field by the updater;
       # combined headline + summary must stay under Seek's 600-char limit.
       summary: "7+ years building cloud data platforms: ETL/ELT pipelines with dbt, Airflow, Kafka and PySpark; lakehouse and Kimball dimensional modelling; Terraform, Docker and CI/CD. Governed, audit-ready builds at Toyota (SAP asset and warranty data) and Rest Super (APRA-regulated). Mechanical engineering degree. Focused on energy and utilities: OT/SCADA, PI historian, asset, metering and time-series data."
