@@ -59,10 +59,18 @@ FROZEN_VARIANTS = frozenset({POLE_VARIANT})
 # how hard the copy pushes. Register calibration is shared (see _tune_system).
 VARIANT_LENSES: Dict[str, str] = {
     "builder": (
-        "GREENFIELD BUILD. Lead with platforms stood up from nothing and "
-        "end-to-end delivery: initial architecture, first pipelines into "
-        "production, infrastructure-as-code laid down, the system that did not "
-        "exist before the engagement."
+        "DESIGN AND BUILD. Lead with systems that did not exist before the "
+        "engagement: architecture designed, platforms and pipelines stood up, "
+        "patterns and standards established, infrastructure-as-code laid down, "
+        "first delivery into production. Open on what was CREATED, in creation "
+        "verbs — designed, architected, built, stood up, established, "
+        "standardised, delivered. Do NOT lead a bullet on migrating, "
+        "re-engineering or modernising something that already existed; that is "
+        "the fixer variant's territory, and defaulting to it is why this "
+        "variant previously read as a migration resume. Where a fact is "
+        "genuinely a migration, frame it by the thing built as a result (the "
+        "new lakehouse, the new pipeline, the new model), never by the legacy "
+        "system replaced."
     ),
     "fixer": (
         "MIGRATION AND MODERNISATION. Lead with what was inherited and made "
@@ -86,6 +94,28 @@ VARIANT_LENSES: Dict[str, str] = {
 
 # What a bare `ronin resume regen` (and the weekly launchd job) rewrites.
 DEFAULT_REGEN_VARIANTS: Tuple[str, ...] = ("builder", "fixer", "operator", "translator")
+
+
+def get_lens(variant: str, config: Optional[Dict[str, Any]] = None) -> str:
+    """Return the focus paragraph for ``variant``, honouring config overrides.
+
+    Market drift closes the loop by editing lenses, and a self-adjusting system
+    must not rewrite its own source. Overrides therefore live in config under
+    ``resume_variants.lens_overrides.<variant>`` — data, reviewable in a diff and
+    revertible by deleting a key — while the defaults above stay the code-level
+    baseline. An override replaces the default outright rather than appending,
+    so a lens cannot silently accumulate contradictory instructions over
+    successive market cycles.
+    """
+    default = VARIANT_LENSES.get(variant, "a general data-engineering angle.")
+    overrides = (
+        ((config or {}).get("resume_variants") or {}).get("lens_overrides") or {}
+    )
+    if not isinstance(overrides, dict):
+        return default
+    override = overrides.get(variant)
+    text = str(override or "").strip()
+    return text or default
 
 # Fields the tuning agent is allowed to rewrite. Everything else is copied.
 _TUNABLE_ROLE_FIELDS = ("responsibilities", "achievements")
@@ -376,8 +406,8 @@ def _apply_ingest(source: Dict[str, Any], result: Dict[str, Any]) -> bool:
 # ----------------------------------------------------------------------- tune agent
 
 
-def _tune_system(variant: str) -> str:
-    lens = VARIANT_LENSES.get(variant, "a general data-engineering angle.")
+def _tune_system(variant: str, config: Optional[Dict[str, Any]] = None) -> str:
+    lens = get_lens(variant, config)
     return (
         "You are a resume copywriter producing ONE variant of a data engineer's "
         "resume. You are given two reference documents that bracket the same "
@@ -410,8 +440,10 @@ def _tune_system(variant: str) -> str:
         "sequencing), and communication (stakeholder sign-off, "
         "cross-functional partnership, team leadership, "
         "discovery-to-production ownership). (5) Shape the career summary as: "
-        "a positioning sentence ('Specialist in ...'), then 'Proven results:' "
-        "packing the strongest dollar and percentage outcomes from the facts, "
+        "a positioning sentence ('Specialist in ...'), then one sentence of "
+        "scope facts (sectors, platforms, migration types — NO dollar or "
+        "percentage figures, and never a number that already appears in a "
+        "role bullet: each metric lives in exactly one place on the resume), "
         "then 'Expert in ...' with the highest-signal keywords. (6) Write a "
         "headline that states the seniority, this variant's focus, and the "
         "3-5 highest-signal tools, e.g. "
@@ -419,9 +451,13 @@ def _tune_system(variant: str) -> str:
         "Return ONLY a "
         "JSON object with keys: \"header\" (a string), "
         "\"career_summary_template\" (a string; you MAY "
-        "keep the '{aws_exp_years}+ years' placeholder) and \"roles\" (an object "
+        "keep the '{aws_exp_years}+ years' placeholder), \"roles\" (an object "
         "keyed by EXACT company name, each value {\"responsibilities\": string, "
-        "\"achievements\": [strings]}). HARD RULES: include every company from the "
+        "\"achievements\": [strings]}), and \"highlight_order\" (a list of "
+        "integers — the indices of the supplied capability highlights, reordered "
+        "so the ones this variant's focus is about come FIRST; include every "
+        "index exactly once; you may NOT edit the highlight text, only reorder "
+        "it). HARD RULES: include every company from the "
         "facts and no others; do not invent, inflate, or alter any dollar amount, "
         "percentage, or count — reuse only numbers present in that company's "
         "facts, never a number seen only in the recruiter pole; keep each role's "
@@ -487,6 +523,15 @@ def tune_variant(
     )
     pole_yaml = _load_pole(config)
     base_user = f"TRUTH POLE — master facts (YAML):\n```yaml\n{facts_yaml}\n```\n"
+
+    source_highlights = source.get("highlight_capability_templates") or []
+    if source_highlights:
+        listed = "\n".join(f"  [{i}] {h}" for i, h in enumerate(source_highlights))
+        base_user += (
+            "\nCAPABILITY HIGHLIGHTS — fixed text, render near the top of the "
+            "resume. Return highlight_order to put this variant's focus first:\n"
+            f"{listed}\n"
+        )
     if pole_yaml:
         base_user += (
             f"\nRECRUITER POLE — {POLE_VARIANT}.yml, the same career at its most "
@@ -503,7 +548,7 @@ def tune_variant(
     last_error: Optional[str] = None
     for attempt in range(1, _TUNE_MAX_ATTEMPTS + 1):
         result = brain.chat_completion(
-            system_prompt=_tune_system(variant),
+            system_prompt=_tune_system(variant, config),
             user_message=base_user + correction,
             model=_brain_model(config),
             max_tokens=8192,
@@ -528,11 +573,43 @@ def tune_variant(
                 continue
             raise
 
-        _dump_yaml(new_doc, variant_path, _variant_header(variant))
+        _dump_yaml(new_doc, variant_path, _variant_header(variant, config))
         logger.info(f"[resume] retuned {variant}.yml ({len(roles)} roles, attempt {attempt})")
         return True, variant_path
 
     raise ResumeRegenError(f"tuning agent could not satisfy validation: {last_error}")
+
+
+def _ordered_highlights(
+    source: Dict[str, Any], order: Any, variant: str
+) -> Optional[List[str]]:
+    """Return source highlights permuted by ``order`` (a list of source indices).
+
+    Anything short of a clean permutation falls back to source order. The
+    content is identical either way, so a malformed answer costs emphasis, not
+    correctness — never worth failing a regen over.
+    """
+    highlights = source.get("highlight_capability_templates")
+    if not isinstance(highlights, list) or not highlights:
+        return highlights
+
+    if not isinstance(order, list):
+        return highlights
+
+    try:
+        indices = [int(i) for i in order]
+    except (TypeError, ValueError):
+        logger.warning(f"[resume] {variant}: non-integer highlight_order; keeping source order")
+        return highlights
+
+    if sorted(indices) != list(range(len(highlights))):
+        logger.warning(
+            f"[resume] {variant}: highlight_order {indices} is not a permutation of "
+            f"0..{len(highlights) - 1}; keeping source order"
+        )
+        return highlights
+
+    return [highlights[i] for i in indices]
 
 
 def _build_variant_doc(
@@ -579,7 +656,14 @@ def _build_variant_doc(
     # Capability highlights come ONLY from source.yml (curated, guard-validated).
     # We deliberately do NOT inherit them from the previous variant file — that
     # would let stale, unvetted claims persist across regenerations.
-    highlights = source.get("highlight_capability_templates")
+    #
+    # The agent may REORDER them per variant but never rewrite them: the strings
+    # stay verbatim, so truthfulness is guaranteed by construction, while the
+    # variant gets to lead with the capability its lens is about. Sharing one
+    # fixed order across all four made every resume open on the same two
+    # cost/modernisation lines, which is measurably why builder.md embedded
+    # closer to the fixer archetype than to its own.
+    highlights = _ordered_highlights(source, result.get("highlight_order"), variant)
 
     # Contact details are copied verbatim; only the headline is variant-specific,
     # since a reliability resume and a greenfield resume should not lead with the
@@ -852,8 +936,8 @@ def _source_header() -> str:
     )
 
 
-def _variant_header(variant: str) -> str:
-    lens = VARIANT_LENSES.get(variant, "data engineering")
+def _variant_header(variant: str, config: Optional[Dict[str, Any]] = None) -> str:
+    lens = get_lens(variant, config)
     return (
         f"# GENERATED by `ronin resume regen` — {variant}.yml.\n"
         f"# Focus: {lens[:70]}...\n"
