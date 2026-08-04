@@ -1061,7 +1061,6 @@ def main() -> None:
     elif args.command == "profile":
         from ronin.cli.profile_ops import debug as profile_debug
         from ronin.cli.profile_ops import set_profile
-        from ronin.cli.profile_ops import sync_profile
 
         action = getattr(args, "profile_action", None)
         if action == "set":
@@ -1073,6 +1072,10 @@ def main() -> None:
             if rc != 0:
                 sys.exit(rc)
         elif action == "sync":
+            # Drift-sync was removed with the profile refactor; import lazily so
+            # `profile set` keeps working without it.
+            from ronin.cli.profile_ops import sync_profile
+
             rc = sync_profile(
                 yes=bool(getattr(args, "yes", False)),
                 dry_run=bool(getattr(args, "dry_run", False)),
