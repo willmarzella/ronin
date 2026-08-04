@@ -424,7 +424,7 @@ seek_profile:
       headline: "Analytics Engineer | dbt · Snowflake · Databricks · AWS · Python · SQL | Energy & Regulated Industries"
       # Headline is prefixed into the Seek summary field by the updater;
       # combined headline + summary must stay under Seek's 600-char limit.
-      summary: "7+ years building analytics platforms end to end: dbt modelling and Kimball dimensional marts on Snowflake, Databricks and Fabric, on AWS data infrastructure I set up myself (Terraform, Airflow, CI/CD). Governed, audit-ready builds at Toyota (SAP warranty data) and Rest Super (APRA-regulated). Mechanical engineering degree. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
+      summary: "Analytics engineer, 7+ years on the seam between engineering and business owners. I run discovery with the people who own the problem, build the marts and infrastructure under their answers, and treat business sign-off — not deployment — as done. Finance reconciliation, APRA translation, PII governance. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
       skills:
       - Analytics Engineering
       - Data Engineering
@@ -464,7 +464,7 @@ seek_profile:
       headline: "Analytics Engineer | dbt · Snowflake · Databricks · AWS · Python · SQL | Energy & Regulated Industries"
       # Headline is prefixed into the Seek summary field by the updater;
       # combined headline + summary must stay under Seek's 600-char limit.
-      summary: "7+ years building analytics platforms end to end: dbt modelling and Kimball dimensional marts on Snowflake, Databricks and Fabric, on AWS data infrastructure I set up myself (Terraform, Airflow, CI/CD). Governed, audit-ready builds at Toyota (SAP warranty data) and Rest Super (APRA-regulated). Mechanical engineering degree. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
+      summary: "Analytics engineer, 7+ years on the seam between engineering and business owners. I run discovery with the people who own the problem, build the marts and infrastructure under their answers, and treat business sign-off — not deployment — as done. Finance reconciliation, APRA translation, PII governance. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
       skills:
       - Analytics Engineering
       - Data Engineering
@@ -501,7 +501,7 @@ seek_profile:
       headline: "Analytics Engineer | dbt · Snowflake · Databricks · AWS · Python · SQL | Energy & Regulated Industries"
       # Headline is prefixed into the Seek summary field by the updater;
       # combined headline + summary must stay under Seek's 600-char limit.
-      summary: "7+ years building analytics platforms end to end: dbt modelling and Kimball dimensional marts on Snowflake, Databricks and Fabric, on AWS data infrastructure I set up myself (Terraform, Airflow, CI/CD). Governed, audit-ready builds at Toyota (SAP warranty data) and Rest Super (APRA-regulated). Mechanical engineering degree. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
+      summary: "Analytics engineer, 7+ years on the seam between engineering and business owners. I run discovery with the people who own the problem, build the marts and infrastructure under their answers, and treat business sign-off — not deployment — as done. Finance reconciliation, APRA translation, PII governance. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
       skills:
       - Analytics Engineering
       - Data Engineering
@@ -538,7 +538,7 @@ seek_profile:
       headline: "Analytics Engineer | dbt · Snowflake · Databricks · AWS · Python · SQL | Energy & Regulated Industries"
       # Headline is prefixed into the Seek summary field by the updater;
       # combined headline + summary must stay under Seek's 600-char limit.
-      summary: "7+ years building analytics platforms end to end: dbt modelling and Kimball dimensional marts on Snowflake, Databricks and Fabric, on AWS data infrastructure I set up myself (Terraform, Airflow, CI/CD). Governed, audit-ready builds at Toyota (SAP warranty data) and Rest Super (APRA-regulated). Mechanical engineering degree. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
+      summary: "Analytics engineer, 7+ years on the seam between engineering and business owners. I run discovery with the people who own the problem, build the marts and infrastructure under their answers, and treat business sign-off — not deployment — as done. Finance reconciliation, APRA translation, PII governance. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
       skills:
       - Analytics Engineering
       - Data Engineering
