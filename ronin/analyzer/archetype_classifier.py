@@ -321,6 +321,37 @@ def is_excluded_title(job_title: str) -> bool:
     return any(marker in title_lower for marker in EXCLUDED_TITLE_MARKERS)
 
 
+# Companies never auto-applied to, whatever the listing scores. These are the
+# bespoke-channel targets from §Career (energy distributors + AEMO + Toyota —
+# applied to by hand with tailored material, never a generic quick-apply) plus
+# the current employer (D2i). Listings from these companies stay in the
+# database for market intelligence — the career-target radar reads them — but
+# an auto-application here would burn the hand-sent channel it exists to feed.
+PROTECTED_COMPANY_MARKERS = (
+    "d2i",
+    "essential energy",
+    "ausgrid",
+    "endeavour energy",
+    "powercor",
+    "citipower",
+    "jemena",
+    "united energy",
+    "ausnet",
+    "aemo",
+    "australian energy market operator",
+    "origin energy",
+    "toyota",
+)
+
+
+def is_protected_company(company_name: str) -> bool:
+    """True when a listing's company is reserved for bespoke, hand-sent applications."""
+    name_lower = (company_name or "").strip().lower()
+    if not name_lower:
+        return False
+    return any(marker in name_lower for marker in PROTECTED_COMPANY_MARKERS)
+
+
 KNOWN_TECH = [
     "snowflake",
     "dbt",
@@ -363,6 +394,28 @@ KNOWN_TECH = [
     "der",
     "historian",
 ]
+
+# Matching is word-boundary, not substring. Several entries are short enough to
+# appear inside ordinary English -- "der" in "under"/"considered", "ami" in
+# "family"/"dynamic", "gis" in "logistics"/"registry" -- which tagged a sentence
+# containing no technology at all as ['der', 'ami', 'gis'] and put "der" in 96%
+# of the corpus. Anything built on these tags (market drift, centroids) learns
+# noise unless the boundary holds.
+#
+# Boundaries are non-word characters rather than \b alone, so "power bi" matches
+# inside a comma list and a trailing "." or ")" does not defeat it, while
+# "bigquery" never satisfies "gis".
+_TECH_PATTERNS = [
+    (tech, re.compile(rf"(?<![0-9a-z]){re.escape(tech)}(?![0-9a-z])", re.IGNORECASE))
+    for tech in KNOWN_TECH
+]
+
+
+def extract_tech_tags(text: str) -> List[str]:
+    """Return the KNOWN_TECH entries genuinely present in ``text``."""
+    if not text:
+        return []
+    return [tech for tech, pattern in _TECH_PATTERNS if pattern.search(text)]
 
 
 def _cosine_similarity(a: List[float], b: List[float]) -> float:
@@ -674,7 +727,7 @@ class ArchetypeClassifier:
         ):
             job_type = "permanent"
 
-        tech_tags = [tech for tech in KNOWN_TECH if tech in text_lower]
+        tech_tags = extract_tech_tags(text_lower)
 
         seniority = "mid"
         if any(token in title_lower for token in ["junior", "graduate", "entry"]):

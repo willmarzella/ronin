@@ -7,7 +7,11 @@ from typing import Dict, Optional, Tuple
 
 from loguru import logger
 
-from ronin.analyzer.archetype_classifier import ArchetypeClassifier, is_excluded_title
+from ronin.analyzer.archetype_classifier import (
+    ArchetypeClassifier,
+    is_excluded_title,
+    is_protected_company,
+)
 from ronin.db import get_db_manager
 from ronin.profile import load_profile
 from ronin.ranking import RankingPolicy
@@ -106,6 +110,7 @@ class ApplicationQueueService:
         market_intel = 0
         manual_review = 0
         excluded = 0
+        protected = 0
 
         for job in candidates:
             scores = self._get_job_scores(job)
@@ -131,6 +136,12 @@ class ApplicationQueueService:
             if is_excluded_title(job.get("title", "")):
                 intel_only = 1
                 excluded += 1
+
+            # Bespoke-channel companies and the current employer never queue —
+            # a generic auto-application would burn the hand-sent channel.
+            if is_protected_company(job.get("company_name", "")):
+                intel_only = 1
+                protected += 1
 
             # A custom resume (title patterns, keyword bias or work type)
             # overrides the embedding archetype for resume selection; archetype
@@ -171,6 +182,7 @@ class ApplicationQueueService:
             "manual_review": manual_review,
             "expired": expired,
             "excluded_role": excluded,
+            "protected_company": protected,
         }
 
     def _get_job_scores(self, job: Dict) -> Dict[str, float]:
