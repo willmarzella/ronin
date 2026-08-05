@@ -557,6 +557,16 @@ def _build_parser() -> argparse.ArgumentParser:
         "variant name (e.g. `upload c --as contract_aggressive`). One variant only.",
     )
 
+    resume_sync = resume_sub.add_parser(
+        "sync",
+        help="Refresh ~/.ronin/resumes/*.txt from the compiled variant markdown",
+    )
+    resume_sync.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would be written without touching any file",
+    )
+
     resume_debug = resume_sub.add_parser(
         "debug",
         help="Open Playwright Inspector on the Seek resumes page",
@@ -1153,6 +1163,12 @@ def main() -> None:
                 force=bool(getattr(args, "force", False)),
                 push=not bool(getattr(args, "no_push", False)),
             )
+            if rc != 0:
+                sys.exit(rc)
+        elif action == "sync":
+            from ronin.cli.resume_ops import sync_resume_texts
+
+            rc = sync_resume_texts(dry_run=bool(getattr(args, "dry_run", False)))
             if rc != 0:
                 sys.exit(rc)
         elif action == "debug":

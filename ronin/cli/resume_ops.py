@@ -69,6 +69,75 @@ def _ensure_resume_text_file(
     return dest_path
 
 
+def sync_resume_texts(*, dry_run: bool = False) -> int:
+    """Refresh ``~/.ronin/resumes/*.txt`` from the compiled variant markdown.
+
+    These files are what the cover-letter writer and the screening-question
+    answerer read, so an edit that never reaches them ships a resume PDF that
+    disagrees with the letter attached to it. Driven by ``profile.yaml`` so
+    every configured resume is covered, not just the four archetypes that the
+    Seek upload path happens to touch.
+    """
+
+    from ronin.profile import load_profile
+
+    load_env()
+    config = load_config()
+    manager = ResumeVariantManager(config)
+    profile = load_profile()
+
+    md_dir = manager.repo_path / "markdown"
+    yaml_dir = manager.repo_path / "yaml"
+    dest_dir = get_ronin_home() / "resumes"
+
+    if not md_dir.exists():
+        console.print(f"[red]No compiled markdown at[/red] {md_dir}")
+        return 1
+
+    newest_yaml = max(
+        (p.stat().st_mtime for p in yaml_dir.rglob("*.yml")),
+        default=0.0,
+    )
+
+    synced = 0
+    missing: List[str] = []
+    for resume in profile.resumes:
+        stem = Path(resume.file).stem
+        source = next(
+            (
+                candidate
+                for candidate in (
+                    md_dir / f"{manager.role_name}_{stem}.md",
+                    md_dir / f"{stem}_a.md",
+                    md_dir / f"{stem}.md",
+                )
+                if candidate.exists()
+            ),
+            None,
+        )
+        if source is None:
+            missing.append(f"{resume.name} ({resume.file})")
+            continue
+
+        if source.stat().st_mtime < newest_yaml:
+            console.print(
+                f"[yellow]{source.name} is older than the newest YAML[/yellow] "
+                "— run resume/scripts/compile.sh first"
+            )
+
+        text = _markdown_to_text(source.read_text(encoding="utf-8"))
+        if not dry_run:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            (dest_dir / resume.file).write_text(text, encoding="utf-8")
+        console.print(f"{'[dim]would sync[/dim]' if dry_run else '[green]synced[/green]'} {source.name} -> {resume.file}")
+        synced += 1
+
+    if missing:
+        console.print(f"[yellow]No markdown found for:[/yellow] {', '.join(missing)}")
+    console.print(f"{synced} resume text file(s) {'checked' if dry_run else 'written'}")
+    return 0
+
+
 def log_note(*, note: str = "") -> int:
     """Append a work-experience note to source_log.md (or open it if empty)."""
     import os
