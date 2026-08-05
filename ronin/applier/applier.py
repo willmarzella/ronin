@@ -131,6 +131,47 @@ class SeekApplier(BaseApplier):
         except Exception as e:
             raise Exception(f"Failed to navigate to job {job_id}: {str(e)}")
 
+    @staticmethod
+    def _match_resume_radio(
+        radios: list,
+        resume_id: str,
+        hints: list,
+    ) -> Optional[dict]:
+        """Pick the resume radio option to select on the apply form.
+
+        Args:
+            radios: Parsed options, each ``{"value": uuid, "label": filename,
+                "checked": bool}`` (the "Don't include" option is excluded
+                upstream).
+            resume_id: The registered Seek resume UUID for the chosen profile.
+                An exact value match always wins.
+            hints: Ordered name fragments (profile name, filename stem) used
+                when no UUID is registered or the UUID is not on the form.
+
+        Returns:
+            The matching radio dict, or None when nothing matches
+            unambiguously — a hint matching several labels is ambiguous and
+            never guessed.
+        """
+        want = str(resume_id or "").strip().lower()
+        if want:
+            for radio in radios:
+                if str(radio.get("value") or "").strip().lower() == want:
+                    return radio
+
+        for hint in hints or []:
+            token = str(hint or "").strip().lower()
+            if not token:
+                continue
+            hits = [
+                radio
+                for radio in radios
+                if token in str(radio.get("label") or "").lower()
+            ]
+            if len(hits) == 1:
+                return hits[0]
+        return None
+
     def _handle_resume(
         self,
         job_id: str,
