@@ -37,11 +37,21 @@ class SeekTemplateMissing(SeekProfileAutomationError):
 
 
 @dataclass
+class SeekCareerEntry:
+    title: str = ""
+    company: str = ""
+    period: str = ""
+    responsibilities: str = ""
+    achievements: List[str] = field(default_factory=list)
+
+
+@dataclass
 class SeekProfileTemplate:
     archetype: str
     headline: str = ""
     summary: str = ""
     skills: List[str] = field(default_factory=list)
+    experience: List[SeekCareerEntry] = field(default_factory=list)
 
 
 def _safe_list(value: Any) -> List[str]:
