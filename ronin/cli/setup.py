@@ -893,7 +893,7 @@ class APIKeysScreen(Screen):
 
                 client = anthropic.Anthropic(api_key=anthropic_key)
                 client.messages.create(
-                    model="claude-sonnet-4-20250514",
+                    model="claude-sonnet-4-6",
                     max_tokens=10,
                     messages=[{"role": "user", "content": "ping"}],
                 )
@@ -1222,9 +1222,9 @@ class ReviewScreen(Screen):
             "cover_letter": data.get("cover_letter", {}),
             "ai": {
                 "analysis_provider": "anthropic",
-                "analysis_model": "claude-sonnet-4-20250514",
+                "analysis_model": "claude-sonnet-4-6",
                 "cover_letter_provider": "anthropic",
-                "cover_letter_model": "claude-sonnet-4-20250514",
+                "cover_letter_model": "claude-opus-4-8",
                 "form_filling_provider": "openai",
                 "form_filling_model": "gpt-4o",
             },
