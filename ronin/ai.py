@@ -181,7 +181,9 @@ class AnthropicService:
                 "max_tokens": max_tokens,
                 "system": system_prompt,
                 "messages": [{"role": "user", "content": user_message}],
-                "temperature": temperature,
+                # anthropic 1.x removed `temperature` from messages.create (a
+                # TypeError), so it rides in the raw body for models that take it.
+                "extra_body": {"temperature": temperature},
             }
             try:
                 response = self.client.messages.create(**request)
@@ -193,7 +195,7 @@ class AnthropicService:
                 logger.debug(
                     f"Model {request['model']} rejects temperature; retrying without it"
                 )
-                request.pop("temperature", None)
+                request.pop("extra_body", None)
                 response = self.client.messages.create(**request)
 
             if not response.content:

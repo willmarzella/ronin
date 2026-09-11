@@ -216,7 +216,6 @@ class JobAnalyzerService:
                         "content": "\n\n".join(user_prompt),
                     },
                 ],
-                temperature=0.7,
             )
 
             if not response:
