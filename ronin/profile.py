@@ -7,13 +7,23 @@ schema using Pydantic v2 models.
 
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import yaml
 from loguru import logger
 from pydantic import BaseModel, Field, model_validator
 
 from ronin.config import get_ronin_home
+
+# The four embedding archetypes. A resume named anything else is a "custom"
+# resume, selected by the profile.yaml rule signals rather than by JD shape.
+ARCHETYPE_RESUME_NAMES = frozenset({"builder", "fixer", "operator", "translator"})
+
+# Minimum rule score for a register-cut resume to override the archetype.
+# A work-type match alone scores 2.0, which is deliberately NOT enough: every
+# contract ad would take the contract resume and the archetypes would go unused.
+# 3.0 means work type plus at least one keyword-bias hit.
+_CUSTOM_RESUME_MIN_SCORE = 3.0
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +104,7 @@ class ResumeProfile(BaseModel):
 
     name: str = "default"
     file: str = ""
+    highlights_file: str = ""
     seek_resume_id: str = ""
     archetype: ResumeArchetype = ResumeArchetype.ADAPTATION
     hiring_signal: str = ""
@@ -119,9 +130,9 @@ class AIConfig(BaseModel):
     """AI provider and model configuration."""
 
     analysis_provider: str = "anthropic"
-    analysis_model: str = "claude-sonnet-4-20250514"
+    analysis_model: str = "claude-sonnet-4-6"
     cover_letter_provider: str = "anthropic"
-    cover_letter_model: str = "claude-sonnet-4-20250514"
+    cover_letter_model: str = "claude-opus-4-8"
     form_filling_provider: str = "openai"
     form_filling_model: str = "gpt-4o"
 
@@ -198,7 +209,9 @@ class Profile(BaseModel):
         """Recommend the best resume profile for a listing via rule scoring.
 
         This provides deterministic fallback matching when AI resume selection
-        is unavailable or low-confidence.
+        is unavailable or low-confidence. Always returns a resume — see
+        :meth:`score_resumes_for_listing` when you need to know whether the
+        winner actually matched anything.
 
         Args:
             job_title: Listing title.
@@ -207,6 +220,30 @@ class Profile(BaseModel):
 
         Returns:
             Best-scoring ``ResumeProfile`` based on role/title/keyword signals.
+
+        Raises:
+            ValueError: If no resumes are configured.
+        """
+        ranked = self.score_resumes_for_listing(
+            job_title=job_title, job_description=job_description, work_type=work_type
+        )
+        return ranked[0][0]
+
+    def score_resumes_for_listing(
+        self,
+        job_title: str,
+        job_description: str = "",
+        work_type: str = "",
+    ) -> List[Tuple[ResumeProfile, float]]:
+        """Score every resume against a listing, best first.
+
+        Signal weights: work-type match +2.0, title pattern +3.0 (or +1.5 when
+        the pattern appears in the body only), keyword bias +1.0, archetype
+        keyword +0.5, and +0.1 for a resume literally named ``default``.
+
+        A score of 0.0 means nothing matched — the resume is not a positive
+        recommendation, just the head of an unsorted list. Callers deciding
+        whether to *act* on the winner must check the score.
 
         Raises:
             ValueError: If no resumes are configured.
@@ -254,8 +291,7 @@ class Profile(BaseModel):
             ],
         }
 
-        best = self.resumes[0]
-        best_score = float("-inf")
+        ranked: List[Tuple[ResumeProfile, float]] = []
 
         for resume in self.resumes:
             score = 0.0
@@ -286,11 +322,90 @@ class Profile(BaseModel):
                 if keyword in combined_text:
                     score += 0.5
 
-            if score > best_score:
-                best = resume
-                best_score = score
+            ranked.append((resume, score))
 
-        return best
+        # Stable sort: ties keep profile.yaml order, so ordering the file is a
+        # usable tie-break lever.
+        ranked.sort(key=lambda pair: pair[1], reverse=True)
+        return ranked
+
+    def select_custom_resume(
+        self,
+        job_title: str,
+        job_description: str = "",
+        work_type: str = "",
+        min_score: float = _CUSTOM_RESUME_MIN_SCORE,
+    ) -> Optional[str]:
+        """Return a non-archetype resume name that positively matches a listing.
+
+        The four embedding archetypes describe data-engineering JD *shapes*.
+        Custom resumes take precedence over them, but the two kinds of custom
+        resume are matched differently and must not be merged:
+
+        * **Role cuts** (``solutions_engineer``) declare ``role_title_patterns``
+          and are matched on the listing TITLE only. A "Sales Engineer" ad needs
+          that resume; an ordinary data-engineering ad that merely mentions
+          "stakeholder" or "proof of concept" in the body does not. Scoring
+          these against the description makes them swallow the queue.
+        * **Register cuts** (``contract_aggressive`` — the cashflow/FinOps copy)
+          declare ``keyword_bias`` and no title patterns, because they are not
+          about the job's role. They are chosen on context: work type plus
+          keyword bias, via the rule scorer, and must clear ``min_score``.
+
+        Declaring ``keyword_bias`` is what opts a resume into the scored path.
+        A resume with neither signal (only ``use_when.job_types``) is never
+        auto-selected here — work type alone is too coarse to abandon the
+        archetype, and the scorer's fuzzy archetype-keyword bonus could
+        otherwise push it over the line by accident.
+
+        Returns ``None`` when nothing matched — the caller keeps its archetype.
+        The threshold matters: the scorer always names a winner, so without it
+        a listing matching nothing would adopt whichever resume sits first in
+        profile.yaml.
+        """
+        if not self.resumes:
+            return None
+
+        custom = [
+            r
+            for r in self.resumes
+            if str(r.name or "").strip().lower() not in ARCHETYPE_RESUME_NAMES
+            and str(r.name or "").strip()
+        ]
+        if not custom:
+            return None
+
+        title_text = (job_title or "").strip().lower()
+        if title_text:
+            for resume in custom:
+                for pattern in resume.role_title_patterns or []:
+                    normalized = str(pattern or "").strip().lower()
+                    if normalized and normalized in title_text:
+                        return resume.name
+
+        # Register cuts only — a role cut that did not win on title must not get
+        # a second chance on body keywords.
+        scored = {
+            str(r.name): r
+            for r in custom
+            if not (r.role_title_patterns or []) and (r.keyword_bias or [])
+        }
+        if not scored:
+            return None
+        try:
+            ranked = self.score_resumes_for_listing(
+                job_title=job_title,
+                job_description=job_description,
+                work_type=work_type,
+            )
+        except ValueError:
+            return None
+
+        for resume, score in ranked:
+            if str(resume.name) not in scored:
+                continue
+            return resume.name if score >= min_score else None
+        return None
 
     def get_resume_text(self, resume_name: str) -> str:
         """Read the plain-text content of a resume file.
@@ -360,6 +475,41 @@ class Profile(BaseModel):
             raise FileNotFoundError(
                 f"Highlights file not found: {path}\n"
                 f"Create it or update cover_letter.highlights_file in your profile."
+            )
+        return path.read_text(encoding="utf-8")
+
+    def get_resume_highlights_text(self, resume_name: str) -> str:
+        """Read the highlights file for a specific resume profile.
+
+        Each resume can define its own concise ``highlights_file`` so cover
+        letters are guided by a short summary instead of the full resume
+        text (keeping token usage down). Falls back to the global
+        ``cover_letter.highlights_file`` when the resume defines none.
+
+        Looks for the file at ``<RONIN_HOME>/assets/<highlights_file>``.
+
+        Args:
+            resume_name: The name identifier of the resume profile.
+
+        Returns:
+            The text content of the highlights file, or an empty string if
+            neither a per-resume nor a global highlights file is configured.
+
+        Raises:
+            FileNotFoundError: If the configured file does not exist on disk.
+        """
+        try:
+            filename = self.get_resume(resume_name).highlights_file
+        except KeyError:
+            filename = ""
+        if not filename:
+            return self.get_highlights_text()
+        path = get_ronin_home() / "assets" / filename
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Highlights file not found: {path}\n"
+                f"Create it or update highlights_file for resume "
+                f"'{resume_name}' in your profile."
             )
         return path.read_text(encoding="utf-8")
 

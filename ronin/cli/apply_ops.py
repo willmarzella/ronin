@@ -14,16 +14,25 @@ from rich.console import Console
 from rich.prompt import Confirm
 from rich.table import Table
 
+from ronin.analyzer.archetype_classifier import (
+    ArchetypeClassifier,
+    is_protected_company,
+)
 from ronin.application_queue import ApplicationQueueService
-from ronin.analyzer.archetype_classifier import ArchetypeClassifier
 from ronin.applier import SeekApplier
 from ronin.config import load_config, load_env
+from ronin.contact_intel import (
+    RecruiterIntelService,
+    build_linkedin_dm_message,
+    build_linkedin_lookup_url,
+    build_outreach_email,
+    write_linkedin_dm_draft,
+)
 from ronin.db import get_db_manager
 from ronin.feedback.drift import DriftEngine, run_weekly_drift_jobs
-from ronin.resume_variants import ResumeVariantManager
-
 
 console = Console()
+ARCHETYPE_PROFILES = {"builder", "fixer", "operator", "translator"}
 
 
 def _redact_dsn(dsn: str) -> str:
@@ -204,8 +213,8 @@ def review_selections(limit: int = 25) -> int:
 
         console.print(table)
         console.print(
-            "\n[dim]Override sets archetype_primary/resume_archetype, clears selection_needs_review, "
-            "and re-evaluates market_intelligence_only using the queue threshold.[/dim]"
+            "\n[dim]Override sets archetype_primary/resume_archetype/resume_profile, clears selection_needs_review, "
+            "and re-evaluates below_threshold using the queue threshold.[/dim]"
         )
 
         while True:
@@ -246,13 +255,21 @@ def review_selections(limit: int = 25) -> int:
             combined = primary_score * alignment
             intel_only = 1 if combined < threshold else 0
 
+            # Bespoke-channel companies and the current employer never re-queue.
+            if is_protected_company(str(row.get("company_name") or "")):
+                intel_only = 1
+
             ok = db.update_record(
                 int(row.get("id")),
                 {
                     "archetype_primary": new_arch,
                     "resume_archetype": new_arch,
+                    "resume_profile": new_arch,
                     "selection_needs_review": 0,
-                    "market_intelligence_only": intel_only,
+                    # below_threshold: analytical demotion based on queue
+                    # threshold. Not the same as market_intelligence_only,
+                    # which reflects the Seek apply-button structure.
+                    "below_threshold": intel_only,
                 },
             )
             if ok:
@@ -779,11 +796,7 @@ def batch_apply(
     resume_commit_hash = (
         selected_variant.get("current_commit_hash") if selected_variant else None
     )
-    resume_manager = ResumeVariantManager(config)
-    seek_profile_override = resume_manager.seek_resume_profile_for_archetype(
-        archetype=archetype,
-        fallback="",
-    )
+    seek_profile_override = archetype
 
     jobs = db.get_queued_jobs(archetype=archetype, limit=limit)
     if not jobs:
@@ -848,6 +861,17 @@ def batch_apply(
                     "[yellow]Profile automation dry-run complete (no changes saved).[/yellow]"
                 )
             else:
+                try:
+                    from ronin.seek.profile_drift import store_profile_state
+
+                    store_profile_state(
+                        db,
+                        archetype,
+                        source="apply.batch",
+                        note="batch auto-profile before apply",
+                    )
+                except Exception:
+                    pass
                 console.print("[green]Seek profile updated.[/green]")
         except Exception as exc:
             console.print(
@@ -1081,6 +1105,381 @@ def show_alerts() -> int:
     return 0
 
 
+def _looks_like_staffing_agency(name: str) -> bool:
+    text = str(name or "").strip().lower()
+    if not text:
+        return False
+    markers = ["recruit", "staff", "talent", "agency", "search", "labour"]
+    return any(token in text for token in markers)
+
+
+def _is_plausible_person_name(name: str) -> bool:
+    parts = [p for p in str(name or "").strip().split() if p]
+    if len(parts) < 2 or len(parts) > 3:
+        return False
+    stop = {
+        "and",
+        "you",
+        "me",
+        "on",
+        "or",
+        "the",
+        "for",
+        "to",
+        "of",
+        "in",
+        "with",
+        "our",
+        "your",
+    }
+    if any(p.lower() in stop for p in parts):
+        return False
+    return all(p[:1].isupper() and len(p) >= 2 for p in parts)
+
+
+def manage_contacts(
+    limit: int = 50,
+    source: str = "",
+    refresh: bool = False,
+    refresh_limit: int = 150,
+    send_email: bool = False,
+    dry_run_email: bool = False,
+    yes: bool = False,
+    cta_phone: str = "",
+    open_linkedin: bool = False,
+    open_linkedin_limit: int = 5,
+    write_linkedin_drafts: bool = True,
+    seed_recruiter_email: str = "",
+    seed_recruiter_name: str = "",
+    seed_recruiter_company: str = "",
+) -> int:
+    """Run recruiter contact extraction and show/send ranked outreach targets."""
+    load_env()
+    config = load_config()
+    db = get_db_manager(config=config)
+    try:
+        intel = RecruiterIntelService(db_manager=db, config=config)
+
+        seed_email = str(seed_recruiter_email or "").strip().lower()
+        if seed_email:
+            if "@" not in seed_email:
+                console.print(
+                    "[red]Invalid --seed-recruiter-email value (must contain @).[/red]"
+                )
+                return 1
+            seed_domain = seed_email.split("@", 1)[1]
+            seed_company = str(seed_recruiter_company or "").strip()
+            if not seed_company:
+                seed_company = seed_domain.split(".", 1)[0].upper()
+            recruiter_id = db.upsert_recruiter_contact(
+                full_name=str(seed_recruiter_name or "").strip(),
+                email=seed_email,
+                phone="",
+                linkedin_url="",
+                company_name=seed_company,
+                domain=seed_domain,
+                source="manual_seed",
+                confidence=0.95,
+                notes="seeded via ronin apply contacts",
+            )
+            if recruiter_id:
+                console.print(
+                    "[green]Seeded recruiter[/green] "
+                    f"id={recruiter_id} email={seed_email} company={seed_company}"
+                )
+            else:
+                console.print(
+                    "[red]Failed to seed recruiter contact.[/red] "
+                    "Check DB logs for details."
+                )
+                return 1
+
+        if refresh:
+            refresh_stats = intel.backfill_recent_jobs(
+                limit=max(1, int(refresh_limit)),
+                source=str(source or "").strip().lower(),
+                only_missing=True,
+            )
+            console.print(
+                "[dim]Contact refresh:"
+                f" jobs={refresh_stats.get('jobs_seen', 0)},"
+                f" jobs_with_contacts={refresh_stats.get('jobs_with_contacts', 0)},"
+                f" links={refresh_stats.get('links_created', 0)},"
+                f" llm_jobs={refresh_stats.get('llm_jobs_used', 0)}"
+                "[/dim]"
+            )
+
+        rows = db.get_recruiter_outreach_candidates(
+            limit=max(1, int(limit)),
+            source=str(source or "").strip().lower(),
+        )
+        if not rows:
+            console.print("[yellow]No recruiter outreach candidates found.[/yellow]")
+            console.print(
+                "[dim]Try: ronin apply contacts --refresh --refresh-limit 300[/dim]"
+            )
+            return 0
+
+        table = Table(
+            title="Recruiter Outreach Queue (Agency-first, then direct)",
+            border_style="dim",
+        )
+        table.add_column("Stage", style="magenta")
+        table.add_column("Contact", style="cyan")
+        table.add_column("Primary Action", style="green")
+        table.add_column("LinkedIn Lookup", style="dim")
+        table.add_column("Job", style="white")
+        table.add_column("Company", style="yellow")
+        table.add_column("Score", justify="right")
+        table.add_column("Last Outreach", style="dim")
+
+        email_targets: List[Dict] = []
+        linkedin_targets: List[Dict] = []
+        displayed = 0
+        for row in rows:
+            recruiter_company = str(row.get("recruiter_company_name") or "")
+            company_name = str(row.get("company_name") or "")
+            agency_stage = bool(
+                row.get("job_company_is_agency")
+            ) or _looks_like_staffing_agency(recruiter_company or company_name)
+            stage_label = "agency" if agency_stage else "direct"
+
+            full_name = str(row.get("full_name") or "").strip()
+            explicit_email = str(row.get("email") or "").strip()
+            inferred_email = str(row.get("inferred_email") or "").strip()
+            linkedin_url = str(row.get("linkedin_url") or "").strip()
+            title = str(row.get("title") or "").strip()
+
+            # Skip low-signal historical artifacts (no contact channel + non-person name).
+            if (
+                not explicit_email
+                and not inferred_email
+                and not linkedin_url
+                and not _is_plausible_person_name(full_name)
+            ):
+                continue
+
+            primary_action = "LinkedIn search"
+            linkedin_lookup = linkedin_url or build_linkedin_lookup_url(
+                name=full_name,
+                company=company_name,
+                title=title,
+            )
+            if explicit_email:
+                primary_action = f"Email: {explicit_email}"
+            elif inferred_email:
+                primary_action = f"Email (inferred) + LinkedIn DM: {inferred_email}"
+            elif linkedin_url:
+                primary_action = "LinkedIn DM"
+            elif full_name or company_name:
+                primary_action = "LinkedIn lookup + infer email"
+
+            table.add_row(
+                stage_label,
+                full_name or "(unknown recruiter)",
+                primary_action,
+                linkedin_lookup[:58],
+                str(row.get("title") or "")[:38],
+                company_name[:24],
+                str(row.get("score") or 0),
+                str(row.get("last_outreach_at") or "")[:19],
+            )
+            displayed += 1
+
+            target_email = explicit_email or inferred_email
+            if target_email:
+                email_targets.append({**row, "target_email": target_email})
+
+            if not agency_stage:
+                linkedin_targets.append(
+                    {
+                        **row,
+                        "full_name": full_name,
+                        "company_name": company_name,
+                        "title": title,
+                        "linkedin_lookup": linkedin_lookup,
+                    }
+                )
+
+        if displayed == 0:
+            console.print(
+                "[yellow]No high-confidence recruiter contacts yet.[/yellow] "
+                "[dim]Enable contact_intel.use_llm or run more searches.[/dim]"
+            )
+            return 0
+
+        console.print(table)
+        console.print(
+            "\n[dim]Sequence:"
+            " agency recruiter known -> email;"
+            " else JD email;"
+            " else LinkedIn lookup + inferred email suggestion."
+            "[/dim]"
+        )
+
+        outreach_cfg = (
+            (config.get("contact_intel", {}) or {}).get("outreach", {})
+            if isinstance(config, dict)
+            else {}
+        )
+        resolved_phone = (
+            str(cta_phone or "").strip()
+            or str(outreach_cfg.get("cta_phone") or "").strip()
+        )
+        sender_name = "Candidate"
+        try:
+            from ronin.profile import load_profile
+
+            profile = load_profile()
+            sender_name = str(profile.personal.name or "").strip() or sender_name
+        except Exception:
+            pass
+
+        if write_linkedin_drafts and linkedin_targets:
+            draft_paths: List[str] = []
+            for idx, row in enumerate(linkedin_targets, start=1):
+                lookup_url = str(row.get("linkedin_lookup") or "").strip()
+                message = build_linkedin_dm_message(
+                    candidate=row,
+                    sender_name=sender_name,
+                    cta_phone=resolved_phone,
+                )
+                job_id = str(row.get("job_id") or "")
+                recruiter_id = int(row.get("recruiter_id") or 0)
+                name_slug = re.sub(
+                    r"[^A-Za-z0-9_.\-]+",
+                    "_",
+                    str(row.get("full_name") or "hiring_manager"),
+                )
+                prefix = f"{idx:02d}_{job_id}_{name_slug}"
+                path = write_linkedin_dm_draft(
+                    base_dir="data/linkedin_dm_drafts",
+                    filename_prefix=prefix,
+                    lookup_url=lookup_url,
+                    candidate=row,
+                    message=message,
+                )
+                draft_paths.append(path)
+                db.log_outreach_event(
+                    job_id=job_id,
+                    recruiter_id=recruiter_id,
+                    channel="linkedin_draft",
+                    target=lookup_url,
+                    subject="",
+                    body=message,
+                    status="drafted",
+                )
+            console.print(
+                "[green]LinkedIn DM drafts created:[/green] "
+                f"{len(draft_paths)} in data/linkedin_dm_drafts/"
+            )
+            if draft_paths:
+                console.print(f"[dim]Example draft: {draft_paths[0]}[/dim]")
+
+        if open_linkedin and linkedin_targets:
+            import webbrowser
+
+            opened = 0
+            seen = set()
+            for row in linkedin_targets:
+                lookup_url = str(row.get("linkedin_lookup") or "").strip()
+                if not lookup_url or lookup_url in seen:
+                    continue
+                webbrowser.open(lookup_url, new=2)
+                seen.add(lookup_url)
+                opened += 1
+                if opened >= max(1, int(open_linkedin_limit)):
+                    break
+            console.print(f"[green]Opened {opened} LinkedIn lookup tab(s).[/green]")
+
+        if not send_email:
+            return 0
+
+        if not email_targets:
+            console.print(
+                "[yellow]No email targets available. Use LinkedIn actions from the queue above.[/yellow]"
+            )
+            return 0
+
+        if not yes:
+            go = Confirm.ask(
+                f"Send outreach emails to {len(email_targets)} targets?",
+                default=False,
+            )
+            if not go:
+                console.print("[yellow]Email send cancelled.[/yellow]")
+                return 0
+
+        from ronin.gmail_outreach import GmailOutreachSender
+
+        tracking_gmail = (
+            (config.get("tracking", {}) or {}).get("gmail", {})
+            if isinstance(config, dict)
+            else {}
+        )
+
+        sender = GmailOutreachSender(
+            credentials_path=str(tracking_gmail.get("credentials_path") or ""),
+            token_path=str(tracking_gmail.get("token_path") or ""),
+            auth_mode=str(tracking_gmail.get("auth_mode") or "auto"),
+        )
+
+        sent = 0
+        failed = 0
+        for row in email_targets:
+            to_address = str(row.get("target_email") or "").strip()
+            if not to_address:
+                continue
+
+            try:
+                subject, body = build_outreach_email(
+                    candidate=row,
+                    sender_name=sender_name,
+                    cta_phone=resolved_phone,
+                )
+                result = sender.send_plain_email(
+                    to_address=to_address,
+                    subject=subject,
+                    body_text=body,
+                    dry_run=bool(dry_run_email),
+                )
+                status = "dry_run" if bool(dry_run_email) else "sent"
+                db.log_outreach_event(
+                    job_id=str(row.get("job_id") or ""),
+                    recruiter_id=int(row.get("recruiter_id") or 0),
+                    channel="email",
+                    target=to_address,
+                    subject=subject,
+                    body=body,
+                    status=status,
+                    sent_at=None,
+                )
+                sent += 1
+                console.print(
+                    f"[green]✓[/green] {status} -> {to_address} "
+                    f"[dim]({result.get('message_id', '')})[/dim]"
+                )
+            except Exception as exc:
+                failed += 1
+                db.log_outreach_event(
+                    job_id=str(row.get("job_id") or ""),
+                    recruiter_id=int(row.get("recruiter_id") or 0),
+                    channel="email",
+                    target=to_address,
+                    status="failed",
+                    error_message=str(exc),
+                )
+                console.print(f"[red]✗[/red] {to_address} [dim]{exc}[/dim]")
+
+        console.print(
+            f"\n[bold]Email outreach complete:[/bold] sent={sent}, failed={failed}, "
+            f"dry_run={1 if dry_run_email else 0}"
+        )
+        return 0 if failed == 0 else 1
+    finally:
+        db.close()
+
+
 def classify_file(file_path: str) -> int:
     """Classify a local JD file and print archetype weights."""
     load_env()
@@ -1149,6 +1548,21 @@ def _apply_records(
             raise RuntimeError("Seek login required. Refresh session and retry.")
 
         for record in jobs:
+            resolved_profile = str(resume_profile_override or "").strip().lower()
+            if resolved_profile not in ARCHETYPE_PROFILES:
+                job_archetype = (
+                    str(
+                        record.get("resume_archetype")
+                        or record.get("archetype_primary")
+                        or ""
+                    )
+                    .strip()
+                    .lower()
+                )
+                resolved_profile = (
+                    job_archetype if job_archetype in ARCHETYPE_PROFILES else "builder"
+                )
+
             result = applier.apply_to_job(
                 job_id=record.get("job_id", ""),
                 job_description=record.get("description", ""),
@@ -1156,11 +1570,7 @@ def _apply_records(
                 key_tools=record.get("key_tools", ""),
                 company_name=record.get("company_name", ""),
                 title=record.get("title", ""),
-                resume_profile=(
-                    resume_profile_override
-                    if resume_profile_override
-                    else record.get("resume_profile", "default")
-                ),
+                resume_profile=resolved_profile,
                 work_type=record.get("work_type", ""),
             )
 
@@ -1206,3 +1616,154 @@ def _apply_records(
         applier.cleanup()
 
     return {"applied": applied, "failed": failed, "stale": stale}
+
+
+# ---------------------------------------------------------------------------
+# External (agent-led) applications — Phase 1 report + Phase 2 apply loop
+# ---------------------------------------------------------------------------
+
+
+def apply_external(
+    limit: int = 10,
+    min_score: int = 0,
+    dry_run: Optional[bool] = None,
+    report: bool = False,
+    yes: bool = False,
+) -> int:
+    """Report on, or apply to, external (link-out) jobs via the agent applier.
+
+    Args:
+        limit: Max external jobs to process in this run.
+        min_score: Only apply to jobs at/above this analyzer score.
+        dry_run: Force dry-run on/off. None uses agent_apply.dry_run config.
+        report: If True, only print the external-coverage report and exit.
+        yes: Skip the confirmation prompt before a LIVE (non-dry-run) run.
+
+    Returns:
+        Process exit code (0 on success).
+    """
+    load_env()
+    config = load_config()
+    db = get_db_manager(config=config)
+
+    # -- Report mode: size how much of the pipeline is link-out ------------
+    rows = db.get_external_jobs_report()
+    total_external = sum(int(r.get("external_count", 0) or 0) for r in rows)
+    total_applied = sum(int(r.get("applied_count", 0) or 0) for r in rows)
+
+    table = Table(title="External (link-out) jobs by company")
+    table.add_column("Company", style="cyan", no_wrap=True)
+    table.add_column("External", justify="right")
+    table.add_column("Applied", justify="right")
+    table.add_column("Top score", justify="right")
+    for r in rows[:40]:
+        table.add_row(
+            str(r.get("company_name", "Unknown"))[:38],
+            str(r.get("external_count", 0)),
+            str(r.get("applied_count", 0)),
+            str(r.get("top_score", "") or ""),
+        )
+    console.print(table)
+    console.print(
+        f"[bold]{total_external}[/bold] external jobs captured "
+        f"({total_applied} applied). These are invisible to the Seek Quick "
+        f"Apply path."
+    )
+    if not total_external:
+        console.print(
+            "[yellow]No external jobs captured yet.[/yellow] Enable "
+            "[bold]scraping.capture_external: true[/bold] and run a search first."
+        )
+    if report:
+        return 0
+
+    # -- Apply mode --------------------------------------------------------
+    jobs = db.get_pending_external_jobs(limit=limit, min_score=min_score)
+    if not jobs:
+        console.print("[yellow]No pending external jobs to apply to.[/yellow]")
+        return 0
+
+    from ronin.applier.agent_applier import (
+        STATUS_APPLIED,
+        STATUS_DRY_RUN,
+        STATUS_STALE,
+        AgentApplier,
+    )
+
+    # Agent status -> persisted job status. NEEDS_HUMAN and BLOCKED are terminal
+    # for automation and are NOT queue-eligible, so they stop being retried;
+    # a spent step budget is a transient failure and stays retryable.
+    _TERMINAL_STATUS = {
+        "NEEDS_HUMAN": "NEEDS_HUMAN",
+        "BLOCKED": "BLOCKED",
+        "STEP_BUDGET_EXHAUSTED": "APP_ERROR",
+        "APP_ERROR": "APP_ERROR",
+    }
+
+    applier = AgentApplier(dry_run=dry_run)
+    mode = "DRY-RUN" if applier.dry_run else "LIVE"
+    console.print(
+        f"[bold]{len(jobs)}[/bold] external job(s) queued · mode: "
+        f"[{'yellow' if applier.dry_run else 'red'}]{mode}[/]"
+    )
+    if not applier.dry_run and not yes:
+        if not Confirm.ask(
+            "LIVE mode will SUBMIT real applications under your name. Continue?",
+            default=False,
+        ):
+            console.print("[yellow]Cancelled.[/yellow]")
+            return 0
+
+    applied = dry = failed = 0
+    try:
+        for record in jobs:
+            job_id = record.get("job_id", "")
+            title = record.get("title", "")
+            company = record.get("company_name", "")
+            resume_profile = (
+                str(record.get("resume_profile") or "builder").strip().lower()
+            )
+            console.print(f"[dim]→ {title[:44]} @ {company[:24]} ({job_id})[/dim]")
+            try:
+                result = applier.apply_to_job(
+                    job_id=job_id,
+                    job_description=record.get("description", ""),
+                    score=int(record.get("score", 0) or 0),
+                    key_tools=record.get("key_tools", ""),
+                    company_name=company,
+                    title=title,
+                    resume_profile=resume_profile,
+                    work_type=record.get("work_type", ""),
+                    apply_url=record.get("apply_url"),
+                    job_url=record.get("url"),
+                )
+            except Exception as exc:
+                logger.error(f"Agent apply crashed for {job_id}: {exc}")
+                result = "APP_ERROR"
+
+            if result == STATUS_APPLIED:
+                applied += 1
+                db.update_job_status(job_id, "APPLIED")
+                console.print(f"[green]✓ applied[/green] {title[:44]}")
+            elif result == STATUS_DRY_RUN:
+                dry += 1
+                # Do NOT mark applied — dry-run stopped before submit.
+                console.print(f"[yellow]◐ dry-run reached submit[/yellow] {title[:44]}")
+            elif result == STATUS_STALE:
+                db.update_job_status(job_id, "STALE")
+                console.print(f"[yellow]○ expired[/yellow] {title[:44]}")
+            else:
+                failed += 1
+                # Persist the REAL outcome. Collapsing everything to APP_ERROR
+                # left the job queue-eligible, so a job blocked on something
+                # automation cannot fix (no LinkedIn session, captcha) was
+                # retried on every run, forever, with the reason discarded.
+                db.update_job_status(job_id, _TERMINAL_STATUS.get(result, "APP_ERROR"))
+                console.print(f"[red]✗ {result}[/red] {title[:44]}")
+    finally:
+        applier.cleanup()
+
+    console.print(
+        f"\n[bold]Done.[/bold] applied={applied} dry_run={dry} failed={failed}"
+    )
+    return 0

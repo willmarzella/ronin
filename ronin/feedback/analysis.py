@@ -10,7 +10,6 @@ from loguru import logger
 
 from ronin.db import get_db_manager
 
-
 POSITIVE_STAGES = {"viewed", "interview_request", "offer"}
 RESOLVED_STAGES = {
     "acknowledged",

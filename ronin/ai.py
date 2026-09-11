@@ -150,7 +150,9 @@ class AnthropicService:
             raise ValueError("ANTHROPIC_API_KEY environment variable is required")
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
-        self.model = "claude-sonnet-4-20250514"
+        # Fallback for callers that pass no model. Keep this on a live model:
+        # claude-sonnet-4-20250514 reached end-of-life and now returns 404.
+        self.model = "claude-sonnet-4-6"
 
     def chat_completion(
         self,
@@ -174,13 +176,27 @@ class AnthropicService:
                 + "\n\nIMPORTANT: Your response MUST be a valid JSON object."
             )
 
-            response = self.client.messages.create(
-                model=model or self.model,
-                max_tokens=max_tokens,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_message}],
-                temperature=temperature,
-            )
+            request = {
+                "model": model or self.model,
+                "max_tokens": max_tokens,
+                "system": system_prompt,
+                "messages": [{"role": "user", "content": user_message}],
+                # anthropic 1.x removed `temperature` from messages.create (a
+                # TypeError), so it rides in the raw body for models that take it.
+                "extra_body": {"temperature": temperature},
+            }
+            try:
+                response = self.client.messages.create(**request)
+            except anthropic.APIError as exc:
+                # Newer models reject `temperature` outright. Retry without it
+                # rather than pinning a model allowlist that goes stale.
+                if "temperature" not in str(exc):
+                    raise
+                logger.debug(
+                    f"Model {request['model']} rejects temperature; retrying without it"
+                )
+                request.pop("extra_body", None)
+                response = self.client.messages.create(**request)
 
             if not response.content:
                 logger.error("Anthropic returned empty response content")

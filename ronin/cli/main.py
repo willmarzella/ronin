@@ -14,6 +14,7 @@ Dispatches subcommands to their respective modules:
     ronin apply sync
     ronin apply versions
     ronin apply alerts
+    ronin apply contacts [--refresh] [--send-email]
     ronin profile set <archetype>
     ronin profile debug
     ronin resume build <archetype|all>
@@ -37,7 +38,6 @@ import argparse
 import sys
 
 from loguru import logger
-
 
 __version__ = "2.0.0"
 
@@ -71,6 +71,17 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # -- search --------------------------------------------------------------
     subparsers.add_parser("search", help="Run job search")
+
+    # -- log (quick-capture work wins into source_log.md) --------------------
+    log_parser = subparsers.add_parser(
+        "log",
+        help="Append a work-experience note for the weekly resume agents",
+    )
+    log_parser.add_argument(
+        "note",
+        nargs="*",
+        help="The note text (quotes optional). Empty opens source_log.md instead.",
+    )
 
     # -- apply ---------------------------------------------------------------
     apply_parser = subparsers.add_parser(
@@ -124,6 +135,61 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     apply_sub.add_parser("status", help="Show funnel metrics and conversion rates")
+
+    apply_external = apply_sub.add_parser(
+        "external",
+        help="Report on / apply to external (link-out) jobs via the agent applier",
+    )
+    apply_external.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Max external jobs to process (default: 10)",
+    )
+    apply_external.add_argument(
+        "--min-score",
+        type=int,
+        default=0,
+        help="Only apply to external jobs at/above this score (default: 0)",
+    )
+    apply_external.add_argument(
+        "--report",
+        action="store_true",
+        help="Only show the external-coverage report; do not apply",
+    )
+    apply_external.add_argument(
+        "--live",
+        action="store_true",
+        help="Disable dry-run and SUBMIT real applications (default: dry-run)",
+    )
+    apply_external.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Force dry-run (fill + traverse, never submit). This is the default.",
+    )
+    apply_external.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip the confirmation prompt before a LIVE run",
+    )
+
+    # ------------------------------------------------------------------ ats
+    ats_parser = subparsers.add_parser(
+        "ats", help="Inspect and profile unrecognised ATS platforms"
+    )
+    ats_sub = ats_parser.add_subparsers(dest="ats_action", required=True)
+    ats_review_parser = ats_sub.add_parser(
+        "review", help="List ATS hosts the agent did not recognise"
+    )
+    ats_review_parser.add_argument(
+        "--status",
+        default="",
+        help="Filter by workflow status (new/drafted/done/ignored)",
+    )
+    ats_draft_parser = ats_sub.add_parser(
+        "draft", help="Draft a candidate ATS profile from captured page evidence"
+    )
+    ats_draft_parser.add_argument("host", help="Host to draft a profile for")
 
     apply_corpus = apply_sub.add_parser(
         "corpus",
@@ -232,6 +298,89 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Show all unacknowledged drift alerts",
     )
 
+    apply_contacts = apply_sub.add_parser(
+        "contacts",
+        help="Extract recruiter contacts and show ranked outreach targets",
+    )
+    apply_contacts.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Max outreach candidates to display (default: 50)",
+    )
+    apply_contacts.add_argument(
+        "--source",
+        type=str,
+        default="",
+        help="Optional source filter (e.g. seek, linkedin)",
+    )
+    apply_contacts.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Run contact extraction on recent jobs before listing targets",
+    )
+    apply_contacts.add_argument(
+        "--refresh-limit",
+        type=int,
+        default=150,
+        help="Max jobs to scan when --refresh is enabled (default: 150)",
+    )
+    apply_contacts.add_argument(
+        "--send-email",
+        action="store_true",
+        help="Send outreach emails to ranked contacts (explicit opt-in)",
+    )
+    apply_contacts.add_argument(
+        "--dry-run-email",
+        action="store_true",
+        help="Prepare/log outreach emails without sending",
+    )
+    apply_contacts.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip confirmation prompt for email sending",
+    )
+    apply_contacts.add_argument(
+        "--cta-phone",
+        type=str,
+        default="",
+        help="Override CTA phone number in outreach message",
+    )
+    apply_contacts.add_argument(
+        "--open-linkedin",
+        action="store_true",
+        help="Open top LinkedIn people search URLs in browser tabs",
+    )
+    apply_contacts.add_argument(
+        "--open-linkedin-limit",
+        type=int,
+        default=5,
+        help="Max LinkedIn tabs to open when --open-linkedin is set (default: 5)",
+    )
+    apply_contacts.add_argument(
+        "--no-linkedin-drafts",
+        action="store_true",
+        help="Do not generate LinkedIn DM draft files",
+    )
+    apply_contacts.add_argument(
+        "--seed-recruiter-email",
+        type=str,
+        default="",
+        help="Manually add/track a known recruiter email (e.g. jonny.church@pra.com.au)",
+    )
+    apply_contacts.add_argument(
+        "--seed-recruiter-name",
+        type=str,
+        default="",
+        help="Optional recruiter full name when using --seed-recruiter-email",
+    )
+    apply_contacts.add_argument(
+        "--seed-recruiter-company",
+        type=str,
+        default="",
+        help="Optional company/agency name when using --seed-recruiter-email",
+    )
+
     # -- profile -------------------------------------------------------------
     profile_parser = subparsers.add_parser(
         "profile",
@@ -259,6 +408,59 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Do not save changes (best-effort)",
     )
 
+    profile_sync = profile_sub.add_parser(
+        "sync",
+        help="Set Seek profile to dominant archetype when drift is detected",
+    )
+    profile_sync.add_argument(
+        "--lookback-days",
+        type=int,
+        default=14,
+        help="Lookback window for recent application dominance (default: 14)",
+    )
+    profile_sync.add_argument(
+        "--min-recent-samples",
+        type=int,
+        default=8,
+        help="Minimum recent applications required before preferring recent signal (default: 8)",
+    )
+    profile_sync.add_argument(
+        "--min-queue-samples",
+        type=int,
+        default=4,
+        help="Minimum queued jobs required before preferring queue signal (default: 4)",
+    )
+    profile_sync.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
+    profile_sync.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show drift decision without applying profile updates",
+    )
+
+    profile_refresh = profile_sub.add_parser(
+        "refresh",
+        help="Weekly Seek refresh from c.yml; touches recency when unchanged",
+    )
+    profile_refresh.add_argument(
+        "--variant",
+        default="c",
+        help="Variant yaml to publish (default: c)",
+    )
+    profile_refresh.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report the plan without writing to Seek",
+    )
+    profile_refresh.add_argument(
+        "--force",
+        action="store_true",
+        help="Force a full apply even if content is unchanged",
+    )
+
     profile_debug = profile_sub.add_parser(
         "debug",
         help="Open Playwright Inspector to discover selectors",
@@ -283,8 +485,33 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     resume_build.add_argument(
         "archetype",
-        choices=["builder", "fixer", "operator", "translator", "all"],
-        help="Which variant(s) to build",
+        help="Which variant(s) to build: an archetype (builder/fixer/operator/"
+        "translator), a custom role variant (e.g. solutions_engineer), or 'all'",
+    )
+
+    resume_regen = resume_sub.add_parser(
+        "regen",
+        help="Regenerate tuned resume variant(s) from source.yml via AI agents",
+    )
+    resume_regen.add_argument(
+        "--variant",
+        action="append",
+        dest="variants",
+        help=(
+            "Variant to regenerate; repeatable. Default: builder, fixer, "
+            "operator, translator. source.yml and c.yml are hand-owned poles "
+            "and cannot be named here."
+        ),
+    )
+    resume_regen.add_argument(
+        "--force",
+        action="store_true",
+        help="Regenerate even if source.yml + log are unchanged",
+    )
+    resume_regen.add_argument(
+        "--no-push",
+        action="store_true",
+        help="Commit locally but do not git push",
     )
 
     resume_upload = resume_sub.add_parser(
@@ -293,8 +520,8 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     resume_upload.add_argument(
         "archetype",
-        choices=["builder", "fixer", "operator", "translator", "all"],
-        help="Which variant(s) to upload",
+        help="Which variant(s) to upload: an archetype (builder/fixer/operator/"
+        "translator), a custom role variant (e.g. solutions_engineer), or 'all'",
     )
     resume_upload.add_argument(
         "--yes",
@@ -320,6 +547,23 @@ def _build_parser() -> argparse.ArgumentParser:
         "--no-set-mapping",
         action="store_true",
         help="Do not update resume_variants.seek_profile_mapping in ~/.ronin/config.yaml",
+    )
+    resume_upload.add_argument(
+        "--as",
+        dest="as_profile",
+        default="",
+        help="Register under this profile.yaml resume name instead of the "
+        "variant name (e.g. `upload c --as contract_aggressive`). One variant only.",
+    )
+
+    resume_sync = resume_sub.add_parser(
+        "sync",
+        help="Refresh ~/.ronin/resumes/*.txt from the compiled variant markdown",
+    )
+    resume_sync.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would be written without touching any file",
     )
 
     resume_debug = resume_sub.add_parser(
@@ -649,6 +893,13 @@ def main() -> None:
 
         search_main()
 
+    elif args.command == "log":
+        from ronin.cli.resume_ops import log_note
+
+        rc = log_note(note=" ".join(getattr(args, "note", []) or []))
+        if rc != 0:
+            sys.exit(rc)
+
     elif args.command == "apply":
         apply_action = getattr(args, "apply_action", None)
         if apply_action in (None, "run"):
@@ -677,6 +928,25 @@ def main() -> None:
             from ronin.cli.apply_ops import show_apply_status
 
             rc = show_apply_status()
+            if rc != 0:
+                sys.exit(rc)
+        elif apply_action == "external":
+            from ronin.cli.apply_ops import apply_external
+
+            # --live overrides the config dry_run default; --dry-run forces it.
+            # Neither flag → None → use agent_apply.dry_run (defaults True).
+            dry_run_flag = None
+            if bool(getattr(args, "live", False)):
+                dry_run_flag = False
+            elif bool(getattr(args, "dry_run", False)):
+                dry_run_flag = True
+            rc = apply_external(
+                limit=int(getattr(args, "limit", 10) or 10),
+                min_score=int(getattr(args, "min_score", 0) or 0),
+                dry_run=dry_run_flag,
+                report=bool(getattr(args, "report", False)),
+                yes=bool(getattr(args, "yes", False)),
+            )
             if rc != 0:
                 sys.exit(rc)
         elif apply_action == "corpus":
@@ -748,9 +1018,50 @@ def main() -> None:
             rc = show_alerts()
             if rc != 0:
                 sys.exit(rc)
+        elif apply_action == "contacts":
+            from ronin.cli.apply_ops import manage_contacts
+
+            rc = manage_contacts(
+                limit=int(getattr(args, "limit", 50) or 50),
+                source=str(getattr(args, "source", "") or ""),
+                refresh=bool(getattr(args, "refresh", False)),
+                refresh_limit=int(getattr(args, "refresh_limit", 150) or 150),
+                send_email=bool(getattr(args, "send_email", False)),
+                dry_run_email=bool(getattr(args, "dry_run_email", False)),
+                yes=bool(getattr(args, "yes", False)),
+                cta_phone=str(getattr(args, "cta_phone", "") or ""),
+                open_linkedin=bool(getattr(args, "open_linkedin", False)),
+                open_linkedin_limit=int(getattr(args, "open_linkedin_limit", 5) or 5),
+                write_linkedin_drafts=not bool(
+                    getattr(args, "no_linkedin_drafts", False)
+                ),
+                seed_recruiter_email=str(
+                    getattr(args, "seed_recruiter_email", "") or ""
+                ),
+                seed_recruiter_name=str(getattr(args, "seed_recruiter_name", "") or ""),
+                seed_recruiter_company=str(
+                    getattr(args, "seed_recruiter_company", "") or ""
+                ),
+            )
+            if rc != 0:
+                sys.exit(rc)
         else:
             parser.parse_args(["apply", "--help"])
             return
+
+    elif args.command == "ats":
+        from ronin.cli.ats_ops import ats_draft, ats_review
+
+        ats_action = getattr(args, "ats_action", None)
+        if ats_action == "review":
+            rc = ats_review(status=str(getattr(args, "status", "") or ""))
+        elif ats_action == "draft":
+            rc = ats_draft(host=str(args.host))
+        else:
+            parser.parse_args(["ats", "--help"])
+            return
+        if rc != 0:
+            sys.exit(rc)
 
     elif args.command == "profile":
         from ronin.cli.profile_ops import debug as profile_debug
@@ -762,6 +1073,30 @@ def main() -> None:
                 archetype=str(getattr(args, "archetype")),
                 yes=bool(getattr(args, "yes", False)),
                 dry_run=bool(getattr(args, "dry_run", False)),
+            )
+            if rc != 0:
+                sys.exit(rc)
+        elif action == "sync":
+            # Drift-sync was removed with the profile refactor; import lazily so
+            # `profile set` keeps working without it.
+            from ronin.cli.profile_ops import sync_profile
+
+            rc = sync_profile(
+                yes=bool(getattr(args, "yes", False)),
+                dry_run=bool(getattr(args, "dry_run", False)),
+                lookback_days=int(getattr(args, "lookback_days", 14) or 14),
+                min_recent_samples=int(getattr(args, "min_recent_samples", 8) or 8),
+                min_queue_samples=int(getattr(args, "min_queue_samples", 4) or 4),
+            )
+            if rc != 0:
+                sys.exit(rc)
+        elif action == "refresh":
+            from ronin.cli.resume_ops import refresh_seek
+
+            rc = refresh_seek(
+                variant=str(getattr(args, "variant", "c") or "c"),
+                dry_run=bool(getattr(args, "dry_run", False)),
+                force=bool(getattr(args, "force", False)),
             )
             if rc != 0:
                 sys.exit(rc)
@@ -779,11 +1114,9 @@ def main() -> None:
         run_main()
 
     elif args.command == "resume":
-        from ronin.cli.resume_ops import (
-            build_pdfs,
-            debug as resume_debug,
-            upload_variants,
-        )
+        from ronin.cli.resume_ops import build_pdfs
+        from ronin.cli.resume_ops import debug as resume_debug
+        from ronin.cli.resume_ops import upload_variants
 
         action = getattr(args, "resume_action", None)
         archetype = str(getattr(args, "archetype", "") or "").strip().lower()
@@ -809,7 +1142,24 @@ def main() -> None:
                 force_new=bool(getattr(args, "force_new", False)),
                 purge_existing=bool(getattr(args, "purge_existing", False)),
                 set_mapping=not bool(getattr(args, "no_set_mapping", False)),
+                as_profile=str(getattr(args, "as_profile", "") or ""),
             )
+            if rc != 0:
+                sys.exit(rc)
+        elif action == "regen":
+            from ronin.cli.resume_ops import regen_variant
+
+            rc = regen_variant(
+                variants=getattr(args, "variants", None),
+                force=bool(getattr(args, "force", False)),
+                push=not bool(getattr(args, "no_push", False)),
+            )
+            if rc != 0:
+                sys.exit(rc)
+        elif action == "sync":
+            from ronin.cli.resume_ops import sync_resume_texts
+
+            rc = sync_resume_texts(dry_run=bool(getattr(args, "dry_run", False)))
             if rc != 0:
                 sys.exit(rc)
         elif action == "debug":

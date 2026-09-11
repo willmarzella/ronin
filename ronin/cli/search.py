@@ -14,8 +14,8 @@ from rich.progress import (
 )
 from rich.table import Table
 
-from ronin.application_queue import ApplicationQueueService
 from ronin.analyzer import JobAnalyzerService
+from ronin.application_queue import ApplicationQueueService
 from ronin.config import get_ronin_home, load_config, load_env
 from ronin.db import get_db_manager
 from ronin.scraper import SeekScraper

@@ -4,13 +4,10 @@ import time
 from typing import Optional
 
 from loguru import logger
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    TimeoutException,
-)
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait
 
 from ronin.ai import AIService
 from ronin.applier.base import BaseApplier
@@ -131,6 +128,47 @@ class SeekApplier(BaseApplier):
         except Exception as e:
             raise Exception(f"Failed to navigate to job {job_id}: {str(e)}")
 
+    @staticmethod
+    def _match_resume_radio(
+        radios: list,
+        resume_id: str,
+        hints: list,
+    ) -> Optional[dict]:
+        """Pick the resume radio option to select on the apply form.
+
+        Args:
+            radios: Parsed options, each ``{"value": uuid, "label": filename,
+                "checked": bool}`` (the "Don't include" option is excluded
+                upstream).
+            resume_id: The registered Seek resume UUID for the chosen profile.
+                An exact value match always wins.
+            hints: Ordered name fragments (profile name, filename stem) used
+                when no UUID is registered or the UUID is not on the form.
+
+        Returns:
+            The matching radio dict, or None when nothing matches
+            unambiguously — a hint matching several labels is ambiguous and
+            never guessed.
+        """
+        want = str(resume_id or "").strip().lower()
+        if want:
+            for radio in radios:
+                if str(radio.get("value") or "").strip().lower() == want:
+                    return radio
+
+        for hint in hints or []:
+            token = str(hint or "").strip().lower()
+            if not token:
+                continue
+            hits = [
+                radio
+                for radio in radios
+                if token in str(radio.get("label") or "").lower()
+            ]
+            if len(hits) == 1:
+                return hits[0]
+        return None
+
     def _handle_resume(
         self,
         job_id: str,
@@ -140,9 +178,12 @@ class SeekApplier(BaseApplier):
     ):
         """Handle resume selection for Seek applications based on resume profile name."""
         try:
-            WebDriverWait(self.chrome_driver.driver, 10).until(
+            # Seek replaced the resume <select> dropdown with a radio group
+            # (div[data-testid='resumeSelectInput'], inputs named
+            # 'document-select'). Wait for the group, not the retired dropdown.
+            container = WebDriverWait(self.chrome_driver.driver, 10).until(
                 EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "[data-testid='select-input']")
+                    (By.CSS_SELECTOR, "[data-testid='resumeSelectInput']")
                 )
             )
 
@@ -182,13 +223,80 @@ class SeekApplier(BaseApplier):
                     "Check profile.yaml resumes configuration."
                 )
 
-            resume_select = Select(
-                self.chrome_driver.driver.find_element(
-                    By.CSS_SELECTOR, "[data-testid='select-input']"
+            radios = []
+            for inp in container.find_elements(
+                By.CSS_SELECTOR, "input[name='document-select'][type='radio']"
+            ):
+                value = (inp.get_attribute("value") or "").strip()
+                if not value or value.lower() == "dont-include":
+                    continue
+                input_id = inp.get_attribute("id") or ""
+                label_text = ""
+                if input_id:
+                    try:
+                        label_el = container.find_element(
+                            By.CSS_SELECTOR, f"label[for='{input_id}']"
+                        )
+                        label_text = " ".join((label_el.text or "").split())
+                    except Exception:
+                        pass
+                radios.append(
+                    {
+                        "value": value,
+                        "label": label_text,
+                        "checked": inp.is_selected(),
+                        "element": inp,
+                        "input_id": input_id,
+                    }
                 )
+
+            if not radios:
+                raise ValueError(
+                    "No resume options found in the resumeSelectInput radio group"
+                )
+
+            hints = [
+                h
+                for h in dict.fromkeys([selected_profile_name, resume_profile])
+                if h and h != "default"
+            ]
+            chosen = self._match_resume_radio(
+                [{k: r[k] for k in ("value", "label", "checked")} for r in radios],
+                resume_id or "",
+                hints,
             )
-            resume_select.select_by_value(resume_id)
+            if chosen is None:
+                raise ValueError(
+                    f"No resume radio matched seek_resume_id={resume_id!r} or "
+                    f"hints {hints!r}. Options: {[r['label'] for r in radios]}"
+                )
+            target = next(r for r in radios if r["value"] == chosen["value"])
+
+            if not target["checked"]:
+                # Inputs are visually hidden; click the label, fall back to a
+                # JS click on the input itself.
+                clicked = False
+                if target["input_id"]:
+                    try:
+                        self.chrome_driver.driver.find_element(
+                            By.CSS_SELECTOR, f"label[for='{target['input_id']}']"
+                        ).click()
+                        clicked = True
+                    except Exception:
+                        clicked = False
+                if not clicked:
+                    self.chrome_driver.driver.execute_script(
+                        "arguments[0].click();", target["element"]
+                    )
+                WebDriverWait(self.chrome_driver.driver, 5).until(
+                    lambda _driver: target["element"].is_selected()
+                )
+
             self.current_resume_profile = selected_profile_name
+            logger.info(
+                f"Job {job_id}: selected resume '{target['label']}' "
+                f"(value={target['value']})"
+            )
 
         except Exception as e:
             raise Exception(f"Failed to handle resume for job {job_id}: {str(e)}")

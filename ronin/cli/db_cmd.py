@@ -11,7 +11,6 @@ from ronin.backup import backup_database
 from ronin.config import load_config, load_env
 from ronin.db import get_db_manager
 
-
 console = Console()
 
 

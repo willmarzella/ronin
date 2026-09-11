@@ -97,17 +97,17 @@ def test_browser_mode_factory() -> bool:
     """Test that get_browser_driver returns correct type based on mode."""
     try:
         from ronin.applier.base import get_browser_driver
-        from ronin.applier.camofox import CamofoxDriver
         from ronin.applier.browser import ChromeDriver
+        from ronin.applier.camofox import CamofoxDriver
 
         # Test camofox mode via env var
         old_mode = os.environ.get("BROWSER_MODE")
         os.environ["BROWSER_MODE"] = "camofox"
         try:
             driver = get_browser_driver()
-            assert isinstance(driver, CamofoxDriver), (
-                f"Expected CamofoxDriver, got {type(driver)}"
-            )
+            assert isinstance(
+                driver, CamofoxDriver
+            ), f"Expected CamofoxDriver, got {type(driver)}"
         finally:
             if old_mode:
                 os.environ["BROWSER_MODE"] = old_mode
@@ -119,9 +119,9 @@ def test_browser_mode_factory() -> bool:
         os.environ["BROWSER_MODE"] = "system"
         try:
             driver = get_browser_driver()
-            assert isinstance(driver, ChromeDriver), (
-                f"Expected ChromeDriver, got {type(driver)}"
-            )
+            assert isinstance(
+                driver, ChromeDriver
+            ), f"Expected ChromeDriver, got {type(driver)}"
         finally:
             if old_mode:
                 os.environ["BROWSER_MODE"] = old_mode

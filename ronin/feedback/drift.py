@@ -13,7 +13,6 @@ from loguru import logger
 from ronin.analyzer.archetype_classifier import ArchetypeClassifier
 from ronin.db import get_db_manager
 
-
 ARCHETYPES = ["builder", "fixer", "operator", "translator"]
 SHIFT_THRESHOLD = 0.05
 STALENESS_THRESHOLD = 0.08

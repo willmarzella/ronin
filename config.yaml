@@ -18,10 +18,31 @@ search:
   # Keywords to search for on job boards
   # Use Seek-style OR syntax: '"keyword one"-or-"keyword two"'
   # Set your keywords during: ronin setup
-  keywords: []
+  # v6 — operator-embed, data by title, discovery by motion (vault: §Career, 2026-07).
+  # Ronin hunts DATA-TITLED seats — ideally inside energy operators on the
+  # asset / regulatory / OT side, where the discovery motion runs inward and
+  # the reporting line (not the noun) decides whether the seat is real.
+  # The vendor-SE lane is retired: those titles are listed in
+  # EXCLUDED_TITLE_MARKERS (ronin/analyzer/archetype_classifier.py) and never
+  # queue for application, however they score.
+  keywords:
+  # ── Tier 1 — Data engineering, every seniority (the title on the seat) ────
+  - '"data engineer"-or-"senior data engineer"-or-"lead data engineer"-or-"principal data engineer"-or-"staff data engineer"'
+  - '"analytics engineer"-or-"senior analytics engineer"-or-"data platform engineer"-or-"data engineering"'
+  - '"data architect"-or-"senior data architect"-or-"enterprise data architect"-or-"data solutions architect"-or-"lead data solutions architect"-or-"data platform architect"'
+  # ── Tier 2 — The operator seats (asset / OT / network — the bullseye) ─────
+  - '"asset information analyst"-or-"asset data analyst"-or-"asset information engineer"-or-"asset condition engineer"-or-"asset systems analyst"'
+  - '"OT data"-or-"operational technology data"-or-"SCADA data"-or-"PI historian"-or-"OSIsoft"'
+  - '"network data engineer"-or-"network data analyst"-or-"metering data"-or-"AMI data"-or-"grid data"'
+  # ── Tier 3 — Regulatory data (the submission-integrity seat) ──────────────
+  - '"regulatory reporting analyst"-or-"regulatory data analyst"-or-"senior analyst regulatory reporting"'
+  # ── Tier 4 — Applied AI/ML (on-thesis ONLY when it's on operational/asset
+  #    data — predictive maintenance, condition monitoring, forecasting. The
+  #    scorer's red flag demotes generic LLM/chatbot software-for-software.) ──
+  - '"AI engineer"-or-"applied AI engineer"-or-"machine learning engineer"-or-"ML engineer"-or-"applied scientist"-or-"MLOps engineer"'
 
-  location: "Victoria-VIC"                    # Job board location filter (e.g. "All-Australia", "Victoria-VIC", "Melbourne-VIC")
-  date_range: 4                              # Days to look back
+  location: "All-Australia"                   # Broadened from Victoria-VIC to catch remote-national build-and-sell roles (options: "All-Australia", "Victoria-VIC", "Melbourne-VIC")
+  date_range: 21                             # Days to look back (Seek honours arbitrary values, not just its 1/3/7/14/31 UI buckets)
 
   salary:
     min: 0
@@ -37,6 +58,38 @@ application:
   salary_min: 0
   salary_max: 0
   batch_limit: 100                           # Max jobs to apply to per run (0 = unlimited)
+  expire_after_days: 30                      # Pending jobs older than this (by posting date) become EXPIRED
+
+  # Minimum analyst score to enter the apply queue. Sub-40 jobs converted at
+  # 2.2% against ~10% above it, while taking 63% of all applications.
+  min_score: 40
+
+  # Outcome-weighted apply ordering. Multipliers are relative to the base
+  # callback rate and are shrunk toward it, because several cells are small —
+  # raise or lower them as outcomes accumulate, and re-derive from the
+  # applications table rather than guessing.
+  #
+  # Measured over 498 applications / 26 positive outcomes:
+  #   fixer 22.0% · adaptation 6.6% · operator 5.0% · builder 0.9% · translator 0.0%
+  #   senior 11.5% · mid 3.6% · lead 2.4%
+  ranking:
+    enabled: true                            # false restores queue_threshold gating below
+    archetype_weights:
+      fixer: 2.99
+      adaptation: 1.18
+      operator: 0.97
+      translator: 0.38
+      builder: 0.31
+    seniority_weights:
+      senior: 1.93
+      unknown: 1.18
+      junior: 0.83
+      mid: 0.72
+      lead: 0.67
+
+  # Legacy gate, used only when ranking.enabled is false. Keys off resume
+  # embedding quality rather than job quality, so throughput moved whenever the
+  # resumes were regenerated.
   queue_threshold: 0.15                      # Minimum (archetype_score * resume_alignment) for queueing
 
 # -----------------------------------------------------------------------------
@@ -62,6 +115,30 @@ scraping:
   delay_seconds: 1                           # Delay between requests (rate limiting)
   timeout_seconds: 10                        # HTTP request timeout
   quick_apply_only: true                     # Only process jobs with quick apply
+  # Retain non-quick-apply (link-out) jobs as apply_type='external' so the
+  # agent applier (`ronin apply external`) can submit them. Covers Seek
+  # Workday/PageUp link-outs and every LinkedIn job. When false, those jobs
+  # are stored as market intelligence only.
+  capture_external: true
+
+# -----------------------------------------------------------------------------
+# Agent-led applier (external / link-out ATS applications)
+# -----------------------------------------------------------------------------
+# The observe->decide->act loop that submits applications on external ATSes
+# (Workday, PageUp, Greenhouse, ...). Runs via `ronin apply external`.
+agent_apply:
+  dry_run: true                # SAFETY: fill + traverse but never submit. Flip
+                               # to false (or use --live) only when confident.
+  max_steps: 14                # Max page transitions per application
+  step_pause_seconds: 2.0      # Settle time after each action
+  brain_model: "claude-opus-4-8"     # LLM driving navigation decisions
+  resume_pdf_dir: "resume/pdf"       # Where built resume PDFs live (for upload)
+  resume_pdf_map: {}                 # Optional archetype -> pdf filename overrides
+  account_creation: false      # Phase 3: register accounts on gated ATSes
+  email_verify:
+    enabled: true              # Fetch verification links from Gmail after signup
+    timeout_seconds: 120
+    poll_seconds: 10
 
 # -----------------------------------------------------------------------------
 # AI Analysis
@@ -71,6 +148,7 @@ analysis:
   feedback_min_samples: 2                    # Min resolved outcomes before feedback is injected into prompts
   enable_embeddings: true
   embedding_model: "all-MiniLM-L6-v2"
+  parallel_workers: 8                        # Concurrent Anthropic analysis calls; raise if rate limits allow
 
 # -----------------------------------------------------------------------------
 # Proxy (Optional)
@@ -96,7 +174,26 @@ notifications:
 boards:
   seek:
     enabled: true
+    # Also pull Seek's homepage "Recommended for you" feed (profile-based,
+    # no keyword search). Requires a logged-in Seek session, so it launches
+    # the Selenium browser during `ronin search`. Run `ronin apply` once
+    # interactively first to establish the session.
+    recommendations_enabled: false
     # Board-specific settings can go here
+  linkedin:
+    enabled: true                             # LinkedIn integration enabled (people-search outreach)
+    jobs_search_enabled: true                 # Scrape LinkedIn jobs into the pipeline (guest endpoints)
+    page_size: 25
+    max_pages: 40
+    filters:
+      # false = capture both Easy Apply and link-out listings; the agent
+      # applier handles the Easy Apply modal and external ATSes alike.
+      easy_apply_only: false
+      job_types: ["full_time", "contract"]    # full_time | part_time | contract | temporary | internship | volunteer | other
+      experience_levels: ["associate", "mid_senior"]  # internship | entry | associate | mid_senior | director | executive
+      workplace_types: ["remote", "hybrid"]   # on_site | remote | hybrid
+      distance_km: 25
+      sort_by: "DD"                           # DD = newest first, R = relevance
 
 # -----------------------------------------------------------------------------
 # Browser
@@ -133,9 +230,38 @@ tracking:
     max_messages_per_sync: 250
 
 # -----------------------------------------------------------------------------
+# Recruiter Contact Intelligence + Outreach
+# -----------------------------------------------------------------------------
+contact_intel:
+  enabled: true
+  enrich_on_search: true                      # Extract recruiter contacts during `ronin search`
+  use_llm: false                              # Optional LLM extraction pass for fuzzy contact clues
+  llm_provider: "auto"                        # auto | anthropic | openai
+  llm_model: ""                               # Optional override model
+  llm_max_chars: 8000
+  max_llm_jobs_per_run: 12
+  infer_email: true                           # Infer email format if name/domain known
+  min_confidence: 0.15
+  outreach:
+    cta_phone: ""                             # Optional call CTA appended to outreach emails
+
+# -----------------------------------------------------------------------------
 # Resume Variants (integrates existing ./resume repo)
 # -----------------------------------------------------------------------------
+# IMPORTANT: ronin runs as ONE role at a time. To switch role context (e.g.
+# from data_engineer to asset_condition_engineering for the Tier 1 / v4.4
+# Melbourne energy doors), swap both `role_name` AND `archetype_mapping`
+# below. Ready-made preset blocks are listed in the commented sections.
+#
+# The four archetypes (builder/fixer/operator/translator) still control which
+# JDs Ronin queues for the active role. For role folders with only one
+# variant (`a.yml`), all four archetypes route to the same file — the
+# archetype scoring still drives JD ranking, but the same resume is sent.
+# Split into builder/fixer/operator/translator yamls per role when desired.
+# -----------------------------------------------------------------------------
 resume_variants:
+  # Remote the weekly `ronin resume regen` pushes to (your own fork).
+  regen_push_remote: "fork"
   repo_path: "resume"
   role_name: "data_engineer"
 
@@ -146,10 +272,8 @@ resume_variants:
     operator: "default"
     translator: "default"
 
-  # Defaults mapped to current existing resume variants:
-  # - b.yml / data_engineer_b.md (accurate/defensible)
-  # - c.yml / data_engineer_c.md (ATS/keyword-heavy)
-  # You can swap each archetype to dedicated builder/fixer/operator/translator files.
+  # ===== Active mapping =====
+  # Current default = data_engineer (full archetype split exists).
   archetype_mapping:
     builder:
       yaml: "yaml/data_engineer/builder.yml"
@@ -163,6 +287,67 @@ resume_variants:
     translator:
       yaml: "yaml/data_engineer/translator.yml"
       markdown: "markdown/data_engineer_translator.md"
+
+  # ===== Preset blocks for energy doors (v4.4 Melbourne path) =====
+  # To switch role context: change `role_name` above to the target folder,
+  # then replace the `archetype_mapping` block above with the matching preset
+  # below. Each energy door now has the full builder/fixer/operator/translator
+  # split (mirrors data_engineer).
+
+  # --- Door 1A: Asset Condition Engineer / Network Condition Analyst ---
+  # role_name: "asset_condition_engineering"
+  # archetype_mapping:
+  #   builder:
+  #     yaml: "yaml/asset_condition_engineering/builder.yml"
+  #     markdown: "markdown/asset_condition_engineering_builder.md"
+  #   fixer:
+  #     yaml: "yaml/asset_condition_engineering/fixer.yml"
+  #     markdown: "markdown/asset_condition_engineering_fixer.md"
+  #   operator:
+  #     yaml: "yaml/asset_condition_engineering/operator.yml"
+  #     markdown: "markdown/asset_condition_engineering_operator.md"
+  #   translator:
+  #     yaml: "yaml/asset_condition_engineering/translator.yml"
+  #     markdown: "markdown/asset_condition_engineering_translator.md"
+
+  # --- Door 2: OT Data Engineer / SCADA Integration Engineer ---
+  # role_name: "ot_engineering"
+  # archetype_mapping:
+  #   builder:
+  #     yaml: "yaml/ot_engineering/builder.yml"
+  #     markdown: "markdown/ot_engineering_builder.md"
+  #   fixer:
+  #     yaml: "yaml/ot_engineering/fixer.yml"
+  #     markdown: "markdown/ot_engineering_fixer.md"
+  #   operator:
+  #     yaml: "yaml/ot_engineering/operator.yml"
+  #     markdown: "markdown/ot_engineering_operator.md"
+  #   translator:
+  #     yaml: "yaml/ot_engineering/translator.yml"
+  #     markdown: "markdown/ot_engineering_translator.md"
+
+  # --- Door 3: Senior Analyst Regulatory Reporting / RIN Analyst ---
+  # (Translator is the strongest archetype for this role given REST APRA work.)
+  # role_name: "regulatory_reporting"
+  # archetype_mapping:
+  #   builder:
+  #     yaml: "yaml/regulatory_reporting/builder.yml"
+  #     markdown: "markdown/regulatory_reporting_builder.md"
+  #   fixer:
+  #     yaml: "yaml/regulatory_reporting/fixer.yml"
+  #     markdown: "markdown/regulatory_reporting_fixer.md"
+  #   operator:
+  #     yaml: "yaml/regulatory_reporting/operator.yml"
+  #     markdown: "markdown/regulatory_reporting_operator.md"
+  #   translator:
+  #     yaml: "yaml/regulatory_reporting/translator.yml"
+  #     markdown: "markdown/regulatory_reporting_translator.md"
+
+  # --- Adjacent role folders (still single-variant a.yml; same swap pattern) ---
+  # role_name: "information_management"   # IM / records / asset information
+  # role_name: "power_infrastructure"     # general power / network engineering
+  # role_name: "systems_engineer"         # broader systems engineering
+  # role_name: "technical_pm"             # technical PM / delivery
 
 # -----------------------------------------------------------------------------
 # Seek Profile Automation (Optional / Advanced)
@@ -183,11 +368,26 @@ seek_profile:
     headless: false
     channel: "chrome"                        # Prefer real Chrome for persisted sessions
     user_data_dir: "~/.ronin/chrome_profile" # Reuse Selenium login cookies if possible
-    profile_url: "https://www.seek.com.au/profile"
+    profile_url: "https://au.seek.com/profile"
+    resumes_url: "https://au.seek.com/profile/me/resume?mode=edit" # Resume documents management
     timeout_ms: 45000
     login_timeout_sec: 300
     slow_mo_ms: 0
     jitter: true
+    # Selectors captured from the live profile page 2026-08 (data-automation
+    # attributes are Seek's own stable hooks). Headline has no field of its
+    # own — the updater prefixes it into the summary text.
+    selectors:
+      summary_edit_button: "[data-automation='summary-edit']"
+      summary_input: "[data-automation='summary-input']"
+      summary_save_button: "[data-automation='summary-save-button']"
+      summary_cancel_button: "[data-automation='summary-cancel-button']"
+      skills_edit_button: "[data-automation='skills-edit-link']"
+      skills_input: "[data-automation='skills-tags-input']"
+      skills_add_button: "[data-automation='add-skill-button']"
+      skills_save_button: "[data-automation='skills-save-button']"
+      skills_cancel_button: "[data-automation='skills-cancel-button']"
+      skills_remove_buttons: "[data-automation='skills-form-drawer'] button[aria-label^='Remove skill']"
     min_delay_sec: 0.1
     max_delay_sec: 0.5
 
@@ -198,28 +398,180 @@ seek_profile:
     # - summary_edit_button / summary_input / summary_save_button
     # - skills_edit_button / skills_input / skills_save_button
     # - skills_clear_button / skills_remove_buttons
-    selectors: {}
+    #
+    # Resume upload automation (used by `ronin resume upload`):
+    # - resumes_url
+    # - resume_file_input
+    # - upload_resume_button
+    # - replace_resume_button
+    #
+    # Seek application automation (used by `ronin apply`):
+    # - apply_resume_select  # CSS selector for the resume dropdown on apply form
+
+  # Optional: auto-switch Seek profile to the dominant archetype before apply
+  # when running `ronin run` (only if enabled).
+  drift:
+    enabled: false
+    lookback_days: 14
+    min_recent_samples: 8
+    min_queue_samples: 4
+    strict: false
 
   templates:
+    # The four DE archetypes carry the operator-seat positioning (data by
+    # title, energy/asset domain).
     builder:
-      headline: ""
-      summary: ""
-      skills: []
+      headline: "Analytics Engineer | dbt · Snowflake · Databricks · AWS · Python · SQL | Energy & Regulated Industries"
+      # Headline is prefixed into the Seek summary field by the updater;
+      # combined headline + summary must stay under Seek's 600-char limit.
+      summary: "Analytics engineer, 7+ years on the seam between engineering and business owners. I run discovery with the people who own the problem, build the marts and infrastructure under their answers, and treat business sign-off — not deployment — as done. Finance reconciliation, APRA translation, PII governance. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
+      skills:
+      - Analytics Engineering
+      - Data Engineering
+      - AWS
+      - Azure
+      - Databricks
+      - Snowflake
+      - Microsoft Fabric
+      - dbt
+      - Airflow
+      - Kafka
+      - Python
+      - PySpark
+      - SQL
+      - ETL
+      - Data Modelling
+      - Dimensional Modelling
+      - Data Warehousing
+      - Lakehouse Architecture
+      - Delta Lake
+      - Medallion Architecture
+      - CDC
+      - Terraform
+      - Docker
+      - CI/CD
+      - Data Governance
+      - OT/IT Data Integration
+      - Asset Data
+      - Time-series Data
+      - SAP
+      - Power BI
+      - Tableau
       # headline_file: "assets/seek_profile/builder_headline.txt"
       # summary_file: "assets/seek_profile/builder_summary.txt"
       # skills_file: "assets/seek_profile/builder_skills.txt"
     fixer:
-      headline: ""
-      summary: ""
-      skills: []
+      headline: "Analytics Engineer | dbt · Snowflake · Databricks · AWS · Python · SQL | Energy & Regulated Industries"
+      # Headline is prefixed into the Seek summary field by the updater;
+      # combined headline + summary must stay under Seek's 600-char limit.
+      summary: "Analytics engineer, 7+ years on the seam between engineering and business owners. I run discovery with the people who own the problem, build the marts and infrastructure under their answers, and treat business sign-off — not deployment — as done. Finance reconciliation, APRA translation, PII governance. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
+      skills:
+      - Analytics Engineering
+      - Data Engineering
+      - AWS
+      - Azure
+      - Databricks
+      - Snowflake
+      - Microsoft Fabric
+      - dbt
+      - Airflow
+      - Kafka
+      - Python
+      - PySpark
+      - SQL
+      - ETL
+      - Data Modelling
+      - Dimensional Modelling
+      - Data Warehousing
+      - Lakehouse Architecture
+      - Delta Lake
+      - Medallion Architecture
+      - CDC
+      - Terraform
+      - Docker
+      - CI/CD
+      - Data Governance
+      - OT/IT Data Integration
+      - Asset Data
+      - Time-series Data
+      - SAP
+      - Power BI
+      - Tableau
     operator:
-      headline: ""
-      summary: ""
-      skills: []
+      headline: "Analytics Engineer | dbt · Snowflake · Databricks · AWS · Python · SQL | Energy & Regulated Industries"
+      # Headline is prefixed into the Seek summary field by the updater;
+      # combined headline + summary must stay under Seek's 600-char limit.
+      summary: "Analytics engineer, 7+ years on the seam between engineering and business owners. I run discovery with the people who own the problem, build the marts and infrastructure under their answers, and treat business sign-off — not deployment — as done. Finance reconciliation, APRA translation, PII governance. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
+      skills:
+      - Analytics Engineering
+      - Data Engineering
+      - AWS
+      - Azure
+      - Databricks
+      - Snowflake
+      - Microsoft Fabric
+      - dbt
+      - Airflow
+      - Kafka
+      - Python
+      - PySpark
+      - SQL
+      - ETL
+      - Data Modelling
+      - Dimensional Modelling
+      - Data Warehousing
+      - Lakehouse Architecture
+      - Delta Lake
+      - Medallion Architecture
+      - CDC
+      - Terraform
+      - Docker
+      - CI/CD
+      - Data Governance
+      - OT/IT Data Integration
+      - Asset Data
+      - Time-series Data
+      - SAP
+      - Power BI
+      - Tableau
     translator:
-      headline: ""
-      summary: ""
-      skills: []
+      headline: "Analytics Engineer | dbt · Snowflake · Databricks · AWS · Python · SQL | Energy & Regulated Industries"
+      # Headline is prefixed into the Seek summary field by the updater;
+      # combined headline + summary must stay under Seek's 600-char limit.
+      summary: "Analytics engineer, 7+ years on the seam between engineering and business owners. I run discovery with the people who own the problem, build the marts and infrastructure under their answers, and treat business sign-off — not deployment — as done. Finance reconciliation, APRA translation, PII governance. Focus: energy and utilities — OT/SCADA, PI historian, asset, metering and time-series data."
+      skills:
+      - Analytics Engineering
+      - Data Engineering
+      - AWS
+      - Azure
+      - Databricks
+      - Snowflake
+      - Microsoft Fabric
+      - dbt
+      - Airflow
+      - Kafka
+      - Python
+      - PySpark
+      - SQL
+      - ETL
+      - Data Modelling
+      - Dimensional Modelling
+      - Data Warehousing
+      - Lakehouse Architecture
+      - Delta Lake
+      - Medallion Architecture
+      - CDC
+      - Terraform
+      - Docker
+      - CI/CD
+      - Data Governance
+      - OT/IT Data Integration
+      - Asset Data
+      - Time-series Data
+      - SAP
+      - Power BI
+      - Tableau
+  sync_from_resume_yaml: false
 
 # -----------------------------------------------------------------------------
 # Timeouts & Retry

@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import math
+import os
 import re
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from loguru import logger
-
 
 ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
     "builder": {
@@ -46,6 +47,16 @@ ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
             "create a new",
             "design the architecture",
             "lead the development of",
+            "stand up new {tech}",
+            "stand up a new {tech}",
+            "build the {tech} platform",
+            "implement new {tech}",
+            "implementing new {tech}",
+            "establish new {tech}",
+            "deploy new {tech}",
+            "deploying new {tech}",
+            "rollout {tech}",
+            "roll out {tech}",
         ],
         "sentence_indicators": [
             "no existing",
@@ -58,6 +69,13 @@ ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
             "vision for",
             "shape the direction",
             "greenfield",
+            "der integration",
+            "ami rollout",
+            "ami deployment",
+            "new metering platform",
+            "first-of-kind",
+            "new asset management platform",
+            "establishing a new capability",
         ],
     },
     "fixer": {
@@ -96,6 +114,20 @@ ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
             "uplift program",
             "platform uplift",
             "system decommissioning",
+            "uplift asset data",
+            "uplift {tech}",
+            "uplifting {tech}",
+            "data quality uplift",
+            "asset data uplift",
+            "metering data uplift",
+            "regulatory data uplift",
+            "scada migration",
+            "pi historian migration",
+            "osisoft migration",
+            "gis migration",
+            "smallworld migration",
+            "ellipse migration",
+            "maximo migration",
         ],
         "sentence_indicators": [
             "legacy",
@@ -119,6 +151,18 @@ ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
             "transformation",
             "decommission",
             "decommissioning",
+            "asset data uplift",
+            "regulatory uplift",
+            "metering uplift",
+            "legacy gis",
+            "legacy scada",
+            "legacy ellipse",
+            "legacy maximo",
+            "pi historian uplift",
+            "ring-fencing",
+            "ring fencing",
+            "aer determination",
+            "rin submission",
         ],
     },
     "operator": {
@@ -149,6 +193,26 @@ ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
             "runbook",
             "slo",
             "sli",
+            "operate {tech}",
+            "operating {tech}",
+            "manage outages",
+            "managing outages",
+            "monitor network",
+            "monitoring network",
+            "respond to faults",
+            "responding to faults",
+            "support control room",
+            "supporting control room",
+            "asset condition monitoring",
+            "condition-based monitoring",
+            "real-time operations",
+            "scada support",
+            "pi historian support",
+            "field operations",
+            "outage management",
+            "network operations",
+            "dispatch operations",
+            "fault response",
         ],
         "sentence_indicators": [
             "steady state",
@@ -163,6 +227,20 @@ ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
             "incident",
             "runbook",
             "observability",
+            "control room",
+            "dispatch",
+            "outage management",
+            "fault response",
+            "network operations",
+            "real-time operations",
+            "field operations",
+            "asset condition monitoring",
+            "scada support",
+            "ner compliance",
+            "ams operations",
+            "shift work",
+            "shift roster",
+            "rotating roster",
         ],
     },
     "translator": {
@@ -178,6 +256,18 @@ ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
             "communicate insights",
             "present findings",
             "democratise data",
+            "engage with regulator",
+            "engaging with regulator",
+            "prepare regulatory submission",
+            "preparing regulatory submission",
+            "translate regulatory requirements",
+            "translating regulatory requirements",
+            "respond to regulator",
+            "responding to regulator",
+            "liaise with regulator",
+            "liaising with regulator",
+            "prepare aer submission",
+            "prepare rin submission",
         ],
         "sentence_indicators": [
             "stakeholder",
@@ -190,9 +280,161 @@ ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
             "analytics enablement",
             "self-serve",
             "semantic model",
+            "aer submission",
+            "aemo submission",
+            "rin submission",
+            "rin process",
+            "regulatory submission",
+            "regulator engagement",
+            "ring-fencing",
+            "community engagement",
+            "outage communications",
+            "customer-facing reporting",
         ],
     },
 }
+
+# Title markers for roles no longer being targeted. A listing whose title
+# contains one of these is kept in the database for market intelligence but is
+# never queued for application — see ``is_excluded_title``.
+#
+# These are customer-facing technical-selling roles (sales / solutions /
+# forward-deployed engineering). They are not data-engineering JD shapes, so the
+# four archetypes score them as noise; previously they were bucketed into
+# "translator" so the mis-tag was at least consistent. Now that the role is not
+# being pursued, that bucketing would make them *more* applyable, not less.
+EXCLUDED_TITLE_MARKERS = (
+    "sales engineer",
+    "solutions engineer",
+    "sales engineering",
+    "solutions engineering",
+    "pre-sales",
+    "presales",
+    "forward deployed",
+    "forward-deployed",
+    "solutions architect",
+    "solutions consultant",
+    "customer engineer",
+    "field engineer",
+    "technical account manager",
+    "customer success engineer",
+    "technical sales",
+    "implementation consultant",
+    "implementation engineer",
+    "deployment engineer",
+    "professional services",
+    "customer solutions",
+)
+
+
+def is_excluded_title(job_title: str) -> bool:
+    """True when a listing title names a role that is no longer targeted."""
+    title_lower = (job_title or "").strip().lower()
+    if not title_lower:
+        return False
+    return any(marker in title_lower for marker in EXCLUDED_TITLE_MARKERS)
+
+
+# Companies never auto-applied to, whatever the listing scores. These are the
+# bespoke-channel targets from §Career (energy distributors + AEMO + Toyota —
+# applied to by hand with tailored material, never a generic quick-apply) plus
+# the current employer (D2i). Listings from these companies stay in the
+# database for market intelligence — the career-target radar reads them — but
+# an auto-application here would burn the hand-sent channel it exists to feed.
+PROTECTED_COMPANY_MARKERS = (
+    "d2i",
+    "essential energy",
+    "ausgrid",
+    "endeavour energy",
+    "powercor",
+    "citipower",
+    "jemena",
+    "united energy",
+    "ausnet",
+    "aemo",
+    "australian energy market operator",
+    "origin energy",
+    "toyota",
+)
+
+
+# Companies the operator's contracts put off limits -- the end client, the agency
+# that placed them and the OPAC administering the contract, for the term and any
+# post-term restraint. Unlike the tuple above this is not a judgement about
+# channel, it is a fact about signed paper, so it is published from outside
+# rather than hand-maintained here:
+# RONIN_HOME/engagements.yaml, written by whatever system owns the engagement
+# register. Absent in a generic install, in which case only the markers above
+# apply.
+ENGAGEMENT_REGISTER = "engagements.yaml"
+
+_engagement_cache: tuple[float, tuple[str, ...]] = (0.0, ())
+
+
+def _register_path() -> Path:
+    """RONIN_HOME/engagements.yaml.
+
+    Resolved here rather than via ``ronin.config.get_ronin_home`` so this gate
+    depends on nothing but the standard library. A protection check that can
+    raise on a missing import is a protection check that fails open.
+    """
+    env_home = os.environ.get("RONIN_HOME")
+    home = Path(env_home).expanduser() if env_home else Path.home() / ".ronin"
+    return home / ENGAGEMENT_REGISTER
+
+
+def engagement_markers() -> tuple[str, ...]:
+    """Markers from the published engagement register, reloaded when it changes.
+
+    Cached on mtime rather than loaded once at import: the applier is a
+    long-running process, and an engagement signed mid-run has to take effect
+    without a restart. Any failure to read returns the last good value, because
+    an unreadable register must not silently unprotect a live client.
+    """
+    global _engagement_cache
+    path = _register_path()
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return _engagement_cache[1]
+
+    if mtime == _engagement_cache[0]:
+        return _engagement_cache[1]
+
+    try:
+        import yaml
+
+        data = yaml.safe_load(path.read_text()) or {}
+        markers = tuple(
+            str(m).strip().lower()
+            for m in (data.get("protected_companies") or [])
+            if str(m).strip()
+        )
+    except Exception as exc:
+        logger.warning(f"Could not read engagement register {path}: {exc}")
+        return _engagement_cache[1]
+
+    if markers != _engagement_cache[1]:
+        logger.info(
+            f"[protected] engagement register: {len(markers)} markers from {path}"
+        )
+    _engagement_cache = (mtime, markers)
+    return markers
+
+
+def is_protected_company(company_name: str) -> bool:
+    """True when a listing's company must never receive an auto-application.
+
+    Two reasons a company lands here: it is a bespoke-channel target reserved
+    for hand-sent material, or the published engagement register lists it.
+    """
+    name_lower = (company_name or "").strip().lower()
+    if not name_lower:
+        return False
+    if any(marker in name_lower for marker in PROTECTED_COMPANY_MARKERS):
+        return True
+    return any(marker in name_lower for marker in engagement_markers())
+
 
 KNOWN_TECH = [
     "snowflake",
@@ -224,7 +466,40 @@ KNOWN_TECH = [
     "kimball",
     "data vault",
     "medallion",
+    "scada",
+    "pi historian",
+    "osisoft",
+    "gis",
+    "smallworld",
+    "ellipse",
+    "maximo",
+    "sap pm",
+    "ami",
+    "der",
+    "historian",
 ]
+
+# Matching is word-boundary, not substring. Several entries are short enough to
+# appear inside ordinary English -- "der" in "under"/"considered", "ami" in
+# "family"/"dynamic", "gis" in "logistics"/"registry" -- which tagged a sentence
+# containing no technology at all as ['der', 'ami', 'gis'] and put "der" in 96%
+# of the corpus. Anything built on these tags (market drift, centroids) learns
+# noise unless the boundary holds.
+#
+# Boundaries are non-word characters rather than \b alone, so "power bi" matches
+# inside a comma list and a trailing "." or ")" does not defeat it, while
+# "bigquery" never satisfies "gis".
+_TECH_PATTERNS = [
+    (tech, re.compile(rf"(?<![0-9a-z]){re.escape(tech)}(?![0-9a-z])", re.IGNORECASE))
+    for tech in KNOWN_TECH
+]
+
+
+def extract_tech_tags(text: str) -> List[str]:
+    """Return the KNOWN_TECH entries genuinely present in ``text``."""
+    if not text:
+        return []
+    return [tech for tech, pattern in _TECH_PATTERNS if pattern.search(text)]
 
 
 def _cosine_similarity(a: List[float], b: List[float]) -> float:
@@ -389,6 +664,17 @@ class ArchetypeClassifier:
             "redesign",
             "re-platform",
             "replatform",
+            "asset data uplift",
+            "regulatory uplift",
+            "metering uplift",
+            "scada migration",
+            "pi historian migration",
+            "osisoft migration",
+            "gis migration",
+            "ellipse migration",
+            "maximo migration",
+            "ring-fencing",
+            "ring fencing",
         ]
         medium_fixer_tokens = [
             "migration",
@@ -400,6 +686,9 @@ class ArchetypeClassifier:
             "uplift",
             "modernis",
             "moderniz",
+            "legacy gis",
+            "legacy scada",
+            "legacy ellipse",
         ]
 
         hard_operator_tokens = [
@@ -412,12 +701,27 @@ class ArchetypeClassifier:
             "sla",
             "slo",
             "sli",
+            "control room",
+            "outage management",
+            "dispatch operations",
+            "fault response",
+            "network operations centre",
+            "noc operations",
+            "shift roster",
+            "rotating roster",
         ]
         soft_operator_tokens = [
             "observability",
             "operational readiness",
             "operational resilience",
             "platform reliability",
+            "asset condition monitoring",
+            "condition-based monitoring",
+            "scada support",
+            "pi historian support",
+            "real-time operations",
+            "field operations",
+            "ner compliance",
         ]
         translator_tokens = [
             "self-serve",
@@ -427,6 +731,14 @@ class ArchetypeClassifier:
             "business intelligence",
             "data literacy",
             "analytics enablement",
+            "aer submission",
+            "aemo submission",
+            "rin submission",
+            "rin process",
+            "regulatory submission",
+            "regulator engagement",
+            "community engagement",
+            "outage communications",
         ]
         builder_tokens = [
             "greenfield",
@@ -467,6 +779,22 @@ class ArchetypeClassifier:
             boosts["fixer"] += 0.2
         if "platform engineer" in title_lower and boosts["operator"] > 0:
             boosts["operator"] += 0.2
+        if "asset" in title_lower and "engineer" in title_lower and boosts["fixer"] > 0:
+            boosts["fixer"] += 0.2
+        if "regulatory" in title_lower and boosts["translator"] > 0:
+            boosts["translator"] += 0.2
+        if "rin analyst" in title_lower:
+            boosts["translator"] += 0.4
+        if "network operations" in title_lower and boosts["operator"] > 0:
+            boosts["operator"] += 0.2
+        if "control room" in title_lower:
+            boosts["operator"] += 0.4
+        if (
+            "ot " in title_lower
+            or "ot/it" in title_lower
+            or "ot integration" in title_lower
+        ):
+            boosts["operator"] += 0.2
 
         return boosts
 
@@ -487,7 +815,7 @@ class ArchetypeClassifier:
         ):
             job_type = "permanent"
 
-        tech_tags = [tech for tech in KNOWN_TECH if tech in text_lower]
+        tech_tags = extract_tech_tags(text_lower)
 
         seniority = "mid"
         if any(token in title_lower for token in ["junior", "graduate", "entry"]):
@@ -582,6 +910,9 @@ class ArchetypeClassifier:
             "tech_stack_tags": metadata["tech_stack_tags"],
             "seniority_level": metadata["seniority_level"],
             "archetype_prior": metadata["archetype_prior"],
+            # Scores stay as-is so the row remains readable for analytics; the
+            # queue is what refuses to act on it.
+            "role_excluded": is_excluded_title(job_title),
         }
 
     def get_centroid(self, archetype: str) -> List[float]:

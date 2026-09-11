@@ -7,8 +7,14 @@ from typing import Dict, Optional, Tuple
 
 from loguru import logger
 
-from ronin.analyzer.archetype_classifier import ArchetypeClassifier
+from ronin.analyzer.archetype_classifier import (
+    ArchetypeClassifier,
+    is_excluded_title,
+    is_protected_company,
+)
 from ronin.db import get_db_manager
+from ronin.profile import load_profile
+from ronin.ranking import RankingPolicy
 from ronin.resume_variants import ARCHETYPES, ResumeVariantManager
 
 
@@ -29,6 +35,28 @@ class ApplicationQueueService:
             ),
         )
         self.resume_manager = ResumeVariantManager(self.config)
+
+        try:
+            self.profile = load_profile()
+        except Exception as exc:
+            logger.debug(f"Profile unavailable for queue role overrides: {exc}")
+            self.profile = None
+
+    def _role_specific_resume(self, job: Dict) -> Optional[str]:
+        """Return a custom (non-archetype) resume that matches this job.
+
+        Must stay in step with ``JobAnalyzer._role_specific_resume_override``:
+        ``recompute_queue`` re-derives ``resume_profile`` on every apply run, so
+        a rule the analyzer honours and this does not would be silently undone.
+        Both delegate to :meth:`Profile.select_custom_resume`.
+        """
+        if not self.profile or not getattr(self.profile, "resumes", None):
+            return None
+        return self.profile.select_custom_resume(
+            job_title=str(job.get("title", "")),
+            job_description=str(job.get("description", "")),
+            work_type=str(job.get("work_type") or job.get("job_type") or ""),
+        )
 
     def close(self) -> None:
         if self._owns_db:
@@ -69,30 +97,78 @@ class ApplicationQueueService:
     def recompute_queue(self, limit: int = 0) -> Dict[str, int]:
         """Apply queue gating thresholds to discovered jobs."""
         self.refresh_resume_variants()
-        threshold = float(
-            self.config.get("application", {}).get("queue_threshold", 0.15)
-        )
+        app_cfg = self.config.get("application", {}) or {}
+        threshold = float(app_cfg.get("queue_threshold", 0.15))
+        policy = RankingPolicy(self.config)
+
+        # Retire ads too old to still be live before scoring the rest, so the
+        # queue never spends browser time on a month-old posting.
+        expired = self.db.expire_old_jobs(int(app_cfg.get("expire_after_days", 30)))
 
         candidates = self.db.get_queue_candidates(limit=limit)
         updated = 0
         market_intel = 0
         manual_review = 0
+        excluded = 0
+        protected = 0
 
         for job in candidates:
             scores = self._get_job_scores(job)
             primary, needs_review = self.select_variant(scores)
-            primary_score = float(scores.get(primary, 0.0))
-            variant = self.db.get_resume_variant(primary)
-            alignment = float(variant.get("alignment_score") or 0.5) if variant else 0.5
-            combined_score = primary_score * alignment
-            intel_only = 1 if combined_score < threshold else 0
+
+            if policy.enabled:
+                # Gate on the analyst score alone. Alignment is still refreshed
+                # and recorded above, but it is a resume-quality measure and
+                # multiplying it into the gate made throughput a function of how
+                # the resumes embed rather than of job quality.
+                intel_only = 1 if policy.is_below_bar(job) else 0
+            else:
+                primary_score = float(scores.get(primary, 0.0))
+                variant = self.db.get_resume_variant(primary)
+                alignment = (
+                    float(variant.get("alignment_score") or 0.5) if variant else 0.5
+                )
+                intel_only = 1 if primary_score * alignment < threshold else 0
+
+            # Roles we no longer target never queue, whatever they scored. The
+            # four archetypes score these as noise, so a high score is an
+            # artefact rather than a fit.
+            if is_excluded_title(job.get("title", "")):
+                intel_only = 1
+                excluded += 1
+
+            # Bespoke-channel companies and the current employer never queue —
+            # a generic auto-application would burn the hand-sent channel.
+            if is_protected_company(job.get("company_name", "")):
+                intel_only = 1
+                protected += 1
+
+            # A custom resume (title patterns, keyword bias or work type)
+            # overrides the embedding archetype for resume selection; archetype
+            # fields stay as the classifier output for analytics/feedback.
+            resume_profile = self._role_specific_resume(job) or primary
+
+            # Priority reads archetype_primary/seniority as just recomputed, not
+            # the stale values on the row.
+            priority = policy.priority(
+                {
+                    "score": job.get("score"),
+                    "archetype_primary": primary,
+                    "seniority_level": job.get("seniority_level"),
+                }
+            )
 
             fields = {
                 "archetype_scores": json.dumps(scores),
                 "archetype_primary": primary,
                 "selection_needs_review": 1 if needs_review else 0,
-                "market_intelligence_only": intel_only,
+                # below_threshold: this job is not worth applying to. Distinct
+                # from market_intelligence_only, which means "structurally not
+                # quick-apply on Seek" (set by cli/search.py).
+                "below_threshold": intel_only,
                 "resume_archetype": primary,
+                "resume_profile": resume_profile,
+                "priority_score": priority,
             }
             if self.db.update_record(job["id"], fields):
                 updated += 1
@@ -104,6 +180,9 @@ class ApplicationQueueService:
             "updated": updated,
             "market_intelligence": market_intel,
             "manual_review": manual_review,
+            "expired": expired,
+            "excluded_role": excluded,
+            "protected_company": protected,
         }
 
     def _get_job_scores(self, job: Dict) -> Dict[str, float]:

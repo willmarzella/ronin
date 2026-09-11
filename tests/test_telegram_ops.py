@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, time as dt_time
+from datetime import datetime
+from datetime import time as dt_time
 
 from ronin.cli import telegram_ops
 

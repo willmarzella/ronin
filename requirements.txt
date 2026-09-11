@@ -1,4 +1,5 @@
 # Core dependencies
+curl-cffi>=0.16.2
 requests>=2.26.0
 beautifulsoup4>=4.9.3
 openai>=1.0.0,<2.0.0

@@ -33,12 +33,20 @@ class CoverLetterGenerator:
         self.ai_service = ai_service or AnthropicService()
 
         self.profile = None
+        self.model: Optional[str] = None
         if load_profile is not None:
             try:
                 self.profile = load_profile()
                 logger.debug("Loaded user profile for cover letter generation")
             except Exception as e:
                 logger.debug(f"Profile not available, using legacy prompts: {e}")
+
+        # Without this the request falls through to AnthropicService's own
+        # default, which is not the model the user configured.
+        try:
+            self.model = self.profile.ai.cover_letter_model or None
+        except Exception:
+            self.model = None
 
     def generate_cover_letter(
         self,
@@ -133,6 +141,7 @@ class CoverLetterGenerator:
             return self.ai_service.chat_completion(
                 system_prompt=system_prompt,
                 user_message=user_message,
+                model=self.model,
                 temperature=0.7,
                 max_tokens=8192,
             )

@@ -14,7 +14,6 @@ from rich.table import Table
 
 from ronin.config import get_ronin_home
 
-
 console = Console()
 
 

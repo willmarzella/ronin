@@ -14,7 +14,6 @@ from loguru import logger
 
 from ronin.analyzer.archetype_classifier import ArchetypeClassifier
 
-
 ARCHETYPES = ["builder", "fixer", "operator", "translator"]
 DEFAULT_FALLBACK_CODES = {
     "builder": "b",
@@ -43,7 +42,15 @@ class ResumeVariantManager:
         repo_raw = rv_cfg.get("repo_path", "resume")
         self.repo_path = Path(repo_raw).expanduser()
         if not self.repo_path.is_absolute():
-            self.repo_path = (Path.cwd() / self.repo_path).resolve()
+            # Resolve against cwd first (how launchd runs it), then against the
+            # package root. Without the fallback any caller with a different
+            # working directory — compile.sh runs from resume/ — silently
+            # resolves to a path that does not exist.
+            from_cwd = (Path.cwd() / self.repo_path).resolve()
+            from_pkg = (Path(__file__).resolve().parents[1] / self.repo_path).resolve()
+            self.repo_path = (
+                from_cwd if from_cwd.exists() or not from_pkg.exists() else from_pkg
+            )
 
         self.role_name = str(rv_cfg.get("role_name", "data_engineer"))
         self.mapping_cfg = rv_cfg.get("archetype_mapping", {}) or {}

@@ -37,11 +37,21 @@ class SeekTemplateMissing(SeekProfileAutomationError):
 
 
 @dataclass
+class SeekCareerEntry:
+    title: str = ""
+    company: str = ""
+    period: str = ""
+    responsibilities: str = ""
+    achievements: List[str] = field(default_factory=list)
+
+
+@dataclass
 class SeekProfileTemplate:
     archetype: str
     headline: str = ""
     summary: str = ""
     skills: List[str] = field(default_factory=list)
+    experience: List[SeekCareerEntry] = field(default_factory=list)
 
 
 def _safe_list(value: Any) -> List[str]:
@@ -187,6 +197,46 @@ class SeekProfileUpdater:
         self.min_delay_sec = float(auto.get("min_delay_sec") or 0.1)
         self.max_delay_sec = float(auto.get("max_delay_sec") or 0.5)
 
+    def _match_entries_to_rows(
+        self,
+        entries: List[SeekCareerEntry],
+        rows: List[Dict[str, Any]],
+    ) -> List[tuple]:
+        """Pair career entries with confirmed Seek career-history rows.
+
+        A row matches an entry when either normalised company string contains
+        the other, compared line by line — Seek may show a truncated company
+        name, and the entry may carry the longer legal name. Rows flagged
+        ``pending`` (resume-extracted suggestions awaiting confirmation) are
+        never matched, and each row is claimed at most once.
+        """
+
+        def norm(s: Any) -> str:
+            return re.sub(r"[^a-z0-9 ]+", " ", str(s or "").lower()).strip()
+
+        matched: List[tuple] = []
+        claimed: set = set()
+        for entry in entries:
+            company = norm(getattr(entry, "company", ""))
+            if not company:
+                continue
+            for row in rows:
+                if not isinstance(row, dict) or row.get("pending"):
+                    continue
+                row_key = str(row.get("auto_id") or id(row))
+                if row_key in claimed:
+                    continue
+                lines = [
+                    norm(line)
+                    for line in str(row.get("text") or "").splitlines()
+                    if norm(line)
+                ]
+                if any(company in line or line in company for line in lines):
+                    matched.append((entry, row))
+                    claimed.add(row_key)
+                    break
+        return matched
+
     def apply_archetype(
         self,
         archetype: str,
@@ -278,8 +328,12 @@ class SeekProfileUpdater:
                         )
                     page.goto(self.profile_url, wait_until="domcontentloaded")
 
-                # Some profiles use a view page + edit CTA.
-                self._best_effort_enter_edit_mode(page)
+                # Some profiles use a view page + edit CTA. Skip the heuristic
+                # when field-level edit selectors are configured — on the
+                # current profile page it matches unrelated "Edit ..." buttons
+                # (visibility, personal details) and opens the wrong drawer.
+                if not any(k.endswith("_edit_button") for k in self.selectors):
+                    self._best_effort_enter_edit_mode(page)
 
                 # Apply template.
                 self._apply_template(page, template, dry_run=dry_run)
@@ -423,22 +477,25 @@ class SeekProfileUpdater:
     ) -> None:
         failures: List[str] = []
 
-        if template.headline:
-            ok = self._update_text_field(
-                page,
-                field_key="headline",
-                value=template.headline,
-                label_candidates=["Headline", "Title", "Professional headline"],
-                dry_run=dry_run,
-            )
-            if not ok:
-                failures.append("headline")
-
-        if template.summary:
+        # Seek has no separate headline field — the headline is presented as
+        # the first line of the personal summary. Combined text must stay
+        # under Seek's 600-character limit for that field.
+        summary_value = "\n\n".join(
+            part
+            for part in (template.headline.strip(), template.summary.strip())
+            if part
+        )
+        if summary_value:
+            if len(summary_value) > 600:
+                logger.warning(
+                    "Combined headline + summary is %d chars (Seek limit 600); "
+                    "the save may be rejected",
+                    len(summary_value),
+                )
             ok = self._update_text_field(
                 page,
                 field_key="summary",
-                value=template.summary,
+                value=summary_value,
                 label_candidates=["Profile summary", "Summary", "About"],
                 multiline=True,
                 dry_run=dry_run,
@@ -512,6 +569,7 @@ class SeekProfileUpdater:
 
         if dry_run:
             logger.info("[dry-run] Would set %s", field_key)
+            self._close_editor(page, field_key)
             return True
 
         try:
@@ -592,6 +650,7 @@ class SeekProfileUpdater:
         save_sel = self.selectors.get("skills_save_button")
         clear_sel = self.selectors.get("skills_clear_button")
         remove_sel = self.selectors.get("skills_remove_buttons")
+        add_sel = self.selectors.get("skills_add_button")
 
         if edit_sel:
             try:
@@ -650,6 +709,7 @@ class SeekProfileUpdater:
 
         if dry_run:
             logger.info("[dry-run] Would set skills (%d entries)", len(skills))
+            self._close_editor(page, "skills")
             return True
 
         # Best-effort clear.
@@ -687,14 +747,21 @@ class SeekProfileUpdater:
             except Exception:
                 pass
 
-        # Add skills.
+        # Add skills. Seek's tag input is a combobox with an explicit Add
+        # button; Enter is the fallback when no add selector is configured.
         for skill in skills:
             try:
                 skill_input.click(timeout=1000)
                 skill_input.fill("")
                 skill_input.type(skill, delay=40)
                 self._sleep_jitter(base=0.1)
-                page.keyboard.press("Enter")
+                if add_sel:
+                    try:
+                        page.locator(add_sel).first.click(timeout=1500)
+                    except Exception:
+                        page.keyboard.press("Enter")
+                else:
+                    page.keyboard.press("Enter")
                 self._sleep_jitter(base=0.15)
             except Exception as exc:
                 logger.warning("Failed adding skill %r: %s", skill, str(exc)[:200])
@@ -719,6 +786,26 @@ class SeekProfileUpdater:
                 continue
 
         return True
+
+    def _close_editor(self, page: Any, field_key: str) -> None:
+        """Close an open edit drawer without saving (used by dry runs).
+
+        A drawer left open overlays the page and blocks the next field's edit
+        control, so every dry-run field visit must close what it opened.
+        """
+        cancel_sel = self.selectors.get(f"{field_key}_cancel_button")
+        if cancel_sel:
+            try:
+                page.locator(cancel_sel).first.click(timeout=2000)
+                self._sleep_jitter()
+                return
+            except Exception:
+                pass
+        try:
+            page.keyboard.press("Escape")
+            self._sleep_jitter()
+        except Exception:
+            pass
 
     def _sleep_jitter(self, *, base: float = 0.0) -> None:
         if base <= 0:
