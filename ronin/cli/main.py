@@ -39,7 +39,6 @@ import sys
 
 from loguru import logger
 
-
 __version__ = "2.0.0"
 
 
@@ -1032,18 +1031,14 @@ def main() -> None:
                 yes=bool(getattr(args, "yes", False)),
                 cta_phone=str(getattr(args, "cta_phone", "") or ""),
                 open_linkedin=bool(getattr(args, "open_linkedin", False)),
-                open_linkedin_limit=int(
-                    getattr(args, "open_linkedin_limit", 5) or 5
-                ),
+                open_linkedin_limit=int(getattr(args, "open_linkedin_limit", 5) or 5),
                 write_linkedin_drafts=not bool(
                     getattr(args, "no_linkedin_drafts", False)
                 ),
                 seed_recruiter_email=str(
                     getattr(args, "seed_recruiter_email", "") or ""
                 ),
-                seed_recruiter_name=str(
-                    getattr(args, "seed_recruiter_name", "") or ""
-                ),
+                seed_recruiter_name=str(getattr(args, "seed_recruiter_name", "") or ""),
                 seed_recruiter_company=str(
                     getattr(args, "seed_recruiter_company", "") or ""
                 ),
@@ -1090,9 +1085,7 @@ def main() -> None:
                 yes=bool(getattr(args, "yes", False)),
                 dry_run=bool(getattr(args, "dry_run", False)),
                 lookback_days=int(getattr(args, "lookback_days", 14) or 14),
-                min_recent_samples=int(
-                    getattr(args, "min_recent_samples", 8) or 8
-                ),
+                min_recent_samples=int(getattr(args, "min_recent_samples", 8) or 8),
                 min_queue_samples=int(getattr(args, "min_queue_samples", 4) or 4),
             )
             if rc != 0:
@@ -1121,11 +1114,9 @@ def main() -> None:
         run_main()
 
     elif args.command == "resume":
-        from ronin.cli.resume_ops import (
-            build_pdfs,
-            debug as resume_debug,
-            upload_variants,
-        )
+        from ronin.cli.resume_ops import build_pdfs
+        from ronin.cli.resume_ops import debug as resume_debug
+        from ronin.cli.resume_ops import upload_variants
 
         action = getattr(args, "resume_action", None)
         archetype = str(getattr(args, "archetype", "") or "").strip().lower()

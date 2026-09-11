@@ -251,9 +251,7 @@ class LinkedInScraper(BaseScraper):
             if company_el:
                 company = " ".join((company_el.get_text() or "").split())
 
-            location_el = card.find(
-                "span", class_=lambda c: c and "location" in c
-            )
+            location_el = card.find("span", class_=lambda c: c and "location" in c)
             location = (
                 " ".join((location_el.get_text() or "").split()) if location_el else ""
             )

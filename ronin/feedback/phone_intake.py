@@ -12,7 +12,6 @@ from flask import Flask, redirect, render_template_string, request
 from ronin.db import get_db_manager
 from ronin.feedback.gmail_api_tracker import GmailOutcomeTracker
 
-
 CALL_FORM_HTML = """
 <!doctype html>
 <html>

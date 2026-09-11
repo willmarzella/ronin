@@ -6,13 +6,14 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
+from bs4 import BeautifulSoup
+
 # curl_cffi.requests is a drop-in replacement for `requests` that uses libcurl
 # under the hood and can impersonate Chrome's TLS/JA3 fingerprint + HTTP/2
 # settings. Plain `requests` has a distinct fingerprint that Cloudflare flags
 # instantly, regardless of how clean the HTTP headers look. This is the
 # single biggest leverage for getting past Seek's CF gate.
 from curl_cffi import requests as cf_requests
-from bs4 import BeautifulSoup
 from loguru import logger
 
 
@@ -130,9 +131,7 @@ class BaseScraper(ABC):
         per_request_headers: Dict[str, str] = {}
         if self._last_url:
             try:
-                same_host = (
-                    urlparse(self._last_url).netloc == urlparse(url).netloc
-                )
+                same_host = urlparse(self._last_url).netloc == urlparse(url).netloc
             except Exception:
                 same_host = False
             if same_host:
@@ -197,9 +196,7 @@ class BaseScraper(ABC):
                     f"(ID: {preview['job_id']}, apply_type={job_details['apply_type']})"
                 )
 
-        external_count = sum(
-            1 for j in jobs_data if j.get("apply_type") == "external"
-        )
+        external_count = sum(1 for j in jobs_data if j.get("apply_type") == "external")
         if self.capture_external and external_count:
             logger.info(
                 f"Captured {external_count} external (link-out) jobs for the "

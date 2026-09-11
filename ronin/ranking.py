@@ -28,7 +28,6 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-
 # Minimum analyst score for a job to enter the apply queue. Sub-40 converted at
 # 2.2% against ~10% above it, while consuming 63% of all applications.
 DEFAULT_MIN_SCORE = 40.0
@@ -59,8 +58,8 @@ class RankingPolicy:
     """Resolved gating and ordering policy for one apply run."""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        app_cfg = ((config or {}).get("application") or {})
-        ranking_cfg = (app_cfg.get("ranking") or {})
+        app_cfg = (config or {}).get("application") or {}
+        ranking_cfg = app_cfg.get("ranking") or {}
 
         self.enabled = bool(ranking_cfg.get("enabled", True))
         self.min_score = float(app_cfg.get("min_score", DEFAULT_MIN_SCORE))

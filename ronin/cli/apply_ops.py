@@ -14,20 +14,22 @@ from rich.console import Console
 from rich.prompt import Confirm
 from rich.table import Table
 
+from ronin.analyzer.archetype_classifier import (
+    ArchetypeClassifier,
+    is_protected_company,
+)
 from ronin.application_queue import ApplicationQueueService
-from ronin.analyzer.archetype_classifier import ArchetypeClassifier, is_protected_company
 from ronin.applier import SeekApplier
 from ronin.config import load_config, load_env
 from ronin.contact_intel import (
     RecruiterIntelService,
-    build_linkedin_lookup_url,
     build_linkedin_dm_message,
+    build_linkedin_lookup_url,
     build_outreach_email,
     write_linkedin_dm_draft,
 )
 from ronin.db import get_db_manager
 from ronin.feedback.drift import DriftEngine, run_weekly_drift_jobs
-
 
 console = Console()
 ARCHETYPE_PROFILES = {"builder", "fixer", "operator", "translator"}
@@ -1239,9 +1241,7 @@ def manage_contacts(
             company_name = str(row.get("company_name") or "")
             agency_stage = bool(
                 row.get("job_company_is_agency")
-            ) or _looks_like_staffing_agency(
-                recruiter_company or company_name
-            )
+            ) or _looks_like_staffing_agency(recruiter_company or company_name)
             stage_label = "agency" if agency_stage else "direct"
 
             full_name = str(row.get("full_name") or "").strip()
@@ -1390,9 +1390,7 @@ def manage_contacts(
                 opened += 1
                 if opened >= max(1, int(open_linkedin_limit)):
                     break
-            console.print(
-                f"[green]Opened {opened} LinkedIn lookup tab(s).[/green]"
-            )
+            console.print(f"[green]Opened {opened} LinkedIn lookup tab(s).[/green]")
 
         if not send_email:
             return 0
@@ -1725,9 +1723,7 @@ def apply_external(
             resume_profile = (
                 str(record.get("resume_profile") or "builder").strip().lower()
             )
-            console.print(
-                f"[dim]→ {title[:44]} @ {company[:24]} ({job_id})[/dim]"
-            )
+            console.print(f"[dim]→ {title[:44]} @ {company[:24]} ({job_id})[/dim]")
             try:
                 result = applier.apply_to_job(
                     job_id=job_id,

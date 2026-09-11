@@ -108,14 +108,15 @@ def get_lens(variant: str, config: Optional[Dict[str, Any]] = None) -> str:
     successive market cycles.
     """
     default = VARIANT_LENSES.get(variant, "a general data-engineering angle.")
-    overrides = (
-        ((config or {}).get("resume_variants") or {}).get("lens_overrides") or {}
-    )
+    overrides = ((config or {}).get("resume_variants") or {}).get(
+        "lens_overrides"
+    ) or {}
     if not isinstance(overrides, dict):
         return default
     override = overrides.get(variant)
     text = str(override or "").strip()
     return text or default
+
 
 # Fields the tuning agent is allowed to rewrite. Everything else is copied.
 _TUNABLE_ROLE_FIELDS = ("responsibilities", "achievements")
@@ -283,11 +284,11 @@ def _all_roles(source: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 _METRIC_RE = re.compile(
-    r"\$\s?[\d.,]+\s?[kmb]?\+?"      # $150K, $2M+, $2k-5k parts
-    r"|\b\d[\d,.]*\s?%"              # 60%, 22 %
-    r"|\b\d+x\b"                     # 6x, 75x
-    r"|\b\d[\d,.]*\s?[kmb]\+?\b"     # 10M+, 800GB->800 handled below, 66,500
-    r"|\b\d{2,}\b",                 # 52, 270, 17, 10, 63
+    r"\$\s?[\d.,]+\s?[kmb]?\+?"  # $150K, $2M+, $2k-5k parts
+    r"|\b\d[\d,.]*\s?%"  # 60%, 22 %
+    r"|\b\d+x\b"  # 6x, 75x
+    r"|\b\d[\d,.]*\s?[kmb]\+?\b"  # 10M+, 800GB->800 handled below, 66,500
+    r"|\b\d{2,}\b",  # 52, 270, 17, 10, 63
     re.IGNORECASE,
 )
 
@@ -329,7 +330,7 @@ _INGEST_SYSTEM = (
     "new role object with company, title, period, location, responsibilities, and "
     "achievements drawn only from the note. (4) Never alter companies, dates, or "
     "titles of existing roles. (5) Never invent metrics. Return ONLY a JSON object "
-    "of the form {\"freelance\": [...], \"full_time\": [...]} where each list "
+    'of the form {"freelance": [...], "full_time": [...]} where each list '
     "contains ONLY role objects to ADD or MODIFY; a modification repeats the "
     "existing company plus the fields to change. Return empty lists if the notes "
     "add no durable resume facts."
@@ -378,12 +379,19 @@ def ingest_log(config: Dict[str, Any], brain: AnthropicService) -> bool:
 
 def _apply_ingest(source: Dict[str, Any], result: Dict[str, Any]) -> bool:
     changed = False
-    for res_key, src_key in (("freelance", "experience_freelance"), ("full_time", "experience_full_time")):
+    for res_key, src_key in (
+        ("freelance", "experience_freelance"),
+        ("full_time", "experience_full_time"),
+    ):
         additions = result.get(res_key) or []
         if not isinstance(additions, list):
             continue
         existing = source.setdefault(src_key, [])
-        by_company = {str(r.get("company", "")).strip().lower(): r for r in existing if isinstance(r, dict)}
+        by_company = {
+            str(r.get("company", "")).strip().lower(): r
+            for r in existing
+            if isinstance(r, dict)
+        }
         for add in additions:
             if not isinstance(add, dict) or not add.get("company"):
                 continue
@@ -480,11 +488,11 @@ def _tune_system(variant: str, config: Optional[Dict[str, Any]] = None) -> str:
         "3-5 highest-signal tools, e.g. "
         "'Data Engineer | Reliability & Operations | Databricks • AWS • dbt'. "
         "Return ONLY a "
-        "JSON object with keys: \"header\" (a string), "
-        "\"career_summary_template\" (a string; you MAY "
+        'JSON object with keys: "header" (a string), '
+        '"career_summary_template" (a string; you MAY '
         "keep the '{aws_exp_years}+ years' placeholder), \"roles\" (an object "
-        "keyed by EXACT company name, each value {\"responsibilities\": string, "
-        "\"achievements\": [strings]}), and \"highlight_order\" (a list of "
+        'keyed by EXACT company name, each value {"responsibilities": string, '
+        '"achievements": [strings]}), and "highlight_order" (a list of '
         "integers — the indices of the supplied capability highlights, reordered "
         "so the ones this variant's focus is about come FIRST; include every "
         "index exactly once; you may NOT edit the highlight text, only reorder "
@@ -585,7 +593,9 @@ def tune_variant(
             max_tokens=8192,
         )
         if not isinstance(result, dict) or "roles" not in result:
-            raise ResumeRegenError(f"tuning agent returned no usable JSON for {variant}")
+            raise ResumeRegenError(
+                f"tuning agent returned no usable JSON for {variant}"
+            )
 
         new_doc = _build_variant_doc(source, roles, result, variant, variant_path)
         try:
@@ -600,12 +610,16 @@ def tune_variant(
                     "no rounding, no new figures) and satisfy every length cap. "
                     "Return the corrected JSON."
                 )
-                logger.info(f"[resume] tune attempt {attempt} rejected ({str(exc)[:80]}); retrying")
+                logger.info(
+                    f"[resume] tune attempt {attempt} rejected ({str(exc)[:80]}); retrying"
+                )
                 continue
             raise
 
         _dump_yaml(new_doc, variant_path, _variant_header(variant, config))
-        logger.info(f"[resume] retuned {variant}.yml ({len(roles)} roles, attempt {attempt})")
+        logger.info(
+            f"[resume] retuned {variant}.yml ({len(roles)} roles, attempt {attempt})"
+        )
         return True, variant_path
 
     raise ResumeRegenError(f"tuning agent could not satisfy validation: {last_error}")
@@ -630,7 +644,9 @@ def _ordered_highlights(
     try:
         indices = [int(i) for i in order]
     except (TypeError, ValueError):
-        logger.warning(f"[resume] {variant}: non-integer highlight_order; keeping source order")
+        logger.warning(
+            f"[resume] {variant}: non-integer highlight_order; keeping source order"
+        )
         return highlights
 
     if sorted(indices) != list(range(len(highlights))):
@@ -655,7 +671,9 @@ def _build_variant_doc(
         "experience_freelance": [],
         "experience_full_time": [],
     }
-    llm_roles = {str(k).strip().lower(): v for k, v in (result.get("roles") or {}).items()}
+    llm_roles = {
+        str(k).strip().lower(): v for k, v in (result.get("roles") or {}).items()
+    }
 
     for src_key in ("experience_freelance", "experience_full_time"):
         for r in source.get(src_key) or []:
@@ -722,10 +740,13 @@ def _build_variant_doc(
 
 
 def _validate_variant(source: Dict[str, Any], doc: Dict[str, Any]) -> None:
-    src_companies = {str(r.get("company", "")).strip().lower() for r in _all_roles(source)}
+    src_companies = {
+        str(r.get("company", "")).strip().lower() for r in _all_roles(source)
+    }
     out_companies = {
         str(r.get("company", "")).strip().lower()
-        for r in doc.get("experience_freelance", []) + doc.get("experience_full_time", [])
+        for r in doc.get("experience_freelance", [])
+        + doc.get("experience_full_time", [])
     }
     if out_companies != src_companies:
         missing = src_companies - out_companies
@@ -757,7 +778,11 @@ def _validate_variant(source: Dict[str, Any], doc: Dict[str, Any]) -> None:
             )
 
     for r in doc.get("experience_freelance", []) + doc.get("experience_full_time", []):
-        detail = str(r.get("responsibilities", "")) + " " + " ".join(r.get("achievements", []))
+        detail = (
+            str(r.get("responsibilities", ""))
+            + " "
+            + " ".join(r.get("achievements", []))
+        )
         invented = _metric_tokens(detail) - pool
         if invented:
             raise ResumeRegenError(
@@ -780,7 +805,9 @@ def _validate_variant(source: Dict[str, Any], doc: Dict[str, Any]) -> None:
     # Every metric in the summary must also trace to source.
     invented_summary = _metric_tokens(summary) - pool
     if invented_summary:
-        raise ResumeRegenError(f"invented metric(s) in summary: {sorted(invented_summary)}")
+        raise ResumeRegenError(
+            f"invented metric(s) in summary: {sorted(invented_summary)}"
+        )
 
 
 def _render_summary(source: Dict[str, Any], template: str) -> str:
@@ -801,8 +828,7 @@ def _render_summary(source: Dict[str, Any], template: str) -> str:
 
 def _brain_model(config: Dict[str, Any]) -> str:
     return str(
-        (config.get("agent_apply", {}) or {}).get("brain_model")
-        or "claude-opus-4-8"
+        (config.get("agent_apply", {}) or {}).get("brain_model") or "claude-opus-4-8"
     )
 
 
@@ -821,10 +847,14 @@ def _push_remote(config: Dict[str, Any]) -> str:
     someone else's remote. Configure ``resume_variants.regen_push_remote`` to the
     remote name you actually own (e.g. your personal fork).
     """
-    return str((config.get("resume_variants", {}) or {}).get("regen_push_remote", "")).strip()
+    return str(
+        (config.get("resume_variants", {}) or {}).get("regen_push_remote", "")
+    ).strip()
 
 
-def _git_commit_push(config: Dict[str, Any], files: List[Path], message: str, push: bool) -> None:
+def _git_commit_push(
+    config: Dict[str, Any], files: List[Path], message: str, push: bool
+) -> None:
     repo = _paths(config)["repo"]
     # The resume repo is its own git root; commit in whichever root tracks these.
     root = repo
@@ -870,7 +900,9 @@ def _git_commit_push(config: Dict[str, Any], files: List[Path], message: str, pu
     branch = _git(["rev-parse", "--abbrev-ref", "HEAD"], root).stdout.strip() or "main"
     pushed = _git(["push", remote, f"HEAD:{branch}"], root)
     if pushed.returncode != 0:
-        logger.warning(f"[resume] git push to {remote} failed: {pushed.stderr.strip()[:200]}")
+        logger.warning(
+            f"[resume] git push to {remote} failed: {pushed.stderr.strip()[:200]}"
+        )
     else:
         logger.info(f"[resume] pushed to {remote} {branch}")
 
@@ -891,7 +923,11 @@ def regen(
     kept, the failure is recorded in ``failures``, and the run continues.
     """
     config = config or load_config()
-    targets = [str(v).strip().lower() for v in (variants or DEFAULT_REGEN_VARIANTS) if str(v).strip()]
+    targets = [
+        str(v).strip().lower()
+        for v in (variants or DEFAULT_REGEN_VARIANTS)
+        if str(v).strip()
+    ]
     frozen = [v for v in targets if v in FROZEN_VARIANTS]
     if frozen:
         raise ResumeRegenError(
@@ -931,7 +967,9 @@ def regen(
         try:
             built_files.append(manager.ensure_markdown(variant))
         except Exception as exc:  # markdown build is best-effort
-            logger.warning(f"[resume] {variant} markdown build skipped: {str(exc)[:160]}")
+            logger.warning(
+                f"[resume] {variant} markdown build skipped: {str(exc)[:160]}"
+            )
         try:
             pdf = manager.build_pdf(variant)
             if pdf:

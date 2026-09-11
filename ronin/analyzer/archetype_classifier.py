@@ -11,7 +11,6 @@ from typing import Dict, List, Optional
 
 from loguru import logger
 
-
 ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
     "builder": {
         "verb_patterns": [
@@ -305,12 +304,25 @@ ARCHETYPE_PATTERNS: Dict[str, Dict[str, List[str]]] = {
 # "translator" so the mis-tag was at least consistent. Now that the role is not
 # being pursued, that bucketing would make them *more* applyable, not less.
 EXCLUDED_TITLE_MARKERS = (
-    "sales engineer", "solutions engineer", "sales engineering",
-    "solutions engineering", "pre-sales", "presales", "forward deployed",
-    "forward-deployed", "solutions architect", "solutions consultant",
-    "customer engineer", "field engineer", "technical account manager",
-    "customer success engineer", "technical sales", "implementation consultant",
-    "implementation engineer", "deployment engineer", "professional services",
+    "sales engineer",
+    "solutions engineer",
+    "sales engineering",
+    "solutions engineering",
+    "pre-sales",
+    "presales",
+    "forward deployed",
+    "forward-deployed",
+    "solutions architect",
+    "solutions consultant",
+    "customer engineer",
+    "field engineer",
+    "technical account manager",
+    "customer success engineer",
+    "technical sales",
+    "implementation consultant",
+    "implementation engineer",
+    "deployment engineer",
+    "professional services",
     "customer solutions",
 )
 
@@ -403,7 +415,9 @@ def engagement_markers() -> tuple[str, ...]:
         return _engagement_cache[1]
 
     if markers != _engagement_cache[1]:
-        logger.info(f"[protected] engagement register: {len(markers)} markers from {path}")
+        logger.info(
+            f"[protected] engagement register: {len(markers)} markers from {path}"
+        )
     _engagement_cache = (mtime, markers)
     return markers
 
@@ -775,7 +789,11 @@ class ArchetypeClassifier:
             boosts["operator"] += 0.2
         if "control room" in title_lower:
             boosts["operator"] += 0.4
-        if "ot " in title_lower or "ot/it" in title_lower or "ot integration" in title_lower:
+        if (
+            "ot " in title_lower
+            or "ot/it" in title_lower
+            or "ot integration" in title_lower
+        ):
             boosts["operator"] += 0.2
 
         return boosts

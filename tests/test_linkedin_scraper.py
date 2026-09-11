@@ -92,12 +92,10 @@ def test_keyword_translation_to_linkedin_boolean() -> None:
 def test_location_translation() -> None:
     assert LinkedInScraper._to_linkedin_location("All-Australia") == "Australia"
     assert (
-        LinkedInScraper._to_linkedin_location("Victoria-VIC")
-        == "Victoria, Australia"
+        LinkedInScraper._to_linkedin_location("Victoria-VIC") == "Victoria, Australia"
     )
     assert (
-        LinkedInScraper._to_linkedin_location("Melbourne-VIC")
-        == "Melbourne, Australia"
+        LinkedInScraper._to_linkedin_location("Melbourne-VIC") == "Melbourne, Australia"
     )
     assert LinkedInScraper._to_linkedin_location("Sydney") == "Sydney"
 
@@ -120,7 +118,8 @@ _CARD = """
 """
 
 _CARD_NO_DATE = _CARD.replace(
-    '<time class="job-search-card__listdate" datetime="2026-07-29">2 days ago</time>', ""
+    '<time class="job-search-card__listdate" datetime="2026-07-29">2 days ago</time>',
+    "",
 )
 
 

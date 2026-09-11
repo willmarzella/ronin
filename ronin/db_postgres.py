@@ -17,7 +17,6 @@ from urllib.parse import urlparse
 
 from loguru import logger
 
-
 try:
     import psycopg
     from psycopg.rows import dict_row
@@ -2543,9 +2542,7 @@ class PostgresManager:
             self.conn.commit()
             return True
         except Exception as e:
-            logger.error(
-                f"Error linking job {job_id} to recruiter {recruiter_id}: {e}"
-            )
+            logger.error(f"Error linking job {job_id} to recruiter {recruiter_id}: {e}")
             self.conn.rollback()
             return False
 

@@ -873,9 +873,7 @@ class SeekResumeUploader:
                 # Seek refuses to delete the default resume. If the outgoing
                 # document is the default, promote the fresh upload first.
                 try:
-                    old_row = page.locator(
-                        f"[data-automation='resume-item-{old_id}']"
-                    )
+                    old_row = page.locator(f"[data-automation='resume-item-{old_id}']")
                     if old_row.count() > 0 and re.search(
                         r"\bdefault\b",
                         old_row.first.inner_text() or "",
@@ -886,9 +884,7 @@ class SeekResumeUploader:
                 except Exception:
                     pass
                 if self._delete_resume_item(page, resume_id=old_id, filename=""):
-                    logger.info(
-                        "Removed prior Seek resume %s after replace", old_id
-                    )
+                    logger.info("Removed prior Seek resume %s after replace", old_id)
             except Exception as exc:
                 logger.warning(
                     "Uploaded new resume %s but could not remove prior %s: %s",

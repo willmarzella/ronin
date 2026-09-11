@@ -14,7 +14,6 @@ from ronin.config import get_ronin_home, load_config, load_env
 from ronin.db import get_db_manager
 from ronin.feedback import GmailOutcomeTracker, OutcomeAnalytics
 
-
 console = Console()
 
 

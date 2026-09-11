@@ -5,12 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from ronin.resume_pipeline import (
+    _MAX_HEADER,
     DEFAULT_REGEN_VARIANTS,
     POLE_VARIANT,
     VARIANT_LENSES,
     ResumeRegenError,
     _build_variant_doc,
-    _MAX_HEADER,
     _metric_tokens,
     _render_summary,
     _source_metric_pool,
@@ -157,7 +157,9 @@ def test_header_is_variant_specific_and_capped() -> None:
     _validate_variant(src, doc)
 
     # No header from the LLM leaves source's headline in place.
-    fallback = _build_variant_doc(src, roles, _good_result(), "operator", Path("/x.yml"))
+    fallback = _build_variant_doc(
+        src, roles, _good_result(), "operator", Path("/x.yml")
+    )
     assert fallback["personal"]["header"] == "Senior Data Engineer | AWS"
 
     result["header"] = "Data Engineer | " + "x" * _MAX_HEADER
@@ -170,13 +172,19 @@ def test_header_is_variant_specific_and_capped() -> None:
 
 
 def test_render_summary_resolves_placeholder() -> None:
-    out = _render_summary({"experience_start_dates": {"aws": 2019}}, "{aws_exp_years}+ years")
+    out = _render_summary(
+        {"experience_start_dates": {"aws": 2019}}, "{aws_exp_years}+ years"
+    )
     assert "{aws" not in out and out[0].isdigit()
 
 
 def test_seek_matcher_bidirectional_and_skips_pending() -> None:
     rows = [
-        {"auto_id": "e0", "text": "Found in resumé\nContractor\nStygian", "pending": True},
+        {
+            "auto_id": "e0",
+            "text": "Found in resumé\nContractor\nStygian",
+            "pending": True,
+        },
         {"auto_id": "e1", "text": "Data Engineer\nWesfarmers", "pending": False},
         {"auto_id": "e2", "text": "Founder\nStygian Consulting", "pending": False},
     ]
@@ -188,7 +196,7 @@ def test_seek_matcher_bidirectional_and_skips_pending() -> None:
     matched = u._match_entries_to_rows(entries, rows)
     got = {e.company: r["auto_id"] for e, r in matched}
     assert got.get("Wesfarmers OneDigital") == "e1"  # bidirectional first-word match
-    assert got.get("Stygian Consulting") == "e2"     # confirmed row, not pending e0
+    assert got.get("Stygian Consulting") == "e2"  # confirmed row, not pending e0
     assert "e0" not in got.values()
 
 

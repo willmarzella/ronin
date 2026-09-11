@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-from ronin.ranking import (
-    DEFAULT_ARCHETYPE_WEIGHTS,
-    DEFAULT_MIN_SCORE,
-    RankingPolicy,
-)
+from ronin.ranking import DEFAULT_ARCHETYPE_WEIGHTS, DEFAULT_MIN_SCORE, RankingPolicy
 
 
 def _job(score, archetype="operator", seniority="mid"):

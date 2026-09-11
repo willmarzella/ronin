@@ -14,7 +14,6 @@ from loguru import logger
 
 from ronin.analyzer.archetype_classifier import ArchetypeClassifier
 
-
 ARCHETYPES = ["builder", "fixer", "operator", "translator"]
 DEFAULT_FALLBACK_CODES = {
     "builder": "b",

@@ -12,7 +12,6 @@ import os
 import sys
 from pathlib import Path
 
-
 # Ensure project root is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -98,7 +97,12 @@ def _load_classifier_module():
     """
     import importlib.util
 
-    path = Path(__file__).resolve().parent.parent / "ronin" / "analyzer" / "archetype_classifier.py"
+    path = (
+        Path(__file__).resolve().parent.parent
+        / "ronin"
+        / "analyzer"
+        / "archetype_classifier.py"
+    )
     spec = importlib.util.spec_from_file_location("_ac_under_test", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -123,7 +127,10 @@ def test_protected_companies(tmp_home: Path | None = None) -> None:
         try:
             # No register at all: built-ins only, never an exception.
             mod._engagement_cache = (0.0, ())
-            _assert(mod.engagement_markers() == (), "absent register should yield no markers")
+            _assert(
+                mod.engagement_markers() == (),
+                "absent register should yield no markers",
+            )
             _assert(mod.is_protected_company("d2i"), "built-in marker must still apply")
             _assert(
                 not mod.is_protected_company("Northwind Talent Pty Ltd"),
@@ -147,14 +154,27 @@ def test_protected_companies(tmp_home: Path | None = None) -> None:
             ):
                 _assert(mod.is_protected_company(name), f"{name} should be protected")
 
-            for name in ("Techforce Recruitment", "Virgin Australia", "Some Random Pty Ltd", ""):
-                _assert(not mod.is_protected_company(name), f"{name} should not be protected")
+            for name in (
+                "Techforce Recruitment",
+                "Virgin Australia",
+                "Some Random Pty Ltd",
+                "",
+            ):
+                _assert(
+                    not mod.is_protected_company(name),
+                    f"{name} should not be protected",
+                )
 
-            _assert(mod.is_protected_company("Toyota Australia"), "built-ins survive the merge")
+            _assert(
+                mod.is_protected_company("Toyota Australia"),
+                "built-ins survive the merge",
+            )
 
             # Corrupt register: keep the last good value, do not throw and do
             # not fail open. An unreadable file must never unprotect a client.
-            (home / "engagements.yaml").write_text("protected_companies: [oh: no: ]\n:::")
+            (home / "engagements.yaml").write_text(
+                "protected_companies: [oh: no: ]\n:::"
+            )
             os.utime(home / "engagements.yaml", (0, 0))
             _assert(
                 mod.is_protected_company("ACME"),

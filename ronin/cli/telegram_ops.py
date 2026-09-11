@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import os
 import time
-from datetime import datetime, time as dt_time, timedelta
+from datetime import datetime
+from datetime import time as dt_time
+from datetime import timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -15,7 +17,6 @@ from rich.console import Console
 
 from ronin.config import get_ronin_home, load_config, load_env
 from ronin.db import get_db_manager
-
 
 console = Console()
 _daily_sent_cache: Dict[str, str] = {}
@@ -269,19 +270,21 @@ def _collect_window_stats(start: datetime, end: datetime) -> Dict[str, int]:
 
         # New jobs discovered by search runs in this window.
         cursor.execute(
-            """
+            (
+                """
             SELECT created_at, status, quick_apply, market_intelligence_only
             FROM jobs
             WHERE created_at IS NOT NULL
               AND created_at >= %s
         """
-            if "psycopg" in db.conn.__class__.__module__
-            else """
+                if "psycopg" in db.conn.__class__.__module__
+                else """
             SELECT created_at, status, quick_apply, market_intelligence_only
             FROM jobs
             WHERE created_at IS NOT NULL
               AND created_at >= ?
-        """,
+        """
+            ),
             (start_iso,),
         )
         searched = 0
@@ -302,19 +305,21 @@ def _collect_window_stats(start: datetime, end: datetime) -> Dict[str, int]:
 
         # Application submissions in this window.
         cursor.execute(
-            """
+            (
+                """
             SELECT date_applied, applied_at
             FROM applications
             WHERE (date_applied IS NOT NULL AND date_applied >= %s)
                OR (applied_at IS NOT NULL AND applied_at >= %s)
         """
-            if "psycopg" in db.conn.__class__.__module__
-            else """
+                if "psycopg" in db.conn.__class__.__module__
+                else """
             SELECT date_applied, applied_at
             FROM applications
             WHERE (date_applied IS NOT NULL AND date_applied >= ?)
                OR (applied_at IS NOT NULL AND applied_at >= ?)
-        """,
+        """
+            ),
             (start_date, start_iso),
         )
         applied = 0

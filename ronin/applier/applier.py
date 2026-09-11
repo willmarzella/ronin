@@ -4,10 +4,7 @@ import time
 from typing import Optional
 
 from loguru import logger
-from selenium.common.exceptions import (
-    NoSuchElementException,
-    TimeoutException,
-)
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -264,10 +261,7 @@ class SeekApplier(BaseApplier):
                 if h and h != "default"
             ]
             chosen = self._match_resume_radio(
-                [
-                    {k: r[k] for k in ("value", "label", "checked")}
-                    for r in radios
-                ],
+                [{k: r[k] for k in ("value", "label", "checked")} for r in radios],
                 resume_id or "",
                 hints,
             )

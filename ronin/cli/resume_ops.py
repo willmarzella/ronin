@@ -16,8 +16,7 @@ from ronin.profile_store import (
     write_profile_yaml_raw,
 )
 from ronin.resume_variants import ARCHETYPES, ResumeVariantManager
-from ronin.seek.resume_uploader import SeekResumeUploadError, SeekResumeUploader
-
+from ronin.seek.resume_uploader import SeekResumeUploader, SeekResumeUploadError
 
 console = Console()
 
@@ -129,7 +128,9 @@ def sync_resume_texts(*, dry_run: bool = False) -> int:
         if not dry_run:
             dest_dir.mkdir(parents=True, exist_ok=True)
             (dest_dir / resume.file).write_text(text, encoding="utf-8")
-        console.print(f"{'[dim]would sync[/dim]' if dry_run else '[green]synced[/green]'} {source.name} -> {resume.file}")
+        console.print(
+            f"{'[dim]would sync[/dim]' if dry_run else '[green]synced[/green]'} {source.name} -> {resume.file}"
+        )
         synced += 1
 
     if missing:
@@ -202,7 +203,11 @@ def regen_variant(
     if written:
         console.print(
             f"[green]Regenerated[/green] {', '.join(f'{v}.yml' for v in written)}"
-            + (" [dim](folded new log notes)[/dim]" if report.get("ingested_notes") else "")
+            + (
+                " [dim](folded new log notes)[/dim]"
+                if report.get("ingested_notes")
+                else ""
+            )
         )
     failures = report.get("failures") or {}
     for variant, reason in failures.items():
@@ -210,7 +215,9 @@ def regen_variant(
     return 1 if failures and not written else 0
 
 
-def refresh_seek(*, variant: str = "c", dry_run: bool = False, force: bool = False) -> int:
+def refresh_seek(
+    *, variant: str = "c", dry_run: bool = False, force: bool = False
+) -> int:
     """Weekly Seek profile refresh from the variant yaml (recency touch)."""
     from ronin.seek.profile_refresh import refresh
     from ronin.seek.profile_updater import SeekProfileAutomationError
@@ -227,12 +234,18 @@ def refresh_seek(*, variant: str = "c", dry_run: bool = False, force: bool = Fal
 
     mode = report.get("mode")
     if dry_run:
-        console.print(f"[yellow]Dry run[/yellow] — would run a [bold]{mode}[/bold] update")
+        console.print(
+            f"[yellow]Dry run[/yellow] — would run a [bold]{mode}[/bold] update"
+        )
         return 0
     if mode == "full":
-        console.print(f"[green]Seek profile updated[/green] (full apply from {variant}.yml)")
+        console.print(
+            f"[green]Seek profile updated[/green] (full apply from {variant}.yml)"
+        )
     else:
-        console.print("[green]Seek recency touched[/green] (no content change; timestamp bumped)")
+        console.print(
+            "[green]Seek recency touched[/green] (no content change; timestamp bumped)"
+        )
     return 0
 
 

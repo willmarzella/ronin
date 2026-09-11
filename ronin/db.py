@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 
 from loguru import logger
 
-
 _CAPTURE_EXTERNAL_CACHE: Optional[bool] = None
 
 
@@ -2733,9 +2732,7 @@ class SQLiteManager:
             self.conn.commit()
             return True
         except sqlite3.Error as e:
-            logger.error(
-                f"Error linking job {job_id} to recruiter {recruiter_id}: {e}"
-            )
+            logger.error(f"Error linking job {job_id} to recruiter {recruiter_id}: {e}")
             self.conn.rollback()
             return False
 

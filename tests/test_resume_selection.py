@@ -51,7 +51,9 @@ def _profile() -> Profile:
 def test_role_cut_matches_on_title_only() -> None:
     p = _profile()
     assert (
-        p.select_custom_resume(job_title="Senior Integration Engineer", work_type="permanent")
+        p.select_custom_resume(
+            job_title="Senior Integration Engineer", work_type="permanent"
+        )
         == "role_cut"
     )
     # The same words in the BODY of an ordinary data-engineering ad must not
@@ -134,7 +136,9 @@ def test_title_match_wins_over_a_scoring_register_cut() -> None:
 def test_empty_profile_and_blank_title_are_safe() -> None:
     assert Profile(resumes=[]).select_custom_resume(job_title="Data Engineer") is None
     p = _profile()
-    assert p.select_custom_resume(job_title="", job_description="", work_type="") is None
+    assert (
+        p.select_custom_resume(job_title="", job_description="", work_type="") is None
+    )
 
 
 def test_retired_roles_are_excluded_by_title() -> None:

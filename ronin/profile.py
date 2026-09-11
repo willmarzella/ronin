@@ -15,7 +15,6 @@ from pydantic import BaseModel, Field, model_validator
 
 from ronin.config import get_ronin_home
 
-
 # The four embedding archetypes. A resume named anything else is a "custom"
 # resume, selected by the profile.yaml rule signals rather than by JD shape.
 ARCHETYPE_RESUME_NAMES = frozenset({"builder", "fixer", "operator", "translator"})

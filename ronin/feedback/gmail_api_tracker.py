@@ -17,7 +17,6 @@ from bs4 import BeautifulSoup
 
 from ronin.config import get_ronin_home
 
-
 try:
     from difflib import SequenceMatcher
 except Exception:  # pragma: no cover
