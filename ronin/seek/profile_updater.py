@@ -197,6 +197,46 @@ class SeekProfileUpdater:
         self.min_delay_sec = float(auto.get("min_delay_sec") or 0.1)
         self.max_delay_sec = float(auto.get("max_delay_sec") or 0.5)
 
+    def _match_entries_to_rows(
+        self,
+        entries: List[SeekCareerEntry],
+        rows: List[Dict[str, Any]],
+    ) -> List[tuple]:
+        """Pair career entries with confirmed Seek career-history rows.
+
+        A row matches an entry when either normalised company string contains
+        the other, compared line by line — Seek may show a truncated company
+        name, and the entry may carry the longer legal name. Rows flagged
+        ``pending`` (resume-extracted suggestions awaiting confirmation) are
+        never matched, and each row is claimed at most once.
+        """
+
+        def norm(s: Any) -> str:
+            return re.sub(r"[^a-z0-9 ]+", " ", str(s or "").lower()).strip()
+
+        matched: List[tuple] = []
+        claimed: set = set()
+        for entry in entries:
+            company = norm(getattr(entry, "company", ""))
+            if not company:
+                continue
+            for row in rows:
+                if not isinstance(row, dict) or row.get("pending"):
+                    continue
+                row_key = str(row.get("auto_id") or id(row))
+                if row_key in claimed:
+                    continue
+                lines = [
+                    norm(line)
+                    for line in str(row.get("text") or "").splitlines()
+                    if norm(line)
+                ]
+                if any(company in line or line in company for line in lines):
+                    matched.append((entry, row))
+                    claimed.add(row_key)
+                    break
+        return matched
+
     def apply_archetype(
         self,
         archetype: str,
