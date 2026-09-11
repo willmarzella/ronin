@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import math
+import os
 import re
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from loguru import logger
@@ -344,12 +346,80 @@ PROTECTED_COMPANY_MARKERS = (
 )
 
 
+# Companies the operator's contracts put off limits -- the end client, the agency
+# that placed them and the OPAC administering the contract, for the term and any
+# post-term restraint. Unlike the tuple above this is not a judgement about
+# channel, it is a fact about signed paper, so it is published from outside
+# rather than hand-maintained here:
+# RONIN_HOME/engagements.yaml, written by whatever system owns the engagement
+# register. Absent in a generic install, in which case only the markers above
+# apply.
+ENGAGEMENT_REGISTER = "engagements.yaml"
+
+_engagement_cache: tuple[float, tuple[str, ...]] = (0.0, ())
+
+
+def _register_path() -> Path:
+    """RONIN_HOME/engagements.yaml.
+
+    Resolved here rather than via ``ronin.config.get_ronin_home`` so this gate
+    depends on nothing but the standard library. A protection check that can
+    raise on a missing import is a protection check that fails open.
+    """
+    env_home = os.environ.get("RONIN_HOME")
+    home = Path(env_home).expanduser() if env_home else Path.home() / ".ronin"
+    return home / ENGAGEMENT_REGISTER
+
+
+def engagement_markers() -> tuple[str, ...]:
+    """Markers from the published engagement register, reloaded when it changes.
+
+    Cached on mtime rather than loaded once at import: the applier is a
+    long-running process, and an engagement signed mid-run has to take effect
+    without a restart. Any failure to read returns the last good value, because
+    an unreadable register must not silently unprotect a live client.
+    """
+    global _engagement_cache
+    path = _register_path()
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return _engagement_cache[1]
+
+    if mtime == _engagement_cache[0]:
+        return _engagement_cache[1]
+
+    try:
+        import yaml
+
+        data = yaml.safe_load(path.read_text()) or {}
+        markers = tuple(
+            str(m).strip().lower()
+            for m in (data.get("protected_companies") or [])
+            if str(m).strip()
+        )
+    except Exception as exc:
+        logger.warning(f"Could not read engagement register {path}: {exc}")
+        return _engagement_cache[1]
+
+    if markers != _engagement_cache[1]:
+        logger.info(f"[protected] engagement register: {len(markers)} markers from {path}")
+    _engagement_cache = (mtime, markers)
+    return markers
+
+
 def is_protected_company(company_name: str) -> bool:
-    """True when a listing's company is reserved for bespoke, hand-sent applications."""
+    """True when a listing's company must never receive an auto-application.
+
+    Two reasons a company lands here: it is a bespoke-channel target reserved
+    for hand-sent material, or the published engagement register lists it.
+    """
     name_lower = (company_name or "").strip().lower()
     if not name_lower:
         return False
-    return any(marker in name_lower for marker in PROTECTED_COMPANY_MARKERS)
+    if any(marker in name_lower for marker in PROTECTED_COMPANY_MARKERS):
+        return True
+    return any(marker in name_lower for marker in engagement_markers())
 
 
 KNOWN_TECH = [
